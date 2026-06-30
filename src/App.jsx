@@ -26,8 +26,12 @@ import {
 } from 'lucide-react'
 import { motion } from 'framer-motion'
 
-const auditMail =
-  'mailto:aaryarushi7@gmail.com?subject=Free%2020-Min%20Automation%20Audit'
+const auditFormLink =
+  'https://docs.google.com/forms/d/e/1FAIpQLSfs7Uwy60Yiuc6PfuumByH3g08MMkJLe1Z4ddNFQgb-UE2bhQ/viewform?usp=header'
+const primaryEmailLink =
+  'https://mail.google.com/mail/?view=cm&fs=1&to=aaryarushi7@gmail.com'
+const secondaryEmailLink =
+  'https://mail.google.com/mail/?view=cm&fs=1&to=rushich168@gmail.com'
 
 const fadeUp = {
   hidden: { opacity: 0, y: 18 },
@@ -155,6 +159,8 @@ function ButtonLink({ href, children, variant = 'primary' }) {
   return (
     <a
       href={href}
+      target={href === auditFormLink ? '_blank' : undefined}
+      rel={href === auditFormLink ? 'noopener noreferrer' : undefined}
       className={`focus-ring inline-flex min-h-12 items-center justify-center gap-2 rounded-md px-5 text-sm font-semibold transition ${classes}`}
     >
       {children}
@@ -335,10 +341,20 @@ function ContactLinks({ light = false }) {
       <a className={`focus-ring flex items-center gap-3 rounded-md ${color}`} href="tel:+918374686037">
         <Phone size={18} /> +91 83746 86037
       </a>
-      <a className={`focus-ring flex items-center gap-3 rounded-md ${color}`} href="mailto:aaryarushi7@gmail.com">
+      <a
+        className={`focus-ring flex items-center gap-3 rounded-md ${color}`}
+        href={primaryEmailLink}
+        target="_blank"
+        rel="noopener noreferrer"
+      >
         <Mail size={18} /> aaryarushi7@gmail.com
       </a>
-      <a className={`focus-ring flex items-center gap-3 rounded-md ${color}`} href="mailto:rushich168@gmail.com">
+      <a
+        className={`focus-ring flex items-center gap-3 rounded-md ${color}`}
+        href={secondaryEmailLink}
+        target="_blank"
+        rel="noopener noreferrer"
+      >
         <Mail size={18} /> rushich168@gmail.com
       </a>
       <a className={`focus-ring flex items-center gap-3 rounded-md ${color}`} href="https://linkedin.com/in/aaryarushi">
@@ -363,7 +379,9 @@ function App() {
             <a href="#contact" className="hover:text-primary">Contact</a>
           </div>
           <a
-            href={auditMail}
+            href={auditFormLink}
+            target="_blank"
+            rel="noopener noreferrer"
             className="focus-ring inline-flex min-h-10 items-center rounded-md bg-primary px-4 text-sm font-semibold text-white transition hover:bg-slate-800"
           >
             Book Audit
@@ -394,7 +412,7 @@ function App() {
               Excel, PDF, and document automation.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <ButtonLink href={auditMail}>
+              <ButtonLink href={auditFormLink}>
                 Book Free 20-Min Automation Audit <ArrowRight size={18} />
               </ButtonLink>
               <ButtonLink href="#solutions" variant="secondary">
@@ -516,7 +534,9 @@ function App() {
             </p>
             <div className="mt-8">
               <a
-                href={auditMail}
+                href={auditFormLink}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="focus-ring inline-flex min-h-12 items-center justify-center gap-2 rounded-md bg-white px-5 text-sm font-semibold text-primary transition hover:bg-slate-100"
               >
                 Book Free 20-Min Automation Audit <ArrowRight size={18} />
