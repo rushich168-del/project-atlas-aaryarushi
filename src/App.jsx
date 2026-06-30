@@ -163,52 +163,106 @@ function ButtonLink({ href, children, variant = 'primary' }) {
 }
 
 function HeroScene() {
-  const nodes = [
-    ['Excel Data', 'Rows, fields, validation', 'left-[6%] top-[18%]'],
-    ['Word Template', 'Placeholders and layout', 'right-[7%] top-[24%]'],
-    ['PDF Output', 'Shareable files', 'left-[15%] bottom-[18%]'],
-    ['Logs', 'Generated status', 'right-[18%] bottom-[15%]'],
+  const workflowSteps = [
+    ['01', 'Excel Data', 'Rows validated'],
+    ['02', 'Word Template', 'Fields mapped'],
+    ['03', 'Generate Documents', 'Batch active'],
+    ['04', 'DOCX + PDF Output', 'Files prepared'],
+    ['05', 'Success Logs', 'Completed'],
   ]
 
   return (
-    <div className="hero-scene absolute inset-0 overflow-hidden" aria-hidden="true">
-      <div className="absolute inset-x-0 top-0 h-px bg-slate-200" />
-      <div className="absolute left-1/2 top-1/2 hidden h-[440px] w-[440px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-slate-200 md:block" />
-      <div className="absolute left-1/2 top-1/2 hidden h-[270px] w-[270px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-slate-200 md:block" />
-      <motion.div
-        className="absolute left-1/2 top-[57%] hidden w-[520px] -translate-x-1/2 rounded-lg border border-slate-200 bg-white/80 p-4 shadow-soft backdrop-blur md:block"
-        animate={{ y: [0, -8, 0] }}
-        transition={{ duration: 7, repeat: Infinity, ease: 'easeInOut' }}
-      >
-        <div className="grid grid-cols-4 gap-3 text-center text-xs font-semibold text-slate-600">
-          <span>Excel</span>
-          <span>Word</span>
-          <span>DOCX</span>
-          <span>PDF</span>
+    <motion.div
+      className="relative mx-auto w-full max-w-[580px]"
+      initial={{ opacity: 0, y: 20, scale: 0.98 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ duration: 0.6, delay: 0.15 }}
+      aria-label="AR Automation Engine dashboard mockup"
+    >
+      <div className="absolute -inset-4 rounded-[2rem] bg-gradient-to-br from-accentBlue/12 via-white to-accentTeal/12 blur-2xl" aria-hidden="true" />
+      <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-soft">
+        <div className="border-b border-slate-200 bg-white px-5 py-4 sm:px-6">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-semibold text-primary">AR Automation Engine</p>
+              <p className="mt-1 text-xs text-slate-500">Word, Excel, PDF workflow control</p>
+            </div>
+            <span className="inline-flex w-fit items-center rounded-md bg-accentTeal/10 px-3 py-1.5 text-xs font-semibold text-teal-700">
+              Ready
+            </span>
+          </div>
         </div>
-        <div className="mt-3 h-2 rounded-full bg-slate-100">
-          <motion.div
-            className="h-2 rounded-full bg-accentTeal"
-            animate={{ width: ['18%', '96%', '18%'] }}
-            transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
-          />
+
+        <div className="bg-[radial-gradient(circle_at_top_right,rgba(37,99,235,0.08),transparent_30%),radial-gradient(circle_at_bottom_left,rgba(20,184,166,0.1),transparent_28%)] p-5 sm:p-6">
+          <div className="grid gap-4 lg:grid-cols-[1fr_0.72fr]">
+            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+              <div className="mb-4 flex items-center justify-between">
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+                  Main Workflow
+                </p>
+                <span className="text-xs font-semibold text-accentBlue">5 steps</span>
+              </div>
+              <div className="grid gap-2">
+                {workflowSteps.map(([number, title, detail]) => (
+                  <div key={title} className="flex items-center gap-3 rounded-lg border border-slate-200 bg-lightBg px-3 py-3">
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-white text-xs font-semibold text-accentBlue shadow-sm">
+                      {number}
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-primary">{title}</p>
+                      <p className="mt-0.5 text-xs text-slate-500">{detail}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid gap-4">
+              <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-semibold text-primary">300 Certificates Generated</p>
+                  <span className="text-xs font-semibold text-accentTeal">100%</span>
+                </div>
+                <div className="mt-4 h-2.5 overflow-hidden rounded-full bg-slate-100">
+                  <motion.div
+                    className="h-full rounded-full bg-gradient-to-r from-accentBlue to-accentTeal"
+                    initial={{ width: '28%' }}
+                    animate={{ width: '100%' }}
+                    transition={{ duration: 1.2, delay: 0.3, ease: 'easeOut' }}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                  <p className="text-xs font-semibold text-slate-500">Success</p>
+                  <p className="mt-2 text-3xl font-semibold text-primary">300</p>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                  <p className="text-xs font-semibold text-slate-500">Failed</p>
+                  <p className="mt-2 text-3xl font-semibold text-primary">0</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-xl border border-blue-100 bg-blue-50/80 p-4">
+                  <FileText className="text-accentBlue" size={22} aria-hidden="true" />
+                  <p className="mt-3 text-sm font-semibold text-primary">DOCX</p>
+                  <p className="mt-1 text-xs text-slate-500">editable output</p>
+                </div>
+                <div className="rounded-xl border border-teal-100 bg-teal-50/80 p-4">
+                  <FileCheck2 className="text-accentTeal" size={22} aria-hidden="true" />
+                  <p className="mt-3 text-sm font-semibold text-primary">PDF</p>
+                  <p className="mt-1 text-xs text-slate-500">ready to share</p>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
-      </motion.div>
-      {nodes.map(([title, text, position], index) => (
-        <motion.div
-          key={title}
-          className={`absolute hidden w-44 rounded-lg border border-slate-200 bg-white/82 p-4 shadow-soft backdrop-blur md:block ${position}`}
-          animate={{ y: [0, index % 2 === 0 ? 8 : -8, 0] }}
-          transition={{ duration: 6 + index, repeat: Infinity, ease: 'easeInOut' }}
-        >
-          <p className="text-sm font-semibold text-primary">{title}</p>
-          <p className="mt-1 text-xs text-slateText">{text}</p>
-        </motion.div>
-      ))}
-    </div>
+      </div>
+    </motion.div>
   )
 }
-
 function PainCard({ label, icon: Icon, index }) {
   return (
     <motion.div
@@ -317,21 +371,23 @@ function App() {
         </nav>
       </header>
 
-      <section id="top" className="relative min-h-[720px] overflow-hidden px-5 pt-32 sm:px-6 lg:px-8">
-        <HeroScene />
-        <div className="relative mx-auto flex max-w-7xl flex-col items-start pb-16 pt-12 sm:pt-20 lg:min-h-[720px] lg:justify-center lg:pb-24">
+      <section id="top" className="hero-scene relative overflow-hidden px-5 pt-28 sm:px-6 lg:px-8">
+        <div className="relative mx-auto grid max-w-7xl items-center gap-12 pb-16 pt-10 sm:pt-14 lg:min-h-[680px] lg:grid-cols-[1.02fr_0.98fr] lg:gap-14 lg:pb-20">
           <motion.div
-            className="max-w-4xl"
+            className="max-w-3xl"
             initial="hidden"
             animate="visible"
             variants={fadeUp}
             transition={{ duration: 0.55 }}
           >
             <p className="mb-5 inline-flex rounded-md border border-slate-200 bg-white/80 px-3 py-2 text-sm font-semibold text-accentBlue backdrop-blur">
-              Office Automation Solutions for Growing Businesses
+              Office Automation Solutions
             </p>
-            <h1 className="max-w-4xl text-4xl font-semibold leading-tight text-primary sm:text-6xl lg:text-7xl">
-              Office Automation Solutions for Growing Businesses
+            <h1 className="max-w-3xl text-4xl font-semibold leading-tight text-primary sm:text-6xl lg:text-6xl">
+              Office Automation Solutions for{' '}
+              <span className="bg-gradient-to-r from-accentBlue to-accentTeal bg-clip-text text-transparent">
+                Growing Businesses
+              </span>
             </h1>
             <p className="mt-6 max-w-2xl text-lg leading-8 text-slateText sm:text-xl">
               Save hours of repetitive Microsoft Office work with intelligent Word,
@@ -356,6 +412,7 @@ function App() {
               ))}
             </div>
           </motion.div>
+          <HeroScene />
         </div>
       </section>
 
