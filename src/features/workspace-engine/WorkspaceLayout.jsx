@@ -79,6 +79,49 @@ export default function WorkspaceLayout({ product, config, catalogState }) {
     window.setTimeout(() => updateState({ generating: false, generationComplete: true, generationProgress: 100 }), 1350)
   }
 
+  async function handleGenerateBatch() {
+    if (!config.generateBatchDocument || workspaceState.batchGenerating) {
+      return
+    }
+
+    updateState({
+      batchGenerating: true,
+      batchError: '',
+      batchComplete: false,
+      batchJob: null,
+      batchOutputs: [],
+      batchProgress: {
+        active: true,
+        currentRow: 0,
+        completedCount: 0,
+        successCount: 0,
+        failureCount: 0,
+        currentName: 'Preparing batch',
+      },
+    })
+
+    try {
+      const batchState = await config.generateBatchDocument(workspaceState, workspace, { updateState })
+      updateState({
+        ...batchState,
+        batchGenerating: false,
+      })
+    } catch (error) {
+      updateState({
+        batchGenerating: false,
+        batchProgress: {
+          active: false,
+          currentRow: 0,
+          completedCount: 0,
+          successCount: 0,
+          failureCount: 0,
+          currentName: '',
+        },
+        batchError: getFriendlyError(error, 'Batch DOCX generation failed. Check the workbook rows and try again.'),
+      })
+    }
+  }
+
   async function handleSaveWorkspace() {
     if (!config.saveWorkspace || workspaceState.savingDraft) {
       return
@@ -101,6 +144,7 @@ export default function WorkspaceLayout({ product, config, catalogState }) {
   const actions = {
     updateState,
     generate: handleGenerate,
+    generateBatch: handleGenerateBatch,
     saveWorkspace: handleSaveWorkspace,
   }
   const workspace = {

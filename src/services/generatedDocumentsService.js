@@ -128,3 +128,117 @@ export async function getGeneratedDocumentsHistory(organizationId, limit = HISTO
     metadataWarning: failedLookups.length > 0 ? 'Some related product, template, upload, or draft details could not be loaded.' : '',
   }
 }
+
+export async function getGenerationJobsHistory(organizationId, limit = HISTORY_LIMIT) {
+  if (!isSupabaseConfigured) {
+    return {
+      jobs: [],
+      metadataWarning: 'Connect Supabase to load stored batch jobs from History.',
+    }
+  }
+
+  if (!organizationId) {
+    return {
+      jobs: [],
+      metadataWarning: '',
+    }
+  }
+
+  const { data, error } = await supabase
+    .from('generation_jobs')
+    .select(`
+      id,
+      organization_id,
+      product_id,
+      generation_draft_id,
+      template_id,
+      upload_id,
+      status,
+      total_rows,
+      valid_rows,
+      success_count,
+      failure_count,
+      created_by,
+      created_at,
+      completed_at,
+      error_message
+    `)
+    .eq('organization_id', organizationId)
+    .order('created_at', { ascending: false })
+    .limit(limit)
+
+  if (error) {
+    throw error
+  }
+
+  const jobs = data || []
+
+  if (jobs.length === 0) {
+    return {
+      jobs: [],
+      metadataWarning: '',
+    }
+  }
+
+  const relatedResults = await Promise.allSettled([
+    fetchRelated('products', organizationId, uniqueIds(jobs, 'product_id'), 'id, product_code, name, slug'),
+    fetchRelated('templates', organizationId, uniqueIds(jobs, 'template_id'), 'id, name, file_name, version'),
+    fetchRelated('uploads', organizationId, uniqueIds(jobs, 'upload_id'), 'id, file_name, row_count, detected_columns, created_at'),
+    fetchRelated('generation_drafts', organizationId, uniqueIds(jobs, 'generation_draft_id'), 'id, status, preview_row_index, updated_at'),
+  ])
+
+  const { data: outputs, error: outputsError } = await supabase
+    .from('generation_outputs')
+    .select(`
+      id,
+      job_id,
+      organization_id,
+      product_id,
+      generation_draft_id,
+      row_index,
+      display_name,
+      file_name,
+      storage_bucket,
+      storage_path,
+      status,
+      error_message,
+      created_at
+    `)
+    .eq('organization_id', organizationId)
+    .in('job_id', jobs.map((job) => job.id))
+    .order('row_index', { ascending: true })
+
+  if (outputsError) {
+    throw outputsError
+  }
+
+  const outputsByJob = new Map()
+  ;(outputs || []).forEach((output) => {
+    const current = outputsByJob.get(output.job_id) || []
+    current.push(output)
+    outputsByJob.set(output.job_id, current)
+  })
+
+  const related = {
+    products: mapById(relatedResults[0].status === 'fulfilled' ? relatedResults[0].value : []),
+    templates: mapById(relatedResults[1].status === 'fulfilled' ? relatedResults[1].value : []),
+    uploads: mapById(relatedResults[2].status === 'fulfilled' ? relatedResults[2].value : []),
+    drafts: mapById(relatedResults[3].status === 'fulfilled' ? relatedResults[3].value : []),
+  }
+
+  const failedLookups = relatedResults.filter((result) => result.status === 'rejected')
+
+  return {
+    jobs: jobs.map((job) => ({
+      ...enrichDocument({
+        ...job,
+        preview_row_index: null,
+        file_name: `Batch ${job.id}`,
+        file_size: 0,
+        document_type: 'docx',
+      }, related),
+      outputs: outputsByJob.get(job.id) || [],
+    })),
+    metadataWarning: failedLookups.length > 0 ? 'Some related product, template, upload, or draft details could not be loaded.' : '',
+  }
+}

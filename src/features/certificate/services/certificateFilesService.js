@@ -152,7 +152,7 @@ export async function parseExcelColumns(file) {
   const dataRows = rows
     .slice(headerRowIndex + 1)
     .filter(rowHasValue)
-  const previewRows = dataRows.slice(0, 10).map((row) =>
+  const excelRows = dataRows.map((row) =>
     headerEntries.reduce((previewRow, entry, entryIndex) => {
       previewRow[dedupedHeaders[entryIndex]] = normalizeCellValue(row[entry.index])
       return previewRow
@@ -162,7 +162,8 @@ export async function parseExcelColumns(file) {
   return {
     detectedColumns: dedupedHeaders,
     rowCount: dataRows.length,
-    previewRows,
+    previewRows: excelRows.slice(0, 10),
+    excelRows,
   }
 }
 

@@ -11,7 +11,17 @@ function buildGeneratedFileName({ templateRecord, mergeResult }) {
   return baseName || templateRecord?.file_name || 'certificate'
 }
 
-export async function generateCertificateDocx({ templateRecord, mergeResult }) {
+export function generateCertificateDocxForRow({ templateArrayBuffer, templateRecord, mergeResult, outputFileName }) {
+  return generateDocxFromTemplate({
+    templateArrayBuffer,
+    mergeResult,
+    options: {
+      fileName: outputFileName || buildGeneratedFileName({ templateRecord, mergeResult }),
+    },
+  })
+}
+
+export async function downloadCertificateTemplateArrayBuffer(templateRecord) {
   if (!templateRecord?.storage_bucket || !templateRecord?.storage_path) {
     throw new Error('Template storage location is missing.')
   }
@@ -24,13 +34,15 @@ export async function generateCertificateDocx({ templateRecord, mergeResult }) {
     throw error
   }
 
-  const templateArrayBuffer = await data.arrayBuffer()
+  return data.arrayBuffer()
+}
 
-  return generateDocxFromTemplate({
+export async function generateCertificateDocx({ templateRecord, mergeResult }) {
+  const templateArrayBuffer = await downloadCertificateTemplateArrayBuffer(templateRecord)
+
+  return generateCertificateDocxForRow({
     templateArrayBuffer,
+    templateRecord,
     mergeResult,
-    options: {
-      fileName: buildGeneratedFileName({ templateRecord, mergeResult }),
-    },
   })
 }

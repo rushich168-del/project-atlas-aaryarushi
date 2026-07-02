@@ -4,7 +4,7 @@ import DashboardLayout from '../components/dashboard/DashboardLayout.jsx'
 import EnvironmentBanner from '../components/dashboard/EnvironmentBanner.jsx'
 import { useWorkspace } from '../hooks/useWorkspace.js'
 import { downloadGeneratedCertificateDocx } from '../features/certificate/services/certificateOutputsService.js'
-import { getGeneratedDocumentsHistory } from '../services/generatedDocumentsService.js'
+import { getGeneratedDocumentsHistory, getGenerationJobsHistory } from '../services/generatedDocumentsService.js'
 import { getDownloadError, getFriendlyError } from '../utils/errorMessages.js'
 import { navigateTo } from '../utils/routes.js'
 
@@ -12,6 +12,9 @@ const statusOptions = [
   { value: 'all', label: 'All statuses' },
   { value: 'ready', label: 'Ready' },
   { value: 'failed', label: 'Failed' },
+  { value: 'completed', label: 'Completed' },
+  { value: 'completed_with_errors', label: 'Completed with errors' },
+  { value: 'running', label: 'Running' },
 ]
 
 const dateOptions = [
@@ -79,6 +82,30 @@ function StatusBadge({ status }) {
   return (
     <span className={`inline-flex min-h-7 items-center rounded-md px-2.5 text-xs font-bold uppercase tracking-[0.08em] ${ready ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
       {ready ? 'Ready' : 'Failed'}
+    </span>
+  )
+}
+
+function BatchStatusBadge({ status }) {
+  const completed = status === 'completed'
+  const running = status === 'running'
+  const label = status === 'completed_with_errors' ? 'Completed with errors' : status
+
+  return (
+    <span className={`inline-flex min-h-7 items-center rounded-md px-2.5 text-xs font-bold uppercase tracking-[0.08em] ${
+      completed ? 'bg-emerald-50 text-emerald-700' : running ? 'bg-blue-50 text-blue-700' : 'bg-amber-50 text-amber-700'
+    }`}>
+      {label}
+    </span>
+  )
+}
+
+function OutputStatusBadge({ status }) {
+  const generated = status === 'generated'
+
+  return (
+    <span className={`inline-flex min-h-7 items-center rounded-md px-2.5 text-xs font-bold uppercase tracking-[0.08em] ${generated ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
+      {status}
     </span>
   )
 }
@@ -222,9 +249,77 @@ function HistoryCard({ document, downloading, downloadError, onDownload }) {
   )
 }
 
+function BatchJobCard({ job, expanded, onToggle, onDownload, downloadingId, downloadErrors }) {
+  return (
+    <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="grid gap-4 lg:grid-cols-[1fr_auto] lg:items-start">
+        <div>
+          <div className="flex flex-wrap items-center gap-3">
+            <h3 className="text-base font-bold text-primary">{job.productName || 'AR-CERT-PRO'}</h3>
+            <BatchStatusBadge status={job.status} />
+          </div>
+          <p className="mt-2 text-sm font-semibold text-slate-600">{formatDate(job.created_at)}</p>
+          <p className="mt-1 text-xs font-medium text-slate-500">
+            {job.success_count} generated, {job.failure_count} failed/skipped, {job.total_rows} total rows
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => onToggle(job.id)}
+          className="focus-ring inline-flex min-h-10 items-center justify-center rounded-md border border-slate-200 bg-white px-3 text-sm font-bold text-primary transition hover:border-accentBlue hover:text-accentBlue"
+        >
+          {expanded ? 'Hide details' : 'View details'}
+        </button>
+      </div>
+      {expanded ? (
+        <div className="mt-4 overflow-x-auto rounded-md border border-slate-200">
+          <table className="min-w-[760px] w-full text-left">
+            <thead className="bg-lightBg text-xs font-bold uppercase tracking-[0.1em] text-slate-500">
+              <tr>
+                <th className="px-3 py-3">Row</th>
+                <th className="px-3 py-3">Name</th>
+                <th className="px-3 py-3">Status</th>
+                <th className="px-3 py-3">Error</th>
+                <th className="px-3 py-3 text-right">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {job.outputs.map((output) => (
+                <tr key={output.id} className="border-t border-slate-100">
+                  <td className="px-3 py-3 text-sm font-semibold text-primary">{output.row_index}</td>
+                  <td className="px-3 py-3 text-sm font-semibold text-primary">{output.display_name || 'Unnamed row'}</td>
+                  <td className="px-3 py-3"><OutputStatusBadge status={output.status} /></td>
+                  <td className="px-3 py-3 text-xs font-medium text-amber-700">{output.error_message || '-'}</td>
+                  <td className="px-3 py-3 text-right">
+                    {output.status === 'generated' ? (
+                      <button
+                        type="button"
+                        onClick={() => onDownload(output)}
+                        disabled={downloadingId === output.id}
+                        className="focus-ring inline-flex min-h-9 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-xs font-bold text-primary transition hover:border-accentBlue hover:text-accentBlue disabled:opacity-60"
+                      >
+                        {downloadingId === output.id ? <Loader2 size={14} className="animate-spin" aria-hidden="true" /> : <Download size={14} aria-hidden="true" />}
+                        Download
+                      </button>
+                    ) : (
+                      <span className="text-xs font-semibold text-slate-400">No file</span>
+                    )}
+                    {downloadErrors[output.id] ? <p className="mt-1 text-xs font-semibold text-red-600">{downloadErrors[output.id].message || downloadErrors[output.id]}</p> : null}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : null}
+    </article>
+  )
+}
+
 export default function HistoryPage() {
   const { currentOrganization, currentOrganizationId, loading: workspaceLoading, error: workspaceError, source } = useWorkspace()
   const [documents, setDocuments] = useState([])
+  const [jobs, setJobs] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [metadataWarning, setMetadataWarning] = useState('')
@@ -234,6 +329,7 @@ export default function HistoryPage() {
   const [dateFilter, setDateFilter] = useState('all')
   const [downloadingId, setDownloadingId] = useState('')
   const [downloadErrors, setDownloadErrors] = useState({})
+  const [expandedJobs, setExpandedJobs] = useState({})
 
   async function loadHistory() {
     if (workspaceLoading) {
@@ -245,11 +341,16 @@ export default function HistoryPage() {
     setMetadataWarning('')
 
     try {
-      const result = await getGeneratedDocumentsHistory(currentOrganizationId)
-      setDocuments(result.documents)
-      setMetadataWarning(result.metadataWarning)
+      const [documentsResult, jobsResult] = await Promise.all([
+        getGeneratedDocumentsHistory(currentOrganizationId),
+        getGenerationJobsHistory(currentOrganizationId),
+      ])
+      setDocuments(documentsResult.documents)
+      setJobs(jobsResult.jobs)
+      setMetadataWarning([jobsResult.metadataWarning, documentsResult.metadataWarning].filter(Boolean).join(' '))
     } catch (loadError) {
       setDocuments([])
+      setJobs([])
       setError(getFriendlyError(loadError, 'Generated document history could not be loaded. Check the workspace connection and try again.'))
     } finally {
       setLoading(false)
@@ -263,14 +364,14 @@ export default function HistoryPage() {
   const productOptions = useMemo(() => {
     const options = new Map()
 
-    documents.forEach((document) => {
-      if (document.product_id && !options.has(document.product_id)) {
-        options.set(document.product_id, document.productLabel)
+    ;[...jobs, ...documents].forEach((item) => {
+      if (item.product_id && !options.has(item.product_id)) {
+        options.set(item.product_id, item.productLabel)
       }
     })
 
     return [...options.entries()].map(([id, label]) => ({ id, label }))
-  }, [documents])
+  }, [documents, jobs])
 
   const filteredDocuments = useMemo(() => {
     const search = searchTerm.trim().toLowerCase()
@@ -296,6 +397,30 @@ export default function HistoryPage() {
       )
     })
   }, [dateFilter, documents, productFilter, searchTerm, statusFilter])
+
+  const filteredJobs = useMemo(() => {
+    const search = searchTerm.trim().toLowerCase()
+
+    return jobs.filter((job) => {
+      const searchText = [
+        job.productName,
+        job.productCode,
+        job.templateLabel,
+        job.uploadLabel,
+        ...job.outputs.map((output) => output.display_name),
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase()
+
+      return (
+        (!search || searchText.includes(search)) &&
+        (productFilter === 'all' || job.product_id === productFilter) &&
+        (statusFilter === 'all' || job.status === statusFilter) &&
+        matchesDateFilter(job, dateFilter)
+      )
+    })
+  }, [dateFilter, jobs, productFilter, searchTerm, statusFilter])
 
   const hasActiveFilters = Boolean(searchTerm || productFilter !== 'all' || statusFilter !== 'all' || dateFilter !== 'all')
 
@@ -332,6 +457,7 @@ export default function HistoryPage() {
   }
 
   const latestDocument = documents[0] || null
+  const latestJob = jobs[0] || null
 
   return (
     <DashboardLayout title="History" eyebrow="Project Atlas MVP" currentView="history" workspaceStatus={source}>
@@ -354,11 +480,11 @@ export default function HistoryPage() {
             <div className="grid gap-3 sm:grid-cols-2 lg:min-w-[360px]">
               <div className="rounded-md border border-slate-200 bg-lightBg p-4">
                 <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">DOCX records</p>
-                <p className="mt-2 text-2xl font-bold text-primary">{documents.length}</p>
+                <p className="mt-2 text-2xl font-bold text-primary">{jobs.length + documents.length}</p>
               </div>
               <div className="rounded-md border border-slate-200 bg-lightBg p-4">
                 <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Latest</p>
-                <p className="mt-2 text-sm font-bold text-primary">{latestDocument ? formatDate(latestDocument.created_at) : 'None yet'}</p>
+                <p className="mt-2 text-sm font-bold text-primary">{latestJob || latestDocument ? formatDate((latestJob || latestDocument).created_at) : 'None yet'}</p>
               </div>
             </div>
           </div>
@@ -439,60 +565,80 @@ export default function HistoryPage() {
               </button>
             </div>
           </section>
-        ) : filteredDocuments.length === 0 ? (
+        ) : filteredJobs.length === 0 && filteredDocuments.length === 0 ? (
           <div className="mt-5">
-            <EmptyState filtered={documents.length > 0 && hasActiveFilters} onClear={clearFilters} />
+            <EmptyState filtered={(documents.length > 0 || jobs.length > 0) && hasActiveFilters} onClear={clearFilters} />
           </div>
         ) : (
           <section className="mt-5">
             <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-2 text-sm font-semibold text-slate-600">
                 <CalendarDays size={17} className="text-accentBlue" aria-hidden="true" />
-                {filteredDocuments.length} of {documents.length} records shown
+                {filteredJobs.length + filteredDocuments.length} of {jobs.length + documents.length} records shown
               </div>
             </div>
 
-            <div className="hidden overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm md:block">
-              <div className="overflow-x-auto">
-                <table className="min-w-[1120px] w-full text-left">
-                  <thead className="bg-lightBg text-xs font-bold uppercase tracking-[0.1em] text-slate-500">
-                    <tr>
-                      <th className="px-4 py-3">File</th>
-                      <th className="px-4 py-3">Product</th>
-                      <th className="px-4 py-3">Template</th>
-                      <th className="px-4 py-3">Upload</th>
-                      <th className="px-4 py-3">Preview row</th>
-                      <th className="px-4 py-3">Status</th>
-                      <th className="px-4 py-3">Generated</th>
-                      <th className="px-4 py-3 text-right">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredDocuments.map((document) => (
-                      <HistoryRow
-                        key={document.id}
-                        document={document}
-                        downloading={downloadingId === document.id}
-                        downloadError={downloadErrors[document.id]}
-                        onDownload={handleDownload}
-                      />
-                    ))}
-                  </tbody>
-                </table>
+            {filteredJobs.length > 0 ? (
+              <div className="mb-5 grid gap-4">
+                {filteredJobs.map((job) => (
+                  <BatchJobCard
+                    key={job.id}
+                    job={job}
+                    expanded={Boolean(expandedJobs[job.id])}
+                    onToggle={(jobId) => setExpandedJobs((current) => ({ ...current, [jobId]: !current[jobId] }))}
+                    onDownload={handleDownload}
+                    downloadingId={downloadingId}
+                    downloadErrors={downloadErrors}
+                  />
+                ))}
               </div>
-            </div>
+            ) : null}
 
-            <div className="grid gap-4 md:hidden">
-              {filteredDocuments.map((document) => (
-                <HistoryCard
-                  key={document.id}
-                  document={document}
-                  downloading={downloadingId === document.id}
-                  downloadError={downloadErrors[document.id]}
-                  onDownload={handleDownload}
-                />
-              ))}
-            </div>
+            {filteredDocuments.length > 0 ? (
+              <>
+                <div className="hidden overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm md:block">
+                  <div className="overflow-x-auto">
+                    <table className="min-w-[1120px] w-full text-left">
+                      <thead className="bg-lightBg text-xs font-bold uppercase tracking-[0.1em] text-slate-500">
+                        <tr>
+                          <th className="px-4 py-3">File</th>
+                          <th className="px-4 py-3">Product</th>
+                          <th className="px-4 py-3">Template</th>
+                          <th className="px-4 py-3">Upload</th>
+                          <th className="px-4 py-3">Preview row</th>
+                          <th className="px-4 py-3">Status</th>
+                          <th className="px-4 py-3">Generated</th>
+                          <th className="px-4 py-3 text-right">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredDocuments.map((document) => (
+                          <HistoryRow
+                            key={document.id}
+                            document={document}
+                            downloading={downloadingId === document.id}
+                            downloadError={downloadErrors[document.id]}
+                            onDownload={handleDownload}
+                          />
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <div className="grid gap-4 md:hidden">
+                  {filteredDocuments.map((document) => (
+                    <HistoryCard
+                      key={document.id}
+                      document={document}
+                      downloading={downloadingId === document.id}
+                      downloadError={downloadErrors[document.id]}
+                      onDownload={handleDownload}
+                    />
+                  ))}
+                </div>
+              </>
+            ) : null}
           </section>
         )}
       </div>

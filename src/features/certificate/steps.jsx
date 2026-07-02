@@ -1,4 +1,4 @@
-import { AlertCircle, CheckCircle2, Download, FileSpreadsheet, FileText, Loader2, Wand2 } from 'lucide-react'
+import { AlertCircle, CheckCircle2, Download, FileSpreadsheet, FileText, Loader2, ListChecks, Wand2 } from 'lucide-react'
 import { detectDocxPlaceholders } from '../../core/atlas/index.js'
 import {
   parseExcelColumns,
@@ -8,6 +8,8 @@ import {
   validateTemplateFile,
 } from './services/certificateFilesService.js'
 import { getUploadError } from '../../utils/errorMessages.js'
+import { BATCH_ROW_LIMIT } from './services/certificateBatchService.js'
+import { navigateTo } from '../../utils/routes.js'
 
 function normalizeName(value) {
   return String(value || '')
@@ -109,6 +111,11 @@ export function TemplateStep({ state, actions, workspace }) {
         generationError: '',
         outputError: '',
         persistingOutput: false,
+        batchValidation: null,
+        batchJob: null,
+        batchOutputs: [],
+        batchError: '',
+        batchComplete: false,
         uploadingTemplate: false,
       })
     } catch (error) {
@@ -138,7 +145,7 @@ export function ExcelStep({ state, actions, workspace }) {
 
     try {
       validateExcelFile(file)
-      const { detectedColumns, rowCount, previewRows } = await parseExcelColumns(file)
+      const { detectedColumns, rowCount, previewRows, excelRows } = await parseExcelColumns(file)
       const uploadRecord = await uploadCertificateInput({
         organizationId: workspace.organization?.id,
         productId: workspace.product?.organizationId ? workspace.product.id : null,
@@ -153,6 +160,7 @@ export function ExcelStep({ state, actions, workspace }) {
         uploadRecord,
         detectedColumns,
         previewRows,
+        excelRows,
         previewRowIndex: 0,
         rowCount,
         fieldMapping: {
@@ -170,6 +178,11 @@ export function ExcelStep({ state, actions, workspace }) {
         generationError: '',
         outputError: '',
         persistingOutput: false,
+        batchValidation: null,
+        batchJob: null,
+        batchOutputs: [],
+        batchError: '',
+        batchComplete: false,
         uploadingExcel: false,
       })
     } catch (error) {
@@ -363,6 +376,11 @@ export function MappingStep({ state, actions, config }) {
                   generationError: '',
                   outputError: '',
                   persistingOutput: false,
+                  batchValidation: null,
+                  batchJob: null,
+                  batchOutputs: [],
+                  batchError: '',
+                  batchComplete: false,
                 }))
               }
               className="min-h-10 rounded-md border border-slate-200 bg-white px-3 text-sm font-semibold text-primary outline-none"
@@ -541,8 +559,118 @@ function getGenerationBlockers({ state, config }) {
   return blockers
 }
 
+function BatchSummary({ state, config }) {
+  const rows = state.excelRows || []
+  const validationRows = config.getBatchValidation ? config.getBatchValidation(state) : []
+  const validRows = validationRows.filter((row) => row.status === 'valid')
+  const invalidRows = validationRows.filter((row) => row.status !== 'valid')
+
+  if (!rows.length) {
+    return null
+  }
+
+  const overLimit = rows.length > BATCH_ROW_LIMIT
+
+  return (
+    <div className="mt-5 rounded-lg border border-slate-200 bg-lightBg p-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h4 className="text-sm font-semibold text-primary">Batch summary</h4>
+          <p className="mt-1 text-xs font-medium text-slate-500">Generate valid Excel rows one DOCX at a time.</p>
+        </div>
+        <div className="grid grid-cols-3 gap-2 text-center">
+          <span className="rounded-md bg-white px-3 py-2 text-xs font-bold text-primary">{rows.length} total</span>
+          <span className="rounded-md bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700">{validRows.length} valid</span>
+          <span className="rounded-md bg-amber-50 px-3 py-2 text-xs font-bold text-amber-700">{invalidRows.length} invalid</span>
+        </div>
+      </div>
+      {overLimit ? (
+        <p className="mt-3 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm font-semibold text-amber-800">
+          Batch generation v2.0 supports up to 100 rows. Please split larger Excel files.
+        </p>
+      ) : null}
+      {invalidRows.length > 0 ? (
+        <div className="mt-3 max-h-36 overflow-auto rounded-md border border-amber-200 bg-white p-3">
+          {invalidRows.slice(0, 8).map((row) => (
+            <p key={row.rowNumber} className="text-xs font-medium text-amber-800">
+              Row {row.rowNumber}: {row.missingFields.length ? `Missing ${row.missingFields.join(', ')}` : row.errorMessage}
+            </p>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+function BatchProgress({ state }) {
+  const progress = state.batchProgress || {}
+  const validation = state.batchValidation
+  const total = validation?.totalRows || state.rowCount || 0
+  const percent = total ? Math.round((progress.completedCount / total) * 100) : 0
+
+  if (!progress.active && !state.batchComplete) {
+    return null
+  }
+
+  return (
+    <div className="mt-5 rounded-lg border border-blue-100 bg-blue-50 p-4">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-sm font-bold text-primary">{progress.active ? `Current row ${progress.currentRow || '-'}` : 'Batch completed'}</p>
+        <p className="text-sm font-bold text-accentBlue">{percent}%</p>
+      </div>
+      <div className="mt-3 h-2 overflow-hidden rounded-full bg-blue-100">
+        <div className="h-full rounded-full bg-accentBlue transition-all" style={{ width: `${percent}%` }} />
+      </div>
+      <div className="mt-3 grid gap-2 text-xs font-semibold text-slate-600 sm:grid-cols-4">
+        <span>{progress.completedCount || 0} completed</span>
+        <span>{progress.successCount || 0} generated</span>
+        <span>{progress.failureCount || 0} failed/skipped</span>
+        <span className="truncate">{progress.currentName || 'Do not close this tab'}</span>
+      </div>
+    </div>
+  )
+}
+
+function BatchResult({ state }) {
+  if (!state.batchComplete || !state.batchJob) {
+    return null
+  }
+
+  const failedOutputs = (state.batchOutputs || []).filter((output) => output.status !== 'generated')
+
+  return (
+    <div className="mt-5 rounded-lg border border-emerald-200 bg-emerald-50 p-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h4 className="text-sm font-semibold text-emerald-900">Batch completed</h4>
+          <p className="mt-1 text-xs font-medium text-emerald-700">
+            {state.batchJob.success_count} generated, {state.batchJob.failure_count} failed or skipped from {state.batchJob.total_rows} rows.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => navigateTo('/dashboard/history')}
+          className="focus-ring inline-flex min-h-10 items-center justify-center rounded-md bg-emerald-700 px-3 text-sm font-semibold text-white"
+        >
+          Open History
+        </button>
+      </div>
+      {failedOutputs.length > 0 ? (
+        <div className="mt-3 max-h-44 overflow-auto rounded-md border border-emerald-200 bg-white p-3">
+          {failedOutputs.map((output) => (
+            <p key={output.id} className="text-xs font-medium text-amber-800">
+              Row {output.row_index}: {output.display_name || 'Unnamed'} - {output.error_message || output.status}
+            </p>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
 export function GenerateStep({ state, actions, config }) {
   const canGenerate = config.canGenerate(state)
+  const canGenerateBatch = config.canGenerateBatch ? config.canGenerateBatch(state) : false
   const mergeResult = config.getMergeResult(state)
   const blockers = getGenerationBlockers({ state, config })
   const statusLabel = config.getGenerationStatus ? config.getGenerationStatus(state) : 'Ready'
@@ -560,23 +688,42 @@ export function GenerateStep({ state, actions, config }) {
           <div className="h-full rounded-full bg-accentBlue transition-all" style={{ width: `${state.generationProgress}%` }} />
         </div>
       </div>
-      <button
-        type="button"
-        onClick={actions.generate}
-        disabled={state.generating || !canGenerate}
-        className="focus-ring mt-5 inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60"
-      >
-        {state.generating ? <Loader2 size={17} className="animate-spin" aria-hidden="true" /> : <Wand2 size={17} aria-hidden="true" />}
-        {state.generating ? 'Generating DOCX' : 'Generate DOCX'}
-      </button>
+      <div className="mt-5 flex flex-wrap gap-3">
+        <button
+          type="button"
+          onClick={actions.generate}
+          disabled={state.generating || state.batchGenerating || !canGenerate}
+          className="focus-ring inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60"
+        >
+          {state.generating ? <Loader2 size={17} className="animate-spin" aria-hidden="true" /> : <Wand2 size={17} aria-hidden="true" />}
+          {state.generating ? 'Generating selected row' : 'Generate Selected Row'}
+        </button>
+        <button
+          type="button"
+          onClick={actions.generateBatch}
+          disabled={state.generating || state.batchGenerating || !canGenerateBatch}
+          className="focus-ring inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-4 text-sm font-semibold text-primary transition hover:border-accentBlue hover:text-accentBlue disabled:opacity-60"
+        >
+          {state.batchGenerating ? <Loader2 size={17} className="animate-spin" aria-hidden="true" /> : <ListChecks size={17} aria-hidden="true" />}
+          {state.batchGenerating ? 'Generating batch' : 'Generate Batch'}
+        </button>
+      </div>
       {!canGenerate && blockers.length > 0 && (
         <div className="mt-4 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm font-medium leading-6 text-amber-800">
           {blockers.join(' ')}
         </div>
       )}
+      <BatchSummary state={state} config={config} />
+      <BatchProgress state={state} />
+      <BatchResult state={state} />
       {state.generationError && (
         <div className="mt-4 rounded-md border border-red-200 bg-red-50 p-3 text-sm font-medium leading-6 text-red-700">
           {state.generationError}
+        </div>
+      )}
+      {state.batchError && (
+        <div className="mt-4 rounded-md border border-red-200 bg-red-50 p-3 text-sm font-medium leading-6 text-red-700">
+          {state.batchError}
         </div>
       )}
       {state.outputError && (
