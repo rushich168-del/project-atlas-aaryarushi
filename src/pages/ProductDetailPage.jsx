@@ -1,0 +1,159 @@
+import { ArrowUpRight, CalendarClock, CheckCircle2, FileInput, FileOutput, FileText, Layers3, Target } from 'lucide-react'
+import DataStateBanner from '../components/dashboard/DataStateBanner.jsx'
+import DashboardLayout from '../components/dashboard/DashboardLayout.jsx'
+import EnvironmentBanner from '../components/dashboard/EnvironmentBanner.jsx'
+import ProductBadges from '../components/products/ProductBadges.jsx'
+import { useProductCatalog } from '../hooks/useProductCatalog.js'
+import { navigateTo } from '../utils/routes.js'
+
+export default function ProductDetailPage({ slug }) {
+  const { organization, categories, products, source, status, loading, error } = useProductCatalog()
+  const product = products.find((item) => item.slug === slug)
+
+  if (loading) {
+    return (
+      <DashboardLayout title="Loading product" eyebrow="Project Atlas" showBack currentView="products" workspaceStatus={status}>
+        <div className="px-4 py-6 sm:px-6 lg:px-8">
+          <EnvironmentBanner />
+          <DataStateBanner loading={loading} error={error} source={source} status={status} organization={organization} />
+        </div>
+      </DashboardLayout>
+    )
+  }
+
+  if (!product) {
+    return (
+      <DashboardLayout title="Product not found" eyebrow="Project Atlas" showBack workspaceStatus={status}>
+        <div className="px-4 py-6 sm:px-6 lg:px-8">
+          <EnvironmentBanner />
+          <DataStateBanner loading={loading} error={error} source={source} status={status} organization={organization} />
+          <div className="rounded-lg border border-slate-200 bg-white p-8 text-center shadow-sm">
+            <h2 className="text-xl font-semibold text-primary">This product is not available in the current workspace.</h2>
+            <button
+              type="button"
+              onClick={() => navigateTo('/dashboard')}
+              className="focus-ring mt-5 inline-flex min-h-10 items-center justify-center rounded-md bg-primary px-4 text-sm font-semibold text-white transition hover:bg-slate-800"
+            >
+              Back to dashboard
+            </button>
+          </div>
+        </div>
+      </DashboardLayout>
+    )
+  }
+
+  const category = categories.find((item) => item.id === product.categoryId)
+
+  return (
+    <DashboardLayout title={product.name} eyebrow={category?.name || 'Product'} showBack currentView="products" workspaceStatus={status}>
+      <div className="px-4 py-6 sm:px-6 lg:px-8">
+        <EnvironmentBanner />
+        <DataStateBanner loading={loading} error={error} source={source} status={status} organization={organization} />
+        <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
+            <div>
+              <ProductBadges product={product} />
+              <h2 className="mt-5 text-3xl font-semibold text-primary">{product.name}</h2>
+              <p className="mt-3 max-w-3xl leading-7 text-slate-600">{product.summary}</p>
+              <div className="mt-6 flex flex-wrap gap-2">
+                {product.metrics.map((metric) => (
+                  <span key={metric} className="inline-flex min-h-9 items-center rounded-md border border-slate-200 bg-lightBg px-3 text-sm font-semibold text-slate-600">
+                    {metric}
+                  </span>
+                ))}
+              </div>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2 xl:w-[420px]">
+              <div className="rounded-md border border-slate-200 bg-lightBg p-4">
+                <p className="text-sm font-semibold text-slate-500">Category</p>
+                <p className="mt-1 text-lg font-semibold text-primary">{category?.name}</p>
+              </div>
+              <div className="rounded-md border border-slate-200 bg-lightBg p-4">
+                <p className="text-sm font-semibold text-slate-500">Stage</p>
+                <p className="mt-1 text-sm font-semibold leading-6 text-primary">{product.stage}</p>
+              </div>
+            </div>
+          </div>
+          <div className="mt-6 grid gap-3 border-t border-slate-200 pt-5 sm:grid-cols-2 lg:grid-cols-4">
+            {[
+              ['Product code', product.productCode || product.name],
+              ['Sector', product.sector || 'catalog'],
+              ['Current version', product.currentVersion || '0.1'],
+              ['Desktop availability', product.desktopAvailable ? 'Available' : 'Not available'],
+              ['SaaS availability', product.saasAvailable ? 'Available' : 'Planned'],
+              ['Beta status', product.isBeta ? 'Beta' : 'Stable'],
+            ].map(([label, value]) => (
+              <div key={label} className="rounded-md border border-slate-200 bg-lightBg p-3">
+                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">{label}</p>
+                <p className="mt-1 text-sm font-semibold text-primary">{value}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="mt-6 grid gap-4 xl:grid-cols-[1fr_1fr_0.8fr]">
+          <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+            <FileInput className="text-accentBlue" size={24} aria-hidden="true" />
+            <h3 className="mt-5 text-lg font-semibold text-primary">Inputs</h3>
+            <div className="mt-4 grid gap-3">
+              {product.inputs.map((input) => (
+                <div key={input} className="flex items-center gap-3 rounded-md border border-slate-200 bg-lightBg p-3 text-sm font-semibold text-slate-600">
+                  <CheckCircle2 size={17} className="text-accentTeal" aria-hidden="true" />
+                  {input}
+                </div>
+              ))}
+            </div>
+          </article>
+
+          <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+            <FileOutput className="text-accentBlue" size={24} aria-hidden="true" />
+            <h3 className="mt-5 text-lg font-semibold text-primary">Outputs</h3>
+            <div className="mt-4 grid gap-3">
+              {product.outputs.map((output) => (
+                <div key={output} className="flex items-center gap-3 rounded-md border border-slate-200 bg-lightBg p-3 text-sm font-semibold text-slate-600">
+                  <CheckCircle2 size={17} className="text-accentTeal" aria-hidden="true" />
+                  {output}
+                </div>
+              ))}
+            </div>
+          </article>
+
+          <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+            <Target className="text-accentBlue" size={24} aria-hidden="true" />
+            <h3 className="mt-5 text-lg font-semibold text-primary">Audience</h3>
+            <p className="mt-3 text-sm leading-6 text-slate-600">{product.audience}</p>
+            <button
+              type="button"
+              onClick={() => navigateTo(product.slug === 'ar-cert-pro' ? `/dashboard/products/${product.slug}/workspace` : '/dashboard/products')}
+              className="focus-ring mt-5 inline-flex min-h-10 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-white transition hover:bg-slate-800"
+            >
+              {product.slug === 'ar-cert-pro' ? 'Open workspace' : 'Product workspace'}
+              <ArrowUpRight size={16} aria-hidden="true" />
+            </button>
+          </article>
+        </section>
+
+        <section className="mt-6 grid gap-4 lg:grid-cols-3">
+          {[
+            ['Scope', 'Requirements, users, inputs, outputs, and delivery notes can be tracked here in a later release.', Layers3],
+            ['Documentation', 'Product briefs, screenshots, templates, and demo scripts can be attached later.', FileText],
+            ['Roadmap', 'Milestones, owner notes, release readiness, and support status can be tracked here.', CalendarClock],
+          ].map(([title, description, Icon]) => (
+            <article key={title} className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+              <Icon className="text-accentBlue" size={24} aria-hidden="true" />
+              <h3 className="mt-5 text-lg font-semibold text-primary">{title}</h3>
+              <p className="mt-3 text-sm leading-6 text-slate-600">{description}</p>
+            </article>
+          ))}
+        </section>
+
+        <section className="mt-6 rounded-lg border border-dashed border-slate-300 bg-white p-6">
+          <h3 className="text-lg font-semibold text-primary">MVP catalog detail</h3>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+            This view reads the current catalog source. AR-CERT-PRO is the first workspace connected to upload, draft, generation, and History.
+          </p>
+        </section>
+      </div>
+    </DashboardLayout>
+  )
+}
