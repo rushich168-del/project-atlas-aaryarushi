@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Copy, Download, Mail, Save } from 'lucide-react'
+import { Copy, Download, Mail, Save, ShieldCheck } from 'lucide-react'
 import { prepareEmailPayloadPreview, validateEmailRecipient } from '../../services/emailDeliveryService'
-import { getEmailDeliveryDryRunErrorMessage, listEmailDeliveryDryRunJobsForGeneration, prepareBatchEmailDryRun } from '../../services/emailDeliveryDryRunService'
+import { checkEmailDeliveryDryRunWithEdgeFunction, getEmailDeliveryDryRunErrorMessage, listEmailDeliveryDryRunJobsForGeneration, prepareBatchEmailDryRun } from '../../services/emailDeliveryDryRunService'
 import { useAuth } from '../../context/AuthContext.jsx'
 
 function normalizeKey(key) {
@@ -97,8 +97,10 @@ export default function EmailPreparationPanel({
   const [selectedOutputId, setSelectedOutputId] = useState(outputs[0]?.id || null)
   const [feedback, setFeedback] = useState('')
   const [savingDryRun, setSavingDryRun] = useState(false)
+  const [checkingReadiness, setCheckingReadiness] = useState(false)
   const [savedDryRunSummary, setSavedDryRunSummary] = useState(null)
   const [savedDryRunError, setSavedDryRunError] = useState('')
+  const [edgeFunctionSummary, setEdgeFunctionSummary] = useState(null)
   const { session } = useAuth()
 
   const availableColumns = useMemo(() => {
@@ -163,6 +165,7 @@ export default function EmailPreparationPanel({
 
         if (latestJob) {
           setSavedDryRunSummary({
+            jobId: latestJob.id || null,
             preparedCount: latestJob.prepared_count ?? latestJob.total_recipients ?? 0,
             mode: latestJob.mode || 'dry_run',
             createdAt: latestJob.created_at,
@@ -230,6 +233,7 @@ export default function EmailPreparationPanel({
       })
 
       setSavedDryRunSummary({
+        jobId: result?.job?.id || null,
         preparedCount: result?.outputs?.length || previews.length,
         mode: 'dry_run',
         createdAt: new Date().toISOString(),
@@ -244,6 +248,32 @@ export default function EmailPreparationPanel({
       setFeedback(fallback)
     } finally {
       setSavingDryRun(false)
+    }
+  }
+
+  async function handleCheckSendReadiness() {
+    if (!savedDryRunSummary?.jobId) {
+      setEdgeFunctionSummary(null)
+      setFeedback('Save Email Prep first to check send readiness.')
+      return
+    }
+
+    setCheckingReadiness(true)
+    setFeedback('')
+
+    try {
+      const result = await checkEmailDeliveryDryRunWithEdgeFunction(savedDryRunSummary.jobId)
+      setEdgeFunctionSummary(result)
+      setFeedback(result?.message || 'Dry-run checked successfully. No emails were sent.')
+    } catch (error) {
+      const message = getEmailDeliveryDryRunErrorMessage(error)
+      const fallback = message.includes('not deployed') || message.includes('function')
+        ? 'The dry-run email function is not deployed yet. This app is ready for it, but no emails were sent.'
+        : message
+      setEdgeFunctionSummary(null)
+      setFeedback(fallback)
+    } finally {
+      setCheckingReadiness(false)
     }
   }
 
@@ -344,6 +374,17 @@ export default function EmailPreparationPanel({
           <Save size={16} aria-hidden="true" />
           {savingDryRun ? 'Saving...' : 'Save Email Prep'}
         </button>
+        {savedDryRunSummary?.jobId ? (
+          <button
+            type="button"
+            onClick={handleCheckSendReadiness}
+            disabled={checkingReadiness}
+            className="focus-ring inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-4 text-sm font-semibold text-primary transition hover:border-accentBlue hover:text-accentBlue disabled:opacity-60"
+          >
+            <ShieldCheck size={16} aria-hidden="true" />
+            {checkingReadiness ? 'Checking...' : 'Check Send Readiness'}
+          </button>
+        ) : null}
         <button
           type="button"
           disabled
@@ -365,6 +406,13 @@ export default function EmailPreparationPanel({
         </div>
       ) : null}
       {savedDryRunError ? <p className="mt-3 text-sm font-semibold text-amber-700">{savedDryRunError}</p> : null}
+      {edgeFunctionSummary ? (
+        <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-4">
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Edge Function Dry Run</p>
+          <p className="mt-2 text-sm font-semibold text-slate-700">{edgeFunctionSummary.message || 'Dry-run checked successfully. No emails were sent.'}</p>
+          <p className="mt-1 text-sm text-slate-600">Recipients: {edgeFunctionSummary.totalRecipients ?? 0} · Prepared: {edgeFunctionSummary.preparedCount ?? 0}</p>
+        </div>
+      ) : null}
 
       <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4">
         <p className="text-xs font-semibold uppercase tracking-[0.12em] text-amber-700">Future Auto Send Architecture Ready</p>

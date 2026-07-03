@@ -1,5 +1,7 @@
 import { isSupabaseConfigured, supabase } from '../lib/supabaseClient.js'
 
+const EDGE_FUNCTION_NAME = 'email-delivery-dry-run'
+
 function normalizeEmailDeliveryError(error) {
   if (!error) {
     return 'Unable to save email preparation at this time.'
@@ -137,6 +139,26 @@ export async function listEmailDeliveryDryRunJobsForGeneration(generationJobId) 
   }
 
   return data || []
+}
+
+export async function checkEmailDeliveryDryRunWithEdgeFunction(emailDeliveryJobId) {
+  if (!isSupabaseConfigured) {
+    throw new Error('Email readiness check requires Supabase to be configured.')
+  }
+
+  if (!emailDeliveryJobId) {
+    throw new Error('An email delivery job is required for the readiness check.')
+  }
+
+  const { data, error } = await supabase.functions.invoke(EDGE_FUNCTION_NAME, {
+    body: { emailDeliveryJobId },
+  })
+
+  if (error) {
+    throw error
+  }
+
+  return data
 }
 
 export function getEmailDeliveryDryRunErrorMessage(error) {
