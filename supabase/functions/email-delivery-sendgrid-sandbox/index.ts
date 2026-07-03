@@ -94,6 +94,52 @@ function getErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback
 }
 
+function truncate(value: string, maxLength = 1000) {
+  return value.length > maxLength ? `${value.slice(0, maxLength)}...` : value
+}
+
+function safeResponseBodyForLog(responseText: string, responseBody: unknown) {
+  if (responseBody) {
+    return truncate(JSON.stringify(responseBody))
+  }
+
+  return truncate(responseText || '')
+}
+
+function buildRowResult({
+  rowId,
+  generationOutputId,
+  rowNumber,
+  status,
+  errorCode = null,
+  errorMessage = null,
+  providerMessageId = null,
+  attachmentFileName = null,
+  attachmentSizeBytes = null,
+}: {
+  rowId: string
+  generationOutputId: string | null
+  rowNumber: number | null
+  status: string
+  errorCode?: string | null
+  errorMessage?: string | null
+  providerMessageId?: string | null
+  attachmentFileName?: string | null
+  attachmentSizeBytes?: number | null
+}) {
+  return {
+    rowId,
+    generationOutputId,
+    rowNumber,
+    status,
+    errorCode,
+    errorMessage,
+    providerMessageId,
+    attachmentFileName,
+    attachmentSizeBytes,
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -117,7 +163,7 @@ serve(async (req) => {
     const allowProductionSend = Deno.env.get('EMAIL_ALLOW_PRODUCTION_SEND') === 'true'
     const sendGridApiKey = Deno.env.get('SENDGRID_API_KEY')
     const fromEmail = Deno.env.get('SENDGRID_FROM_EMAIL')
-    const fromName = Deno.env.get('SENDGRID_FROM_NAME') || 'AaryaRushi Automation Labs'
+    const fromName = Deno.env.get('SENDGRID_FROM_NAME')
     const maxRecipients = parsePositiveInt(Deno.env.get('EMAIL_MAX_RECIPIENTS_PER_JOB'), DEFAULT_MAX_RECIPIENTS)
     const maxAttachmentBytes = parsePositiveInt(Deno.env.get('EMAIL_MAX_ATTACHMENT_MB'), DEFAULT_MAX_ATTACHMENT_MB) * 1024 * 1024
 
@@ -132,8 +178,35 @@ serve(async (req) => {
       }, 403)
     }
 
-    if (!sendGridApiKey || !fromEmail) {
-      return jsonResponse({ error: 'SendGrid sandbox secrets are not configured.' }, 500)
+    const missingSendGridSecrets = [
+      !sendGridApiKey ? 'SENDGRID_API_KEY' : '',
+      !fromEmail ? 'SENDGRID_FROM_EMAIL' : '',
+      !fromName ? 'SENDGRID_FROM_NAME' : '',
+    ].filter(Boolean)
+
+    if (missingSendGridSecrets.length > 0) {
+      console.warn('SendGrid sandbox configuration missing required secrets', {
+        missingSecrets: missingSendGridSecrets,
+      })
+
+      return jsonResponse({
+        ok: false,
+        provider,
+        mode: providerMode,
+        message: `SendGrid sandbox configuration is incomplete: ${missingSendGridSecrets.join(', ')} missing.`,
+        emailDeliveryJobId: null,
+        preparedRecipients: 0,
+        sandboxValidated: 0,
+        sandboxFailed: 0,
+        blocked: 0,
+        rowResults: [],
+        firstError: {
+          status: 'sandbox_failed',
+          errorCode: 'missing_sendgrid_secret',
+          errorMessage: `Missing required Edge Function secret: ${missingSendGridSecrets.join(', ')}`,
+        },
+        realEmailsDelivered: 0,
+      })
     }
 
     const supabase = createClient(supabaseUrl, supabaseServiceRoleKey, {
@@ -269,6 +342,7 @@ serve(async (req) => {
       sandboxFailed: 0,
       blocked: 0,
     }
+    const rowResults: Array<ReturnType<typeof buildRowResult>> = []
 
     await supabase
       .from('email_delivery_jobs')
@@ -314,6 +388,7 @@ serve(async (req) => {
 
         const fileName = String(generationOutput.file_name || '')
         const storagePath = String(generationOutput.storage_path || '')
+        const attachmentFileName = fileName || `row-${output.row_number || generationOutput.row_index || 'document'}.docx`
 
         if (![fileName, storagePath].some((value) => value.toLowerCase().endsWith('.docx'))) {
           throw new Error('blocked:docx_only:Only DOCX attachments are allowed.')
@@ -329,9 +404,21 @@ serve(async (req) => {
 
         const attachmentBytes = new Uint8Array(await fileData.arrayBuffer())
 
+        if (attachmentBytes.byteLength === 0) {
+          throw new Error('blocked:attachment_empty:DOCX attachment is empty.')
+        }
+
         if (attachmentBytes.byteLength > maxAttachmentBytes) {
           throw new Error('blocked:attachment_too_large:DOCX attachment exceeds the sandbox size limit.')
         }
+
+        console.info('SendGrid sandbox attachment prepared', {
+          rowId: output.id,
+          generationOutputId: output.generation_output_id || null,
+          rowNumber: output.row_number || null,
+          attachmentFileName,
+          attachmentSizeBytes: attachmentBytes.byteLength,
+        })
 
         const sendGridPayload = {
           personalizations: [
@@ -354,7 +441,7 @@ serve(async (req) => {
             {
               content: bytesToBase64(attachmentBytes),
               type: DOCX_MIME_TYPE,
-              filename: fileName || `row-${output.row_number || generationOutput.row_index || 'document'}.docx`,
+              filename: attachmentFileName,
               disposition: 'attachment',
             },
           ],
@@ -377,20 +464,44 @@ serve(async (req) => {
         const responseText = await sendGridResponse.text()
         const responseBody = parseJsonOrNull(responseText)
         const providerMessageId = sendGridResponse.headers.get('x-message-id')
+        const sendGridStatusCode = sendGridResponse.status
+
+        console.info('SendGrid sandbox response', {
+          rowId: output.id,
+          generationOutputId: output.generation_output_id || null,
+          rowNumber: output.row_number || null,
+          statusCode: sendGridStatusCode,
+          providerMessageId,
+          responseBody: safeResponseBodyForLog(responseText, responseBody),
+        })
 
         if (!sendGridResponse.ok) {
+          const errorCode = getSendGridErrorCode(responseBody, `sendgrid_${sendGridStatusCode}`)
+          const errorMessage = getSendGridErrorMessage(responseBody, responseText || 'SendGrid sandbox validation failed.')
+
           await supabase
             .from('email_delivery_outputs')
             .update({
               status: 'sandbox_failed',
-              error_code: getSendGridErrorCode(responseBody, `sendgrid_${sendGridResponse.status}`),
-              error_message: getSendGridErrorMessage(responseBody, 'SendGrid sandbox validation failed.'),
+              error_code: errorCode,
+              error_message: errorMessage,
               provider,
               provider_mode: providerMode,
               provider_message_id: providerMessageId,
             })
             .eq('id', output.id)
 
+          rowResults.push(buildRowResult({
+            rowId: output.id,
+            generationOutputId: output.generation_output_id || null,
+            rowNumber: output.row_number ?? null,
+            status: 'sandbox_failed',
+            errorCode,
+            errorMessage,
+            providerMessageId,
+            attachmentFileName,
+            attachmentSizeBytes: attachmentBytes.byteLength,
+          }))
           summary.sandboxFailed += 1
           continue
         }
@@ -407,23 +518,51 @@ serve(async (req) => {
           })
           .eq('id', output.id)
 
+        rowResults.push(buildRowResult({
+          rowId: output.id,
+          generationOutputId: output.generation_output_id || null,
+          rowNumber: output.row_number ?? null,
+          status: 'sandbox_validated',
+          providerMessageId,
+          attachmentFileName,
+          attachmentSizeBytes: attachmentBytes.byteLength,
+        }))
         summary.sandboxValidated += 1
       } catch (error) {
         const parts = getErrorMessage(error, '').split(':')
         const isBlocked = parts[0] === 'blocked'
         const errorCode = isBlocked ? parts[1] : 'sandbox_validation_error'
         const errorMessage = isBlocked ? parts.slice(2).join(':') : 'Sandbox validation failed.'
+        const rowStatus = isBlocked ? 'blocked' : 'sandbox_failed'
+
+        console.warn('SendGrid sandbox row validation issue', {
+          rowId: output.id,
+          generationOutputId: output.generation_output_id || null,
+          rowNumber: output.row_number || null,
+          status: rowStatus,
+          errorCode,
+          errorMessage,
+        })
 
         await supabase
           .from('email_delivery_outputs')
           .update({
-            status: isBlocked ? 'blocked' : 'sandbox_failed',
+            status: rowStatus,
             error_code: errorCode,
             error_message: errorMessage,
             provider,
             provider_mode: providerMode,
           })
           .eq('id', output.id)
+
+        rowResults.push(buildRowResult({
+          rowId: output.id,
+          generationOutputId: output.generation_output_id || null,
+          rowNumber: output.row_number ?? null,
+          status: rowStatus,
+          errorCode,
+          errorMessage,
+        }))
 
         if (isBlocked) {
           summary.blocked += 1
@@ -456,6 +595,8 @@ serve(async (req) => {
       message: 'SendGrid sandbox validation finished. No real emails were delivered.',
       emailDeliveryJobId,
       ...summary,
+      rowResults,
+      firstError: rowResults.find((result) => result.errorMessage) || null,
       realEmailsDelivered: 0,
     })
   } catch (error) {

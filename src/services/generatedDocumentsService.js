@@ -1,4 +1,5 @@
 import { isSupabaseConfigured, supabase } from '../lib/supabaseClient.js'
+import * as XLSX from 'xlsx'
 
 const HISTORY_LIMIT = 50
 
@@ -8,6 +9,147 @@ function uniqueIds(rows, key) {
 
 function mapById(rows) {
   return new Map((rows || []).map((row) => [row.id, row]))
+}
+
+function rowHasValue(row) {
+  return row.some((cell) => String(cell ?? '').trim().length > 0)
+}
+
+function normalizeCellValue(value) {
+  if (value instanceof Date) {
+    return value.toLocaleDateString()
+  }
+
+  return String(value ?? '').trim()
+}
+
+function dedupeHeaders(headers) {
+  const seen = new Map()
+
+  return headers.map((header) => {
+    const count = seen.get(header) || 0
+    seen.set(header, count + 1)
+    return count === 0 ? header : `${header} ${count + 1}`
+  })
+}
+
+function parseRowDataValue(rowData) {
+  if (!rowData) {
+    return {}
+  }
+
+  if (typeof rowData === 'string') {
+    try {
+      const parsed = JSON.parse(rowData)
+      return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {}
+    } catch {
+      return {}
+    }
+  }
+
+  return typeof rowData === 'object' && !Array.isArray(rowData) ? rowData : {}
+}
+
+function hasUsefulRowData(rowData) {
+  return Object.keys(parseRowDataValue(rowData)).length > 0
+}
+
+function parseExcelRowsFromBuffer(buffer) {
+  const workbook = XLSX.read(buffer, { type: 'array' })
+  const firstSheetName = workbook.SheetNames[0]
+
+  if (!firstSheetName) {
+    return []
+  }
+
+  const rows = XLSX.utils.sheet_to_json(workbook.Sheets[firstSheetName], {
+    header: 1,
+    blankrows: false,
+    defval: '',
+    raw: false,
+  })
+  const headerRowIndex = rows.findIndex(rowHasValue)
+
+  if (headerRowIndex === -1) {
+    return []
+  }
+
+  const rawHeaders = rows[headerRowIndex].map((cell) => String(cell ?? '').trim())
+  const headerEntries = rawHeaders
+    .map((header, index) => ({ header, index }))
+    .filter((entry) => Boolean(entry.header))
+  const headers = dedupeHeaders(headerEntries.map((entry) => entry.header))
+
+  return rows
+    .slice(headerRowIndex + 1)
+    .filter(rowHasValue)
+    .map((row) =>
+      headerEntries.reduce((rowData, entry, entryIndex) => {
+        rowData[headers[entryIndex]] = normalizeCellValue(row[entry.index])
+        return rowData
+      }, {}),
+    )
+}
+
+async function loadRowsFromUpload(upload) {
+  if (!upload?.storage_bucket || !upload?.storage_path) {
+    return []
+  }
+
+  const { data, error } = await supabase.storage
+    .from(upload.storage_bucket)
+    .download(upload.storage_path)
+
+  if (error || !data) {
+    throw error || new Error('Upload file could not be downloaded.')
+  }
+
+  return parseExcelRowsFromBuffer(await data.arrayBuffer())
+}
+
+async function hydrateOutputRowDataFromUploads({ jobs, outputsByJob, uploadsById }) {
+  const uploadRowsCache = new Map()
+  let recoveredCount = 0
+
+  for (const job of jobs) {
+    const outputs = outputsByJob.get(job.id) || []
+    const needsRecovery = outputs.some((output) => !hasUsefulRowData(output.row_data))
+
+    if (!needsRecovery) {
+      continue
+    }
+
+    const upload = uploadsById.get(job.upload_id)
+
+    if (!upload) {
+      continue
+    }
+
+    if (!uploadRowsCache.has(upload.id)) {
+      uploadRowsCache.set(upload.id, await loadRowsFromUpload(upload))
+    }
+
+    const excelRows = uploadRowsCache.get(upload.id) || []
+
+    outputs.forEach((output) => {
+      if (hasUsefulRowData(output.row_data)) {
+        return
+      }
+
+      const recoveredRow = excelRows[(output.row_index || 0) - 1]
+
+      if (recoveredRow) {
+        output.row_data = recoveredRow
+        recoveredCount += 1
+      }
+    })
+  }
+
+  if (import.meta.env.DEV && recoveredCount > 0) {
+    console.debug('[Project Atlas] recovered History row_data from uploaded Excel', { recoveredCount })
+  }
+
+  return recoveredCount
 }
 
 async function fetchRelated(table, organizationId, ids, columns) {
@@ -110,7 +252,7 @@ export async function getGeneratedDocumentsHistory(organizationId, limit = HISTO
   const relatedResults = await Promise.allSettled([
     fetchRelated('products', organizationId, uniqueIds(documents, 'product_id'), 'id, product_code, name, slug'),
     fetchRelated('templates', organizationId, uniqueIds(documents, 'template_id'), 'id, name, file_name, version'),
-    fetchRelated('uploads', organizationId, uniqueIds(documents, 'upload_id'), 'id, file_name, row_count, detected_columns, created_at'),
+    fetchRelated('uploads', organizationId, uniqueIds(documents, 'upload_id'), 'id, file_name, row_count, detected_columns, storage_bucket, storage_path, created_at'),
     fetchRelated('generation_drafts', organizationId, uniqueIds(documents, 'generation_draft_id'), 'id, status, preview_row_index, updated_at'),
   ])
 
@@ -183,7 +325,7 @@ export async function getGenerationJobsHistory(organizationId, limit = HISTORY_L
   const relatedResults = await Promise.allSettled([
     fetchRelated('products', organizationId, uniqueIds(jobs, 'product_id'), 'id, product_code, name, slug'),
     fetchRelated('templates', organizationId, uniqueIds(jobs, 'template_id'), 'id, name, file_name, version'),
-    fetchRelated('uploads', organizationId, uniqueIds(jobs, 'upload_id'), 'id, file_name, row_count, detected_columns, created_at'),
+    fetchRelated('uploads', organizationId, uniqueIds(jobs, 'upload_id'), 'id, file_name, row_count, detected_columns, storage_bucket, storage_path, created_at'),
     fetchRelated('generation_drafts', organizationId, uniqueIds(jobs, 'generation_draft_id'), 'id, status, preview_row_index, updated_at'),
   ])
 
@@ -228,6 +370,14 @@ export async function getGenerationJobsHistory(organizationId, limit = HISTORY_L
   }
 
   const failedLookups = relatedResults.filter((result) => result.status === 'rejected')
+  const rowDataRecoveryResult = await Promise.allSettled([
+    hydrateOutputRowDataFromUploads({
+      jobs,
+      outputsByJob,
+      uploadsById: related.uploads,
+    }),
+  ])
+  const rowDataRecoveryFailed = rowDataRecoveryResult.some((result) => result.status === 'rejected')
 
   return {
     jobs: jobs.map((job) => ({
@@ -240,7 +390,10 @@ export async function getGenerationJobsHistory(organizationId, limit = HISTORY_L
       }, related),
       outputs: outputsByJob.get(job.id) || [],
     })),
-    metadataWarning: failedLookups.length > 0 ? 'Some related product, template, upload, or draft details could not be loaded.' : '',
+    metadataWarning: [
+      failedLookups.length > 0 ? 'Some related product, template, upload, or draft details could not be loaded.' : '',
+      rowDataRecoveryFailed ? 'Some older batch row data could not be recovered from the uploaded Excel file.' : '',
+    ].filter(Boolean).join(' '),
   }
 }
 

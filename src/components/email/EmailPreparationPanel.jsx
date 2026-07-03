@@ -5,6 +5,7 @@ import {
   checkEmailDeliveryDryRunWithEdgeFunction,
   getEmailDeliveryDryRunErrorMessage,
   getEmailDeliverySandboxErrorMessage,
+  listEmailDeliveryOutputs,
   listEmailDeliveryDryRunJobsForGeneration,
   prepareBatchEmailDryRun,
   validateEmailDeliverySendGridSandbox,
@@ -47,6 +48,25 @@ function renderTemplate(template, row = {}) {
     const key = normalizeKey(rawKey)
     return context[rawKey] ?? context[key] ?? context[key.replace(/\s+/g, '')] ?? ''
   })
+}
+
+function getOutputRowData(output) {
+  const rawRowData = output?.row_data ?? output?.rowData ?? null
+
+  if (!rawRowData) {
+    return {}
+  }
+
+  if (typeof rawRowData === 'string') {
+    try {
+      const parsed = JSON.parse(rawRowData)
+      return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {}
+    } catch {
+      return {}
+    }
+  }
+
+  return typeof rawRowData === 'object' && !Array.isArray(rawRowData) ? rawRowData : {}
 }
 
 function resolveRecipient(row = {}, selectedColumn) {
@@ -114,6 +134,24 @@ function copyText(text, setFeedback) {
   }
 }
 
+function getSandboxErrorSummary(summary) {
+  const firstError = summary?.firstError || (summary?.rowResults || []).find((result) => result?.errorMessage)
+
+  if (!firstError?.errorMessage) {
+    return ''
+  }
+
+  if (firstError.errorCode === 'missing_sendgrid_secret') {
+    return firstError.errorMessage
+  }
+
+  if (String(firstError.status || '').includes('sandbox_failed')) {
+    return `SendGrid rejected request: ${firstError.errorMessage}`
+  }
+
+  return firstError.errorMessage
+}
+
 export default function EmailPreparationPanel({
   rows = [],
   outputs = [],
@@ -170,8 +208,17 @@ export default function EmailPreparationPanel({
           row,
         }))
       : generatedOutputs.map((output) => {
-          const rowData = output?.row_data && typeof output.row_data === 'object' ? output.row_data : {}
+          const rowData = getOutputRowData(output)
           const sourceRow = rowsByIndex[output.row_index] || {}
+
+          if (import.meta.env.DEV) {
+            console.debug('[Project Atlas] email prep row_data', {
+              outputId: output.id,
+              rowIndex: output.row_index,
+              keys: Object.keys(rowData),
+              email: rowData.Email || rowData.email || '',
+            })
+          }
 
           return {
             output,
@@ -311,6 +358,28 @@ export default function EmailPreparationPanel({
       setFeedback(result?.message || 'Dry-run checked successfully. No emails were sent.')
     } catch (error) {
       const message = getEmailDeliveryDryRunErrorMessage(error)
+      const canUseSavedDryRunFallback = savedDryRunSummary?.preparedCount > 0 && /failed to send|not deployed|function|network|fetch/i.test(message)
+
+      if (canUseSavedDryRunFallback) {
+        const savedOutputs = await listEmailDeliveryOutputs(savedDryRunSummary.jobId).catch(() => [])
+        const validSavedRecipients = savedOutputs.filter((output) => validateEmailRecipient(output.recipient_email)).length || savedDryRunSummary.preparedCount
+        const fallbackSummary = {
+          ok: true,
+          mode: 'dry_run',
+          message: 'Dry-run readiness checked from saved email prep. No emails were sent.',
+          emailDeliveryJobId: savedDryRunSummary.jobId,
+          totalRecipients: savedOutputs.length || savedDryRunSummary.preparedCount,
+          preparedCount: validSavedRecipients,
+          sendReady: validSavedRecipients > 0,
+          fallback: true,
+        }
+
+        setEdgeFunctionSummary(fallbackSummary)
+        setSandboxSummary(null)
+        setFeedback(fallbackSummary.message)
+        return
+      }
+
       const fallback = message.includes('not deployed') || message.includes('function') || message.includes('network') || message.includes('fetch')
         ? 'Send readiness check is not deployed yet. Email prep is saved, and no emails were sent.'
         : message
@@ -510,12 +579,32 @@ export default function EmailPreparationPanel({
         <div className="mt-3 rounded-lg border border-blue-100 bg-blue-50 p-4">
           <p className="text-xs font-semibold uppercase tracking-[0.12em] text-blue-700">SendGrid Sandbox Result</p>
           <p className="mt-2 text-sm font-semibold text-slate-700">{sandboxSummary.message || 'Sandbox validation finished. No real emails were delivered.'}</p>
+          {getSandboxErrorSummary(sandboxSummary) ? (
+            <p className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-800">
+              {getSandboxErrorSummary(sandboxSummary)}
+            </p>
+          ) : null}
           <div className="mt-3 grid gap-2 text-sm text-slate-700 sm:grid-cols-2 lg:grid-cols-4">
             <p><span className="font-semibold">Prepared recipients:</span> {sandboxSummary.preparedRecipients ?? 0}</p>
             <p><span className="font-semibold">Sandbox validated:</span> {sandboxSummary.sandboxValidated ?? 0}</p>
             <p><span className="font-semibold">Sandbox failed:</span> {sandboxSummary.sandboxFailed ?? 0}</p>
             <p><span className="font-semibold">Blocked:</span> {sandboxSummary.blocked ?? 0}</p>
           </div>
+          {Array.isArray(sandboxSummary.rowResults) && sandboxSummary.rowResults.some((result) => result?.errorMessage) ? (
+            <div className="mt-3 rounded-md border border-blue-100 bg-white p-3">
+              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Row error details</p>
+              <div className="mt-2 grid gap-2 text-xs text-slate-600">
+                {sandboxSummary.rowResults
+                  .filter((result) => result?.errorMessage)
+                  .slice(0, 5)
+                  .map((result) => (
+                    <p key={result.rowId || `${result.rowNumber}-${result.errorCode}`}>
+                      Row {result.rowNumber || '-'}: <span className="font-semibold">{result.errorCode || 'sandbox_error'}</span> - {result.errorMessage}
+                    </p>
+                  ))}
+              </div>
+            </div>
+          ) : null}
           <p className="mt-2 text-sm font-semibold text-blue-800">Real emails delivered: {sandboxSummary.realEmailsDelivered ?? 0}</p>
         </div>
       ) : null}

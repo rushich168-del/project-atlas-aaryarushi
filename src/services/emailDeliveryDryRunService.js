@@ -201,7 +201,7 @@ export async function validateEmailDeliverySendGridSandbox(emailDeliveryJobId) {
 export function getEmailDeliveryDryRunErrorMessage(error) {
   const message = normalizeEmailDeliveryError(error)
 
-  if (/not found|404|function/.test(message)) {
+  if (/not found|404|function|failed to send/i.test(message)) {
     return 'Send readiness check is not deployed yet. Email prep is saved, and no emails were sent.'
   }
 
@@ -215,7 +215,7 @@ export function getEmailDeliveryDryRunErrorMessage(error) {
 export function getEmailDeliverySandboxErrorMessage(error) {
   const message = normalizeEmailDeliveryError(error)
 
-  if (/not found|404|function/.test(message)) {
+  if (/not found|404|function|failed to send/i.test(message)) {
     return 'SendGrid sandbox validation is not deployed yet. No real emails were delivered.'
   }
 
