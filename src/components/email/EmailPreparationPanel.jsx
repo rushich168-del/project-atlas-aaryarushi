@@ -1,7 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Copy, Download, Mail, Save, ShieldCheck } from 'lucide-react'
 import { prepareEmailPayloadPreview, validateEmailRecipient } from '../../services/emailDeliveryService'
-import { checkEmailDeliveryDryRunWithEdgeFunction, getEmailDeliveryDryRunErrorMessage, listEmailDeliveryDryRunJobsForGeneration, prepareBatchEmailDryRun } from '../../services/emailDeliveryDryRunService'
+import {
+  checkEmailDeliveryDryRunWithEdgeFunction,
+  getEmailDeliveryDryRunErrorMessage,
+  getEmailDeliverySandboxErrorMessage,
+  listEmailDeliveryDryRunJobsForGeneration,
+  prepareBatchEmailDryRun,
+  validateEmailDeliverySendGridSandbox,
+} from '../../services/emailDeliveryDryRunService'
 import { useAuth } from '../../context/AuthContext.jsx'
 
 function normalizeKey(key) {
@@ -130,6 +137,8 @@ export default function EmailPreparationPanel({
   const [savedDryRunSummary, setSavedDryRunSummary] = useState(null)
   const [savedDryRunError, setSavedDryRunError] = useState('')
   const [edgeFunctionSummary, setEdgeFunctionSummary] = useState(null)
+  const [validatingSandbox, setValidatingSandbox] = useState(false)
+  const [sandboxSummary, setSandboxSummary] = useState(null)
   const { session } = useAuth()
 
   const availableColumns = useMemo(() => {
@@ -298,6 +307,7 @@ export default function EmailPreparationPanel({
     try {
       const result = await checkEmailDeliveryDryRunWithEdgeFunction(savedDryRunSummary.jobId)
       setEdgeFunctionSummary(result)
+      setSandboxSummary(null)
       setFeedback(result?.message || 'Dry-run checked successfully. No emails were sent.')
     } catch (error) {
       const message = getEmailDeliveryDryRunErrorMessage(error)
@@ -305,11 +315,35 @@ export default function EmailPreparationPanel({
         ? 'Send readiness check is not deployed yet. Email prep is saved, and no emails were sent.'
         : message
       setEdgeFunctionSummary(null)
+      setSandboxSummary(null)
       setFeedback(fallback)
     } finally {
       setCheckingReadiness(false)
     }
   }
+
+  async function handleValidateSandboxSend() {
+    if (!edgeFunctionSummary?.sendReady || !savedDryRunSummary?.jobId || !generationJobId) {
+      setFeedback('Check Send Readiness first. No real emails were delivered.')
+      return
+    }
+
+    setValidatingSandbox(true)
+    setFeedback('')
+
+    try {
+      const result = await validateEmailDeliverySendGridSandbox(savedDryRunSummary.jobId)
+      setSandboxSummary(result)
+      setFeedback(result?.message || 'SendGrid sandbox validation finished. No real emails were delivered.')
+    } catch (error) {
+      setSandboxSummary(null)
+      setFeedback(getEmailDeliverySandboxErrorMessage(error))
+    } finally {
+      setValidatingSandbox(false)
+    }
+  }
+
+  const sandboxValidationAvailable = Boolean(edgeFunctionSummary?.sendReady && generationJobId)
 
   return (
     <section className="mt-5 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
@@ -425,6 +459,17 @@ export default function EmailPreparationPanel({
             {checkingReadiness ? 'Checking...' : 'Check Send Readiness'}
           </button>
         ) : null}
+        {sandboxValidationAvailable ? (
+          <button
+            type="button"
+            onClick={handleValidateSandboxSend}
+            disabled={validatingSandbox}
+            className="focus-ring inline-flex min-h-10 items-center justify-center gap-2 rounded-md bg-accentBlue px-4 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
+          >
+            <ShieldCheck size={16} aria-hidden="true" />
+            {validatingSandbox ? 'Validating...' : 'Validate Sandbox Send'}
+          </button>
+        ) : null}
         <button
           type="button"
           disabled
@@ -454,6 +499,24 @@ export default function EmailPreparationPanel({
           <p className="mt-1 text-sm text-slate-600">Recipients: {edgeFunctionSummary.totalRecipients ?? 0} · Prepared: {edgeFunctionSummary.preparedCount ?? 0}</p>
           <p className="mt-1 text-sm text-slate-600">Send ready: {edgeFunctionSummary.sendReady ? 'yes' : 'no'}</p>
           <p className="mt-1 text-sm text-slate-600">No emails were sent</p>
+        </div>
+      ) : null}
+      {sandboxValidationAvailable ? (
+        <p className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-800">
+          Sandbox validation only. No real emails will be delivered.
+        </p>
+      ) : null}
+      {sandboxSummary ? (
+        <div className="mt-3 rounded-lg border border-blue-100 bg-blue-50 p-4">
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-blue-700">SendGrid Sandbox Result</p>
+          <p className="mt-2 text-sm font-semibold text-slate-700">{sandboxSummary.message || 'Sandbox validation finished. No real emails were delivered.'}</p>
+          <div className="mt-3 grid gap-2 text-sm text-slate-700 sm:grid-cols-2 lg:grid-cols-4">
+            <p><span className="font-semibold">Prepared recipients:</span> {sandboxSummary.preparedRecipients ?? 0}</p>
+            <p><span className="font-semibold">Sandbox validated:</span> {sandboxSummary.sandboxValidated ?? 0}</p>
+            <p><span className="font-semibold">Sandbox failed:</span> {sandboxSummary.sandboxFailed ?? 0}</p>
+            <p><span className="font-semibold">Blocked:</span> {sandboxSummary.blocked ?? 0}</p>
+          </div>
+          <p className="mt-2 text-sm font-semibold text-blue-800">Real emails delivered: {sandboxSummary.realEmailsDelivered ?? 0}</p>
         </div>
       ) : null}
 

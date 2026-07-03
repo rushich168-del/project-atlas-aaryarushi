@@ -2,6 +2,7 @@ import { isSupabaseConfigured, supabase } from '../lib/supabaseClient.js'
 import { validateEmailRecipient } from './emailDeliveryService.js'
 
 const EDGE_FUNCTION_NAME = 'email-delivery-dry-run'
+const SENDGRID_SANDBOX_FUNCTION_NAME = 'email-delivery-sendgrid-sandbox'
 
 function normalizeEmailDeliveryError(error) {
   if (!error) {
@@ -177,6 +178,26 @@ export async function checkEmailDeliveryDryRunWithEdgeFunction(emailDeliveryJobI
   return data
 }
 
+export async function validateEmailDeliverySendGridSandbox(emailDeliveryJobId) {
+  if (!isSupabaseConfigured) {
+    throw new Error('SendGrid sandbox validation requires Supabase to be configured.')
+  }
+
+  if (!emailDeliveryJobId) {
+    throw new Error('An email delivery job is required for sandbox validation.')
+  }
+
+  const { data, error } = await supabase.functions.invoke(SENDGRID_SANDBOX_FUNCTION_NAME, {
+    body: { emailDeliveryJobId },
+  })
+
+  if (error) {
+    throw error
+  }
+
+  return data
+}
+
 export function getEmailDeliveryDryRunErrorMessage(error) {
   const message = normalizeEmailDeliveryError(error)
 
@@ -186,6 +207,20 @@ export function getEmailDeliveryDryRunErrorMessage(error) {
 
   if (/network|failed to fetch|fetch/i.test(message)) {
     return 'Send readiness check is not deployed yet. Email prep is saved, and no emails were sent.'
+  }
+
+  return message
+}
+
+export function getEmailDeliverySandboxErrorMessage(error) {
+  const message = normalizeEmailDeliveryError(error)
+
+  if (/not found|404|function/.test(message)) {
+    return 'SendGrid sandbox validation is not deployed yet. No real emails were delivered.'
+  }
+
+  if (/network|failed to fetch|fetch/i.test(message)) {
+    return 'SendGrid sandbox validation is not deployed yet. No real emails were delivered.'
   }
 
   return message
