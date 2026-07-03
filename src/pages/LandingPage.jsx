@@ -38,7 +38,23 @@ const fadeUp = {
   visible: { opacity: 1, y: 0 },
 }
 
-const trustTags = ['Microsoft Office', 'Word', 'Excel', 'PDF', 'VBA', 'Workflow Automation']
+const trustTags = ['DOCX Automation', 'Excel-Based Generation', 'Supabase Secure Storage', 'Batch Ready', 'Built for Education, HR, and Business']
+
+const productSuite = [
+  { name: 'AR-CERT-PRO', status: 'Released', description: 'Certificate generation from Excel data and Word templates.' },
+  { name: 'AR-MARKSHEET-PRO', status: 'Coming Soon', description: 'Automated marksheet and score report generation.' },
+  { name: 'AR-QUESTION-PRO', status: 'Planned', description: 'Question paper assembly with reusable banks and layouts.' },
+  { name: 'AR-IDCARD-PRO', status: 'Desktop Ready', description: 'ID card creation from Excel datasets with template mapping.' },
+  { name: 'AR-INVOICE-PRO', status: 'Planned', description: 'Invoice generation from spreadsheet line items and client data.' },
+]
+
+const trustBadges = [
+  'DOCX Automation',
+  'Excel-Based Generation',
+  'Supabase Secure Storage',
+  'Batch Ready',
+  'Built for Education, HR, and Business',
+]
 
 const painCards = [
   ['Copy', ClipboardCheck],
@@ -390,8 +406,8 @@ function LandingPage() {
         </nav>
       </header>
 
-      <section id="top" className="hero-scene relative overflow-hidden px-5 pt-28 sm:px-6 lg:px-8">
-        <div className="relative mx-auto grid max-w-7xl items-center gap-12 pb-16 pt-10 sm:pt-14 lg:min-h-[680px] lg:grid-cols-[1.02fr_0.98fr] lg:gap-14 lg:pb-20">
+      <section id="top" className="relative overflow-hidden px-5 pt-28 sm:px-6 lg:px-8">
+        <div className="relative mx-auto grid max-w-7xl gap-10 pb-14 pt-10 lg:grid-cols-[1.1fr_0.9fr] lg:pb-20">
           <motion.div
             className="max-w-3xl"
             initial="hidden"
@@ -399,41 +415,69 @@ function LandingPage() {
             variants={fadeUp}
             transition={{ duration: 0.55 }}
           >
-            <p className="mb-5 inline-flex rounded-md border border-slate-200 bg-white/80 px-3 py-2 text-sm font-semibold text-accentBlue backdrop-blur">
-              Office Automation Solutions
+            <p className="mb-5 inline-flex rounded-full border border-accentTeal/20 bg-accentTeal/10 px-3 py-2 text-sm font-semibold uppercase tracking-[0.18em] text-accentTeal">
+              AR-CERT-PRO SaaS
             </p>
-            <h1 className="max-w-3xl text-4xl font-semibold leading-tight text-primary sm:text-6xl lg:text-6xl">
-              Office Automation Solutions for{' '}
-              <span className="bg-gradient-to-r from-accentBlue to-accentTeal bg-clip-text text-transparent">
-                Growing Businesses
-              </span>
+            <h1 className="text-4xl font-semibold leading-tight text-primary sm:text-5xl lg:text-6xl">
+              Upload template. Upload Excel. Generate professional documents.
             </h1>
             <p className="mt-6 max-w-2xl text-lg leading-8 text-slateText sm:text-xl">
-              Save hours of repetitive Microsoft Office work with intelligent Word,
-              Excel, PDF, and document automation.
+              Upload a Word template, upload Excel data, review the field mapping, and generate DOCX files instantly in the browser.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <ButtonLink href={auditFormLink}>
-                Book Free 20-Min Automation Audit <ArrowRight size={18} />
+              <ButtonLink href="/dashboard">
+                Start Generating
               </ButtonLink>
-              <ButtonLink href="#solutions" variant="secondary">
-                View Solutions
+              <ButtonLink href="/dashboard/products/ar-cert-pro/workspace" variant="secondary">
+                View Demo Workflow
               </ButtonLink>
             </div>
-            <div className="mt-8 flex max-w-3xl flex-wrap gap-2">
-              {trustTags.map((tag) => (
-                <span
-                  key={tag}
-                  className="rounded-md border border-slate-200 bg-white/82 px-3 py-2 text-sm font-medium text-slate-600 backdrop-blur"
-                >
-                  {tag}
-                </span>
+            <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {trustBadges.map((badge) => (
+                <div key={badge} className="rounded-2xl border border-slate-200 bg-white/90 px-4 py-3 shadow-sm">
+                  <p className="text-sm font-semibold text-primary">{badge}</p>
+                </div>
               ))}
             </div>
           </motion.div>
           <HeroScene />
         </div>
       </section>
+
+      <Section id="workflow" eyebrow="Workflow" title="Four steps to generate DOCX from Excel">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {[
+            { label: 'Upload Word Template', description: 'Choose a DOCX certificate template.' },
+            { label: 'Upload Excel Data', description: 'Load participant rows from Excel.' },
+            { label: 'Auto-map Fields', description: 'Map placeholders to spreadsheet columns.' },
+            { label: 'Generate DOCX Files', description: 'Create certificates in the browser.' },
+          ].map((step, index) => (
+            <div key={step.label} className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-accentBlue text-sm font-bold text-white">
+                {index + 1}
+              </div>
+              <h3 className="mt-4 text-lg font-semibold text-primary">{step.label}</h3>
+              <p className="mt-2 text-sm leading-6 text-slate-600">{step.description}</p>
+            </div>
+          ))}
+        </div>
+      </Section>
+
+      <Section id="product-suite" eyebrow="Product suite" title="AR Automation product lineup">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+          {productSuite.map((product) => (
+            <article key={product.name} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-base font-semibold text-primary">{product.name}</p>
+                <span className={`rounded-full px-3 py-1 text-xs font-bold ${product.status === 'Released' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
+                  {product.status}
+                </span>
+              </div>
+              <p className="mt-3 text-sm leading-6 text-slate-600">{product.description}</p>
+            </article>
+          ))}
+        </div>
+      </Section>
 
       <Section id="problem" eyebrow="Problem" title="Still Doing This Every Week?">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-7">

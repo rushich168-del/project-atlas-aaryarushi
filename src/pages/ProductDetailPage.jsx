@@ -124,11 +124,20 @@ export default function ProductDetailPage({ slug }) {
             <p className="mt-3 text-sm leading-6 text-slate-600">{product.audience}</p>
             <button
               type="button"
-              onClick={() => navigateTo(product.slug === 'ar-cert-pro' ? `/dashboard/products/${product.slug}/workspace` : '/dashboard/products')}
-              className="focus-ring mt-5 inline-flex min-h-10 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-white transition hover:bg-slate-800"
+              onClick={() => {
+                if (product.slug === 'ar-cert-pro') {
+                  navigateTo(`/dashboard/products/${product.slug}/workspace`)
+                }
+              }}
+              disabled={product.slug !== 'ar-cert-pro'}
+              className={`focus-ring mt-5 inline-flex min-h-10 items-center justify-center gap-2 rounded-md px-4 text-sm font-semibold transition ${
+                product.slug === 'ar-cert-pro'
+                  ? 'bg-primary text-white hover:bg-slate-800'
+                  : 'cursor-not-allowed border border-slate-200 bg-slate-100 text-slate-400'
+              }`}
             >
-              {product.slug === 'ar-cert-pro' ? 'Open workspace' : 'Product workspace'}
-              <ArrowUpRight size={16} aria-hidden="true" />
+              {product.slug === 'ar-cert-pro' ? 'Open workspace' : 'Coming soon'}
+              {product.slug === 'ar-cert-pro' ? <ArrowUpRight size={16} aria-hidden="true" /> : null}
             </button>
           </article>
         </section>

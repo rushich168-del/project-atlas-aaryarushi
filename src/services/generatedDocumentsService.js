@@ -242,3 +242,51 @@ export async function getGenerationJobsHistory(organizationId, limit = HISTORY_L
     metadataWarning: failedLookups.length > 0 ? 'Some related product, template, upload, or draft details could not be loaded.' : '',
   }
 }
+
+async function removeStorageFile(storageBucket, storagePath) {
+  if (!storageBucket || !storagePath) {
+    return
+  }
+
+  const { error } = await supabase.storage.from(storageBucket).remove([storagePath])
+
+  if (error && error.message && !error.message.includes('The resource was not found')) {
+    throw error
+  }
+}
+
+export async function deleteGeneratedDocument({ organizationId, documentId, storageBucket, storagePath }) {
+  try {
+    await removeStorageFile(storageBucket, storagePath)
+  } catch (storageError) {
+    throw storageError
+  }
+
+  const { error } = await supabase
+    .from('generated_documents')
+    .delete()
+    .eq('organization_id', organizationId)
+    .eq('id', documentId)
+
+  if (error) {
+    throw error
+  }
+}
+
+export async function deleteGenerationOutput({ organizationId, outputId, storageBucket, storagePath }) {
+  try {
+    await removeStorageFile(storageBucket, storagePath)
+  } catch (storageError) {
+    throw storageError
+  }
+
+  const { error } = await supabase
+    .from('generation_outputs')
+    .delete()
+    .eq('organization_id', organizationId)
+    .eq('id', outputId)
+
+  if (error) {
+    throw error
+  }
+}

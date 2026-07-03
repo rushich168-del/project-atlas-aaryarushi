@@ -1,3 +1,4 @@
+import JSZip from 'jszip'
 import { supabase } from '../../../lib/supabaseClient.js'
 
 const OUTPUT_BUCKET = 'certificate-outputs'
@@ -109,6 +110,18 @@ export async function uploadGeneratedCertificateDocx({
   return data
 }
 
+function safeZipEntryName(fileName, rowIndex) {
+  const baseName = String(fileName || `row-${rowIndex}-certificate.docx`)
+    .replace(/\.[^/.]+$/, '')
+    .replace(/[^a-zA-Z0-9-_ ]+/g, '-')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 90)
+
+  return `${baseName || `row-${rowIndex}-certificate`}.docx`
+}
+
 export async function downloadGeneratedCertificateDocx(generatedDocument) {
   if (!generatedDocument?.storage_bucket || !generatedDocument?.storage_path) {
     throw new Error('Stored DOCX location is missing.')
@@ -123,4 +136,56 @@ export async function downloadGeneratedCertificateDocx(generatedDocument) {
   }
 
   return data
+}
+
+export async function createBatchDocxZip(outputs, zipFileName, onProgress) {
+  if (!Array.isArray(outputs)) {
+    throw new Error('Batch outputs must be provided for ZIP creation.')
+  }
+
+  const generatedFiles = outputs.filter(
+    (output) => output?.status === 'generated' && output?.storage_bucket && output?.storage_path,
+  )
+
+  if (generatedFiles.length === 0) {
+    throw new Error('No generated DOCX files available for ZIP download.')
+  }
+
+  const zip = new JSZip()
+  const warnings = []
+
+  for (let index = 0; index < generatedFiles.length; index += 1) {
+    const output = generatedFiles[index]
+    const current = index + 1
+
+    onProgress?.({
+      type: 'download',
+      current,
+      total: generatedFiles.length,
+      message: `Downloading ${current} of ${generatedFiles.length} files...`,
+    })
+
+    try {
+      const blob = await downloadGeneratedCertificateDocx(output)
+      const entryName = safeZipEntryName(output.file_name, output.row_index)
+      zip.file(entryName, blob)
+    } catch (error) {
+      warnings.push({ output, error })
+    }
+  }
+
+  if (Object.keys(zip.files).length === 0) {
+    throw new Error('Unable to download any generated files for the ZIP.')
+  }
+
+  onProgress?.({ type: 'compress', message: 'Compressing files...' })
+
+  const zipBlob = await zip.generateAsync(
+    { type: 'blob' },
+    ({ percent }) => {
+      onProgress?.({ type: 'compress', percent, message: `Compressing ${Math.round(percent)}%...` })
+    },
+  )
+
+  return { zipBlob, warnings }
 }

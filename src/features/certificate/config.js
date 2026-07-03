@@ -525,37 +525,37 @@ export const certificateWorkspaceConfig = {
   steps: [
     {
       id: 'template',
-      label: 'Template',
+      label: 'Upload Template',
       component: TemplateStep,
       isComplete: (state) => Boolean(state.templateRecord),
     },
     {
       id: 'excel',
-      label: 'Excel',
+      label: 'Upload Excel',
       component: ExcelStep,
       isComplete: (state) => Boolean(state.uploadRecord),
     },
     {
       id: 'mapping',
-      label: 'Mapping',
+      label: 'Review Mapping',
       component: MappingStep,
       isComplete: hasRequiredMappings,
     },
     {
       id: 'preview',
-      label: 'Preview',
+      label: 'Preview Row',
       component: PreviewStep,
       isComplete: hasRequiredMappings,
     },
     {
       id: 'generate',
-      label: 'Generate',
+      label: 'Generate DOCX',
       component: GenerateStep,
       isComplete: (state) => state.generationComplete,
     },
     {
       id: 'downloads',
-      label: 'Downloads',
+      label: 'Result',
       component: DownloadsStep,
       isComplete: (state) => state.generationComplete,
     },

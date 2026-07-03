@@ -5,3 +5,17 @@ dist/
 *.log
 vite.log
 vite.err
+
+# Local environment secrets
+.env.local
+.env.*.local
+
+# Supabase local/temp files
+supabase/.temp/
+
+# Office temporary lock files
+~$*
+demo-files/~$*
+
+# Accidental PowerShell/test file
+Test-Path

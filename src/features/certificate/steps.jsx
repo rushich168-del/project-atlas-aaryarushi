@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { AlertCircle, CheckCircle2, Download, FileSpreadsheet, FileText, Loader2, ListChecks, Wand2 } from 'lucide-react'
 import { detectDocxPlaceholders } from '../../core/atlas/index.js'
 import {
@@ -7,9 +8,11 @@ import {
   validateExcelFile,
   validateTemplateFile,
 } from './services/certificateFilesService.js'
+import { createBatchDocxZip, downloadGeneratedCertificateDocx } from './services/certificateOutputsService.js'
 import { getUploadError } from '../../utils/errorMessages.js'
 import { BATCH_ROW_LIMIT } from './services/certificateBatchService.js'
 import { navigateTo } from '../../utils/routes.js'
+import EmailPreparationPanel from '../../components/email/EmailPreparationPanel.jsx'
 
 function normalizeName(value) {
   return String(value || '')
@@ -37,16 +40,27 @@ function UploadMessage({ error }) {
 }
 
 function SelectedFileCard({ title, record, file }) {
+  const fileName = record?.file_name || file?.name
+  const status = record || file ? 'Ready' : 'Missing'
+
   if (!record && !file) {
-    return null
+    return (
+      <div className="mt-5 rounded-lg border border-slate-200 bg-lightBg p-4 text-sm text-slate-600">
+        {title.includes('Template') ? 'No template uploaded yet.' : 'No Excel file uploaded yet.'}
+      </div>
+    )
   }
 
   return (
-    <div className="mt-5 flex items-center gap-3 rounded-md border border-emerald-200 bg-emerald-50 p-3">
-      <CheckCircle2 size={18} className="text-emerald-600" aria-hidden="true" />
-      <div>
-        <p className="text-sm font-semibold text-emerald-800">{record?.file_name || file?.name}</p>
-        <p className="text-xs font-medium text-emerald-700">{title} stored in Supabase</p>
+    <div className="mt-5 rounded-lg border border-emerald-200 bg-emerald-50 p-4">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p className="text-sm font-semibold text-emerald-800">{fileName}</p>
+          <p className="mt-1 text-xs font-medium text-emerald-700">{title} stored in Supabase</p>
+        </div>
+        <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-emerald-700">
+          {status}
+        </span>
       </div>
     </div>
   )
@@ -204,6 +218,17 @@ export function ExcelStep({ state, actions, workspace }) {
         onFile={handleExcelFile}
       />
 
+      <div className="rounded-lg border border-slate-200 bg-lightBg p-4 text-sm text-slate-600">
+        {state.uploadRecord ? (
+          <div className="grid gap-2 sm:grid-cols-2">
+            <p>Excel status: <span className="font-semibold text-primary">Ready</span></p>
+            <p>{state.rowCount} rows, {state.detectedColumns.length} columns detected.</p>
+          </div>
+        ) : (
+          'No Excel file uploaded yet.'
+        )}
+      </div>
+
       {state.detectedColumns.length > 0 && (
         <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
           <h4 className="text-lg font-semibold text-primary">Detected columns</h4>
@@ -344,54 +369,69 @@ export function MappingStep({ state, actions, config }) {
           )}
         </section>
       </div>
-      <div className="mt-5 grid gap-3">
-        {config.templateFields.map((field) => (
-          <label
-            key={field.id}
-            className={`grid gap-2 rounded-md border p-3 sm:grid-cols-[1fr_1.2fr] sm:items-center ${
-              field.required && !state.fieldMapping[field.id]
-                ? 'border-amber-200 bg-amber-50'
-                : 'border-slate-200 bg-lightBg'
-            }`}
-          >
-            <span>
-              <span className="block text-sm font-semibold text-primary">
-                {field.label}
-                {field.required ? <span className="text-amber-600"> *</span> : null}
-              </span>
-              <span className="block text-xs font-medium text-slate-500">{field.placeholder}</span>
-            </span>
-            <select
-              value={state.fieldMapping[field.id] || ''}
-              onChange={(event) =>
-                actions.updateState((current) => ({
-                  fieldMapping: {
-                    ...current.fieldMapping,
-                    [field.id]: event.target.value,
-                  },
-                  draftDirty: true,
-                  generationComplete: false,
-                  generatedDocx: null,
-                  generatedDocumentRecord: null,
-                  generationError: '',
-                  outputError: '',
-                  persistingOutput: false,
-                  batchValidation: null,
-                  batchJob: null,
-                  batchOutputs: [],
-                  batchError: '',
-                  batchComplete: false,
-                }))
-              }
-              className="min-h-10 rounded-md border border-slate-200 bg-white px-3 text-sm font-semibold text-primary outline-none"
+      <div className="mt-5 rounded-md border border-slate-200 bg-lightBg p-4">
+        <p className="text-sm font-semibold text-primary">Review the mapping before generating files. You can change any column manually.</p>
+      </div>
+      <div className="mt-5 grid gap-4">
+        {config.templateFields.map((field) => {
+          const selectedColumn = state.fieldMapping[field.id] || ''
+          const isMissing = field.required && !selectedColumn
+
+          return (
+            <div
+              key={field.id}
+              className={`rounded-3xl border p-4 ${isMissing ? 'border-amber-200 bg-amber-50' : 'border-slate-200 bg-white'}`}
             >
-              <option value="">Choose column</option>
-              {state.detectedColumns.map((column) => (
-                <option key={column} value={column}>{column}</option>
-              ))}
-            </select>
-          </label>
-        ))}
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <p className="text-sm font-semibold text-primary">{field.label}</p>
+                  <p className="mt-1 text-xs text-slate-500">{field.placeholder}</p>
+                </div>
+                <span className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.12em] ${selectedColumn ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
+                  {selectedColumn ? 'Mapped' : 'Missing'}
+                </span>
+              </div>
+              <div className="mt-4 grid gap-4 md:grid-cols-[1fr_1.3fr]">
+                <div className="rounded-2xl border border-slate-200 bg-lightBg p-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Selected Excel column</p>
+                  <p className="mt-2 text-sm font-semibold text-slate-700">{selectedColumn || 'No column selected'}</p>
+                </div>
+                <label className="grid gap-2">
+                  <span className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Choose column</span>
+                  <select
+                    value={selectedColumn}
+                    onChange={(event) =>
+                      actions.updateState((current) => ({
+                        fieldMapping: {
+                          ...current.fieldMapping,
+                          [field.id]: event.target.value,
+                        },
+                        draftDirty: true,
+                        generationComplete: false,
+                        generatedDocx: null,
+                        generatedDocumentRecord: null,
+                        generationError: '',
+                        outputError: '',
+                        persistingOutput: false,
+                        batchValidation: null,
+                        batchJob: null,
+                        batchOutputs: [],
+                        batchError: '',
+                        batchComplete: false,
+                      }))
+                    }
+                    className="min-h-10 rounded-md border border-slate-200 bg-white px-3 text-sm font-semibold text-primary outline-none"
+                  >
+                    <option value="">Choose column</option>
+                    {state.detectedColumns.map((column) => (
+                      <option key={column} value={column}>{column}</option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+            </div>
+          )
+        })}
       </div>
     </section>
   )
@@ -401,70 +441,84 @@ export function PreviewStep({ state, actions, config }) {
   const previewData = config.getPreviewData(state)
   const mergeResult = config.getMergeResult(state)
   const selectedRow = state.previewRows[state.previewRowIndex] || {}
+  const totalRows = state.previewRows.length
+  const previewRowNumber = totalRows ? state.previewRowIndex + 1 : 0
+  const missingFields = [...mergeResult.missingColumns, ...mergeResult.missingValues].map((item) => item.label)
+  const rowReady = mergeResult.valid
 
   return (
     <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
-      <h3 className="text-xl font-semibold text-primary">Preview</h3>
-      <p className="mt-2 text-sm leading-6 text-slate-600">HTML preview uses real parsed Excel preview rows. DOCX rendering remains out of scope.</p>
-      {state.previewRows.length > 0 && (
-        <label className="mt-5 flex max-w-xs flex-col gap-2">
-          <span className="text-sm font-semibold text-slate-600">Preview row</span>
-          <select
-            value={state.previewRowIndex}
-            onChange={(event) =>
-              actions.updateState({
-                previewRowIndex: Number(event.target.value),
-                draftDirty: true,
-                generationComplete: false,
-                generatedDocx: null,
-                generatedDocumentRecord: null,
-                generationError: '',
-                outputError: '',
-                persistingOutput: false,
-              })
-            }
-            className="min-h-10 rounded-md border border-slate-200 bg-white px-3 text-sm font-semibold text-primary outline-none"
-          >
-            {state.previewRows.map((_row, index) => (
-              <option key={index} value={index}>Row {index + 1}</option>
-            ))}
-          </select>
-        </label>
-      )}
-      {(mergeResult.errors.length > 0 || mergeResult.warnings.length > 0) && (
-        <div className="mt-5 grid gap-2 rounded-md border border-slate-200 bg-lightBg p-4 text-sm">
-          {mergeResult.errors.map((item) => (
-            <p key={item.message} className="font-medium text-red-700">{item.message}</p>
-          ))}
-          {mergeResult.warnings.map((item) => (
-            <p key={item.message} className="font-medium text-amber-700">{item.message}</p>
-          ))}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h3 className="text-xl font-semibold text-primary">Preview</h3>
+          <p className="mt-2 text-sm leading-6 text-slate-600">HTML preview uses real parsed Excel preview rows. DOCX rendering remains out of scope.</p>
         </div>
-      )}
-      <div className="mt-5 rounded-lg border border-slate-200 bg-lightBg p-6">
-        <div className="mx-auto max-w-xl rounded-lg border border-slate-300 bg-white p-8 text-center shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accentBlue">Certificate of Completion</p>
-          <h4 className="mt-6 text-3xl font-semibold text-primary">{previewData.name || 'Participant Name'}</h4>
-          <p className="mt-4 text-sm leading-6 text-slate-600">
-            has completed {previewData.course || 'Course Name'} on {previewData.date || 'Date'}.
-          </p>
-          <p className="mt-6 text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
-            {previewData.certificate_id || 'CERT-ID'}
-          </p>
-          {previewData.trainer && <p className="mt-4 text-sm font-semibold text-slate-500">Trainer: {previewData.trainer}</p>}
+        <div className="rounded-full border border-slate-200 bg-lightBg px-4 py-2 text-sm font-semibold text-slate-700">
+          {totalRows ? `Row ${previewRowNumber} of ${totalRows}` : 'No preview rows available'}
         </div>
       </div>
-      {Object.keys(selectedRow).length > 0 && (
-        <div className="mt-5 rounded-md border border-slate-200 bg-white p-4">
-          <h4 className="text-sm font-semibold text-primary">Raw preview row</h4>
-          <div className="mt-3 grid gap-2 sm:grid-cols-2">
-            {Object.entries(selectedRow).map(([key, value]) => (
-              <div key={key} className="rounded-md bg-lightBg p-3 text-xs">
-                <span className="font-semibold text-slate-500">{key}: </span>
-                <span className="text-slate-700">{value || '-'}</span>
+
+      {totalRows > 0 ? (
+        <div className="mt-5 grid gap-5 lg:grid-cols-[1fr_0.9fr]">
+          <div className="rounded-3xl border border-slate-200 bg-lightBg p-5">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-primary">Preview row status</p>
+                <p className={`mt-2 text-sm font-semibold ${rowReady ? 'text-emerald-700' : 'text-amber-700'}`}>
+                  {rowReady ? 'This row is ready' : 'This row has missing fields'}
+                </p>
               </div>
-            ))}
+              <span className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.12em] ${rowReady ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
+                {rowReady ? 'Ready' : 'Needs review'}
+              </span>
+            </div>
+            {missingFields.length > 0 && (
+              <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+                <p className="font-semibold">Missing values</p>
+                <p className="mt-2">{missingFields.join(', ')}</p>
+              </div>
+            )}
+            <div className="mt-5 grid gap-3">
+              {config.templateFields.map((field) => (
+                <div key={field.id} className="rounded-2xl border border-slate-200 bg-white p-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">{field.label}</p>
+                  <p className="mt-2 text-sm font-semibold text-primary">{previewData[field.id] || '-'}</p>
+                </div>
+              ))}
+            </div>
           </div>
+
+          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="text-center">
+              <p className="text-sm font-semibold uppercase tracking-[0.16em] text-accentBlue">Certificate preview</p>
+            </div>
+            <div className="mt-6 rounded-3xl border border-slate-200 bg-lightBg p-6 text-center">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accentBlue">Certificate of Completion</p>
+              <h4 className="mt-6 text-3xl font-semibold text-primary">{previewData.name || 'Participant Name'}</h4>
+              <p className="mt-4 text-sm leading-6 text-slate-600">
+                has completed {previewData.course || 'Course Name'} on {previewData.date || 'Date'}.
+              </p>
+              <p className="mt-6 text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
+                {previewData.certificate_id || 'CERT-ID'}
+              </p>
+              {previewData.trainer && <p className="mt-4 text-sm font-semibold text-slate-500">Trainer: {previewData.trainer}</p>}
+            </div>
+            <div className="mt-5 rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-600">
+              <p className="font-semibold text-slate-800">Raw preview row values</p>
+              <div className="mt-4 grid gap-2">
+                {Object.entries(selectedRow).map(([key, value]) => (
+                  <div key={key} className="rounded-2xl bg-lightBg p-3 text-xs">
+                    <span className="font-semibold text-slate-500">{key}: </span>
+                    <span className="text-slate-700">{value || '-'}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="mt-5 rounded-lg border border-slate-200 bg-lightBg p-6 text-sm text-slate-600">
+          Upload Excel data and complete field mapping to see a preview row here.
         </div>
       )}
     </section>
@@ -533,19 +587,19 @@ function getGenerationBlockers({ state, config }) {
   const mergeResult = config.getMergeResult(state)
 
   if (!state.templateRecord) {
-    blockers.push('Upload a DOCX template.')
+    blockers.push('Please upload a DOCX template before generating.')
   }
 
   if (!state.uploadRecord) {
-    blockers.push('Upload an Excel file.')
+    blockers.push('Please upload an Excel file before generating.')
   }
 
   if (!validation.valid) {
-    blockers.push('Complete the required field mapping.')
+    blockers.push('Some placeholders are not mapped. Review mapping before generating.')
   }
 
   if (!mergeResult.valid) {
-    blockers.push('Fix the selected preview row values.')
+    blockers.push('The selected preview row has missing values.')
   }
 
   if (!state.draftRecord) {
@@ -632,53 +686,211 @@ function BatchProgress({ state }) {
 }
 
 function BatchResult({ state }) {
+  const [zipState, setZipState] = useState({
+    preparing: false,
+    progressMessage: '',
+    warningMessage: '',
+    errorMessage: '',
+  })
+
   if (!state.batchComplete || !state.batchJob) {
     return null
   }
 
-  const failedOutputs = (state.batchOutputs || []).filter((output) => output.status !== 'generated')
+  const outputs = state.batchOutputs || []
+  const generatedOutputs = outputs.filter((output) => output.status === 'generated')
+  const canDownloadZip = generatedOutputs.length > 0
+
+  async function handleDownloadDocx(output) {
+    try {
+      const blob = await downloadGeneratedCertificateDocx(output)
+      const url = URL.createObjectURL(blob)
+      const link = window.document.createElement('a')
+      link.href = url
+      link.download = output.file_name || `row-${output.row_index}-certificate.docx`
+      window.document.body.appendChild(link)
+      link.click()
+      link.remove()
+      URL.revokeObjectURL(url)
+    } catch (error) {
+      // Keep batch result flow unaffected if download fails.
+      console.error('Batch DOCX download failed', error)
+    }
+  }
+
+  async function handleDownloadZip() {
+    if (!canDownloadZip) {
+      return
+    }
+
+    setZipState({ preparing: true, progressMessage: 'Preparing ZIP...', warningMessage: '', errorMessage: '' })
+
+    try {
+      const fileName = `AR-CERT-PRO-batch-${state.batchJob.id}.zip`
+      const { zipBlob, warnings } = await createBatchDocxZip(generatedOutputs, fileName, ({ message }) => {
+        setZipState((current) => ({ ...current, progressMessage: message }))
+      })
+
+      const url = URL.createObjectURL(zipBlob)
+      const link = window.document.createElement('a')
+      link.href = url
+      link.download = fileName
+      window.document.body.appendChild(link)
+      link.click()
+      link.remove()
+      URL.revokeObjectURL(url)
+
+      setZipState({ preparing: false, progressMessage: 'ZIP ready. Download started.', warningMessage: warnings.length ? 'Some files could not be added to ZIP.' : '', errorMessage: '' })
+    } catch (error) {
+      setZipState({ preparing: false, progressMessage: '', warningMessage: '', errorMessage: 'Could not prepare ZIP. Please try individual downloads.' })
+    }
+  }
 
   return (
     <div className="mt-5 rounded-lg border border-emerald-200 bg-emerald-50 p-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h4 className="text-sm font-semibold text-emerald-900">Batch completed</h4>
+          <h4 className="text-sm font-semibold text-emerald-900">Batch generation complete</h4>
           <p className="mt-1 text-xs font-medium text-emerald-700">
             {state.batchJob.success_count} generated, {state.batchJob.failure_count} failed or skipped from {state.batchJob.total_rows} rows.
           </p>
+          <p className="mt-2 text-xs text-slate-600">Downloads all successfully generated DOCX files from this batch.</p>
         </div>
-        <button
-          type="button"
-          onClick={() => navigateTo('/dashboard/history')}
-          className="focus-ring inline-flex min-h-10 items-center justify-center rounded-md bg-emerald-700 px-3 text-sm font-semibold text-white"
-        >
-          Open History
-        </button>
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={handleDownloadZip}
+            disabled={zipState.preparing || !canDownloadZip}
+            className="focus-ring inline-flex min-h-10 items-center justify-center gap-2 rounded-md bg-primary px-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60"
+          >
+            {zipState.preparing ? <Loader2 size={16} className="animate-spin" aria-hidden="true" /> : <Download size={16} aria-hidden="true" />}
+            {zipState.preparing ? 'Preparing ZIP...' : 'Download All as ZIP'}
+          </button>
+          <button
+            type="button"
+            onClick={() => navigateTo('/dashboard/history')}
+            className="focus-ring inline-flex min-h-10 items-center justify-center rounded-md border border-slate-200 bg-white px-3 text-sm font-semibold text-primary"
+          >
+            Open History
+          </button>
+        </div>
       </div>
-      {failedOutputs.length > 0 ? (
-        <div className="mt-3 max-h-44 overflow-auto rounded-md border border-emerald-200 bg-white p-3">
-          {failedOutputs.map((output) => (
-            <p key={output.id} className="text-xs font-medium text-amber-800">
-              Row {output.row_index}: {output.display_name || 'Unnamed'} - {output.error_message || output.status}
-            </p>
-          ))}
-        </div>
+      {zipState.progressMessage ? (
+        <p className="mt-3 text-sm font-medium text-slate-600">{zipState.progressMessage}</p>
       ) : null}
+      {zipState.warningMessage ? (
+        <p className="mt-2 text-sm font-semibold text-amber-700">{zipState.warningMessage}</p>
+      ) : null}
+      {zipState.errorMessage ? (
+        <p className="mt-2 text-sm font-semibold text-red-600">{zipState.errorMessage}</p>
+      ) : null}
+      <div className="mt-5 overflow-x-auto rounded-3xl border border-emerald-200 bg-white p-3">
+        <table className="min-w-full text-left text-sm text-slate-600">
+          <thead className="border-b border-slate-200 bg-lightBg text-xs uppercase tracking-[0.12em] text-slate-500">
+            <tr>
+              <th className="px-3 py-3">Row</th>
+              <th className="px-3 py-3">Display name</th>
+              <th className="px-3 py-3">Status</th>
+              <th className="px-3 py-3">Reason</th>
+            </tr>
+          </thead>
+          <tbody>
+            {outputs.map((output) => (
+              <tr key={output.id} className="border-b border-slate-100">
+                <td className="px-3 py-3 font-semibold text-primary">{output.row_index}</td>
+                <td className="px-3 py-3">{output.display_name || 'Unnamed row'}</td>
+                <td className="px-3 py-3">
+                  <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${output.status === 'generated' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
+                    {output.status}
+                  </span>
+                </td>
+                <td className="px-3 py-3 text-xs text-amber-800">{output.error_message || '-'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <EmailPreparationPanel
+        rows={state.excelRows || []}
+        outputs={outputs}
+        columns={state.detectedColumns || []}
+        onDownload={handleDownloadDocx}
+        title="Email Delivery"
+        helperText="Use this to quickly prepare personalized email messages for generated documents."
+        statusText="Manual Prep / Auto Send Coming Soon"
+      />
     </div>
   )
 }
 
 export function GenerateStep({ state, actions, config }) {
+  const [selectedFormat, setSelectedFormat] = useState('docx-only')
   const canGenerate = config.canGenerate(state)
   const canGenerateBatch = config.canGenerateBatch ? config.canGenerateBatch(state) : false
   const mergeResult = config.getMergeResult(state)
   const blockers = getGenerationBlockers({ state, config })
   const statusLabel = config.getGenerationStatus ? config.getGenerationStatus(state) : 'Ready'
 
+  const singleEmailRows = state.generatedDocumentRecord?.merge_data ? [state.generatedDocumentRecord.merge_data] : []
+  const singleEmailOutputs = state.generatedDocumentRecord
+    ? [
+        {
+          id: state.generatedDocumentRecord.id,
+          row_index: (state.generatedDocumentRecord.preview_row_index ?? 0) + 1,
+          display_name: state.generatedDocumentRecord.file_name,
+          status: 'generated',
+          storage_bucket: state.generatedDocumentRecord.storage_bucket,
+          storage_path: state.generatedDocumentRecord.storage_path,
+          file_name: state.generatedDocumentRecord.file_name,
+        },
+      ]
+    : []
+
+  async function handleSingleDownload(output) {
+    if (!output || !state.generatedDocumentRecord) {
+      return
+    }
+
+    try {
+      const blob = await downloadGeneratedCertificateDocx(state.generatedDocumentRecord)
+      const url = URL.createObjectURL(blob)
+      const link = window.document.createElement('a')
+      link.href = url
+      link.download = state.generatedDocumentRecord.file_name || 'generated-document.docx'
+      window.document.body.appendChild(link)
+      link.click()
+      link.remove()
+      URL.revokeObjectURL(url)
+    } catch (error) {
+      console.error('Single DOCX download failed', error)
+    }
+  }
+
   return (
     <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
       <h3 className="text-xl font-semibold text-primary">Generate</h3>
       <p className="mt-2 text-sm leading-6 text-slate-600">Generate one DOCX certificate from the selected preview row. When storage succeeds, the same DOCX appears in History for re-download.</p>
+      <div className="mt-5 rounded-lg border border-slate-200 bg-lightBg p-4">
+        <div className="grid gap-3 sm:grid-cols-[1.1fr_1fr]">
+          <label className="cursor-pointer rounded-lg border border-slate-200 bg-white p-4 transition focus-within:border-accentBlue focus-within:ring-2 focus-within:ring-blue-100">
+            <input
+              type="radio"
+              name="outputFormat"
+              value="docx-only"
+              checked={selectedFormat === 'docx-only'}
+              onChange={() => setSelectedFormat('docx-only')}
+              className="sr-only"
+            />
+            <p className="font-semibold text-primary">DOCX only</p>
+            <p className="mt-1 text-sm text-slate-600">Generate and store DOCX files only. This is the stable output path.</p>
+          </label>
+          <label className="cursor-not-allowed rounded-lg border border-slate-200 bg-slate-50 p-4 opacity-70">
+            <input type="radio" name="outputFormat" value="docx-pdf" disabled className="sr-only" />
+            <p className="font-semibold text-slate-600">DOCX + PDF</p>
+            <p className="mt-1 text-sm text-slate-500">Coming soon — reliable PDF export requires a proper conversion engine beyond browser-only DOCX generation.</p>
+          </label>
+        </div>
+      </div>
       <div className="mt-5 rounded-md border border-slate-200 bg-lightBg p-4">
         <div className="flex items-center justify-between">
           <p className="text-sm font-semibold text-primary">{statusLabel}</p>
@@ -691,12 +903,21 @@ export function GenerateStep({ state, actions, config }) {
       <div className="mt-5 flex flex-wrap gap-3">
         <button
           type="button"
+          onClick={actions.saveWorkspace}
+          disabled={state.savingDraft || !config.canSave(state)}
+          className="focus-ring inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-4 text-sm font-semibold text-primary transition hover:border-accentBlue hover:text-accentBlue disabled:opacity-60"
+        >
+          {state.savingDraft ? <Loader2 size={17} className="animate-spin" aria-hidden="true" /> : <FileText size={17} aria-hidden="true" />}
+          {state.savingDraft ? 'Saving workspace' : 'Save workspace'}
+        </button>
+        <button
+          type="button"
           onClick={actions.generate}
           disabled={state.generating || state.batchGenerating || !canGenerate}
           className="focus-ring inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60"
         >
           {state.generating ? <Loader2 size={17} className="animate-spin" aria-hidden="true" /> : <Wand2 size={17} aria-hidden="true" />}
-          {state.generating ? 'Generating selected row' : 'Generate Selected Row'}
+          {state.generating ? 'Generating selected row' : 'Generate selected row'}
         </button>
         <button
           type="button"
@@ -705,9 +926,12 @@ export function GenerateStep({ state, actions, config }) {
           className="focus-ring inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-4 text-sm font-semibold text-primary transition hover:border-accentBlue hover:text-accentBlue disabled:opacity-60"
         >
           {state.batchGenerating ? <Loader2 size={17} className="animate-spin" aria-hidden="true" /> : <ListChecks size={17} aria-hidden="true" />}
-          {state.batchGenerating ? 'Generating batch' : 'Generate Batch'}
+          {state.batchGenerating ? 'Generating batch' : 'Generate batch'}
         </button>
       </div>
+      <p className="mt-4 text-sm leading-6 text-slate-600">
+        Batch generation runs in your browser. Recommended limit: up to 100 rows.
+      </p>
       {!canGenerate && blockers.length > 0 && (
         <div className="mt-4 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm font-medium leading-6 text-amber-800">
           {blockers.join(' ')}
@@ -735,6 +959,18 @@ export function GenerateStep({ state, actions, config }) {
       <GenerationIssueList issues={mergeResult.errors} />
       <GenerationIssueList issues={mergeResult.warnings} tone="amber" />
       <GeneratedDocxCard generatedDocx={state.generatedDocx} generatedDocumentRecord={state.generatedDocumentRecord} />
+      {state.generatedDocumentRecord ? (
+        <EmailPreparationPanel
+          rows={singleEmailRows}
+          outputs={singleEmailOutputs}
+          columns={Object.keys(state.generatedDocumentRecord.merge_data || {})}
+          onDownload={handleSingleDownload}
+          title="Email Delivery"
+          helperText="Use this to prepare a manual email for the generated certificate."
+          statusText="Manual Prep / Auto Send Coming Soon"
+          showBatchTable={false}
+        />
+      ) : null}
     </section>
   )
 }
@@ -748,7 +984,7 @@ export function DownloadsStep({ state }) {
       state.generatedDocx,
       state.generatedDocumentRecord,
     ],
-    ['PDF package', FileText, 'Coming soon', null],
+    ['PDF package', FileText, 'Coming soon — browser-only PDF conversion not supported', null],
     ['Generation log', FileSpreadsheet, 'Coming soon', null],
   ]
 

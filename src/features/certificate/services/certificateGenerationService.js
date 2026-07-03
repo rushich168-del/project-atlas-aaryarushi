@@ -1,6 +1,13 @@
 import { generateDocxFromTemplate } from '../../../core/atlas/index.js'
 import { supabase } from '../../../lib/supabaseClient.js'
 
+// PDF export is intentionally not implemented in the browser-only DOCX workflow.
+// Reliable DOCX-to-PDF conversion that preserves Word layout, formatting, tables,
+// images, page size, and margins typically requires a dedicated server-side
+// conversion service or external document conversion engine.
+// Implementing a browser-side PDF converter here would risk producing broken or
+// low-fidelity PDFs, which is not acceptable for Project Atlas v2.3.
+
 function buildGeneratedFileName({ templateRecord, mergeResult }) {
   const certificateId = mergeResult?.values?.certificate_id
   const recipient = mergeResult?.values?.name
