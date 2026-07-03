@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Copy, Download, Mail } from 'lucide-react'
+import { Copy, Download, Mail, Save } from 'lucide-react'
 import { prepareEmailPayloadPreview, validateEmailRecipient } from '../../services/emailDeliveryService'
+import { getEmailDeliveryDryRunErrorMessage, prepareBatchEmailDryRun } from '../../services/emailDeliveryDryRunService'
+import { useAuth } from '../../context/AuthContext.jsx'
 
 function normalizeKey(key) {
   return String(key || '')
@@ -93,6 +95,8 @@ export default function EmailPreparationPanel({
   )
   const [selectedOutputId, setSelectedOutputId] = useState(outputs[0]?.id || null)
   const [feedback, setFeedback] = useState('')
+  const [savingDryRun, setSavingDryRun] = useState(false)
+  const { session } = useAuth()
 
   const availableColumns = useMemo(() => {
     const normalized = new Set(['Email', 'Name', 'Course', 'Date'])
@@ -146,6 +150,42 @@ export default function EmailPreparationPanel({
     [previewRecipient, previewSubject, previewMessage],
   )
   const recipientIsValid = validateEmailRecipient(previewRecipient)
+
+  async function handleSaveDryRun() {
+    if (!session?.user?.id) {
+      setFeedback('Sign in to save email preparation.')
+      return
+    }
+
+    setSavingDryRun(true)
+    setFeedback('')
+
+    try {
+      const previews = emailRows.map((item) => ({
+        generation_output_id: item.output?.id || null,
+        row_number: item.output?.row_index ?? null,
+        recipient_email: resolveRecipient(item.row, recipientColumn),
+        subject: renderTemplate(subjectTemplate, item.row),
+        message: renderTemplate(messageTemplate, item.row),
+      }))
+
+      await prepareBatchEmailDryRun({
+        organizationId: null,
+        userId: session.user.id,
+        previews,
+      })
+
+      setFeedback('Email preparation saved. No emails were sent.')
+    } catch (error) {
+      const message = getEmailDeliveryDryRunErrorMessage(error)
+      const fallback = message.includes('does not exist') || message.includes('relation') || message.includes('table')
+        ? 'Email prep saving requires the email delivery tables to be enabled.'
+        : message
+      setFeedback(fallback)
+    } finally {
+      setSavingDryRun(false)
+    }
+  }
 
   return (
     <section className="mt-5 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
@@ -234,6 +274,23 @@ export default function EmailPreparationPanel({
         >
           <Copy size={16} aria-hidden="true" />
           Copy Message
+        </button>
+        <button
+          type="button"
+          onClick={handleSaveDryRun}
+          disabled={savingDryRun}
+          className="focus-ring inline-flex min-h-10 items-center justify-center gap-2 rounded-md bg-emerald-700 px-4 text-sm font-semibold text-white transition hover:bg-emerald-800 disabled:opacity-60"
+        >
+          <Save size={16} aria-hidden="true" />
+          {savingDryRun ? 'Saving...' : 'Save Email Prep'}
+        </button>
+        <button
+          type="button"
+          disabled
+          className="focus-ring inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-slate-200 bg-slate-100 px-4 text-sm font-semibold text-slate-500"
+          title="Real sending will be enabled later through a secure server-side email function."
+        >
+          Auto Send Coming Soon
         </button>
       </div>
 
