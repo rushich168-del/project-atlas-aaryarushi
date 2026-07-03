@@ -465,7 +465,7 @@ function BatchJobCard({ job, expanded, onToggle, onDownload, onDownloadZip, batc
             onDownload={onDownload}
             generationJobId={job.id}
             title="Batch email preparation"
-            helperText="Prepare manual email copy for batch outputs. Actual recipient addresses are not stored in history rows."
+            helperText="Prepare manual email copy for batch outputs using saved row data when available."
             statusText="Manual Prep / Auto Send Coming Soon"
           />
           <p className="mt-3 text-xs leading-5 text-slate-500">

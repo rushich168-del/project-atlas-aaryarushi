@@ -323,6 +323,7 @@ export const certificateWorkspaceConfig = {
         displayName: invalidRow.displayName,
         status: 'skipped',
         errorMessage: invalidRow.errorMessage,
+        rowData: invalidRow.row,
       })
       outputs.push(output)
     }
@@ -378,6 +379,7 @@ export const certificateWorkspaceConfig = {
             fileName,
             status: 'upload_failed',
             errorMessage: uploadError,
+            rowData: batchRow.row,
           })
           outputs.push(output)
           continue
@@ -394,6 +396,7 @@ export const certificateWorkspaceConfig = {
           fileName,
           storagePath,
           status: 'generated',
+          rowData: batchRow.row,
         })
         outputs.push(output)
       } catch (rowError) {
@@ -407,6 +410,7 @@ export const certificateWorkspaceConfig = {
           displayName: batchRow.displayName,
           status: 'failed',
           errorMessage: rowError,
+          rowData: batchRow.row,
         })
         outputs.push(output)
       }

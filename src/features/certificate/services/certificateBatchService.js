@@ -101,6 +101,7 @@ export async function saveGenerationOutput({
   storagePath,
   status,
   errorMessage,
+  rowData,
 }) {
   const { data, error } = await supabase
     .from('generation_outputs')
@@ -116,6 +117,7 @@ export async function saveGenerationOutput({
       storage_path: storagePath || null,
       status,
       error_message: errorMessage ? shortError(errorMessage) : null,
+      row_data: rowData != null ? rowData : null,
     })
     .select()
     .single()

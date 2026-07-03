@@ -202,6 +202,7 @@ export async function getGenerationJobsHistory(organizationId, limit = HISTORY_L
       storage_path,
       status,
       error_message,
+      row_data,
       created_at
     `)
     .eq('organization_id', organizationId)

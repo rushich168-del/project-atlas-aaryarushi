@@ -7,8 +7,8 @@ import { useAuth } from '../../context/AuthContext.jsx'
 function normalizeKey(key) {
   return String(key || '')
     .trim()
-    .replace(/\s+/g, ' ')
     .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '')
 }
 
 function createTemplateContext(row = {}) {
@@ -43,9 +43,38 @@ function renderTemplate(template, row = {}) {
 }
 
 function resolveRecipient(row = {}, selectedColumn) {
-  const normalized = normalizeKey(selectedColumn)
+  if (!selectedColumn) {
+    return ''
+  }
+
+  const directValue = row?.[selectedColumn]
+  if (directValue != null && directValue !== '') {
+    return String(directValue)
+  }
+
+  const normalizedSelected = normalizeKey(selectedColumn)
+  const candidateKeys = new Set([normalizedSelected])
+
+  if (normalizedSelected === 'emailaddress') {
+    candidateKeys.add('email')
+  }
+
+  if (normalizedSelected === 'email') {
+    candidateKeys.add('emailaddress')
+  }
+
+  if (normalizedSelected.endsWith('address')) {
+    candidateKeys.add(normalizedSelected.replace(/address$/, ''))
+  }
+
+  for (const [key, value] of Object.entries(row || {})) {
+    if (candidateKeys.has(normalizeKey(key)) && value != null && value !== '') {
+      return String(value)
+    }
+  }
+
   const context = createTemplateContext(row)
-  return context[selectedColumn] || context[normalized] || context.email || ''
+  return context[selectedColumn] || context[normalizedSelected] || context.email || ''
 }
 
 function copyText(text, setFeedback) {
@@ -104,7 +133,6 @@ export default function EmailPreparationPanel({
   const { session } = useAuth()
 
   const availableColumns = useMemo(() => {
-    const normalized = new Set(['Email', 'Name', 'Course', 'Date'])
     const result = []
 
     ;['Email', 'Name', 'Course', 'Date', ...columns].forEach((column) => {
@@ -112,7 +140,7 @@ export default function EmailPreparationPanel({
         return
       }
 
-      if (!result.includes(column)) {
+      if (!result.some((existing) => normalizeKey(existing) === normalizeKey(column))) {
         result.push(column)
       }
     })
@@ -132,10 +160,15 @@ export default function EmailPreparationPanel({
           output: { id: `row-${index + 1}`, row_index: index + 1, display_name: row.Name || `Row ${index + 1}`, status: 'generated' },
           row,
         }))
-      : generatedOutputs.map((output) => ({
-          output,
-          row: rowsByIndex[output.row_index] || {},
-        }))
+      : generatedOutputs.map((output) => {
+          const rowData = output?.row_data && typeof output.row_data === 'object' ? output.row_data : {}
+          const sourceRow = rowsByIndex[output.row_index] || {}
+
+          return {
+            output,
+            row: { ...sourceRow, ...rowData },
+          }
+        })
 
     return defaultRows
   }, [outputs, rows])
@@ -224,6 +257,7 @@ export default function EmailPreparationPanel({
         subject: renderTemplate(subjectTemplate, item.row),
         message: renderTemplate(messageTemplate, item.row),
       }))
+      const validRecipientCount = previews.filter((preview) => validateEmailRecipient(preview.recipient_email)).length
 
       const result = await prepareBatchEmailDryRun({
         organizationId: null,
@@ -234,7 +268,7 @@ export default function EmailPreparationPanel({
 
       setSavedDryRunSummary({
         jobId: result?.job?.id || null,
-        preparedCount: result?.outputs?.length || previews.length,
+        preparedCount: result?.job?.prepared_count ?? validRecipientCount,
         mode: 'dry_run',
         createdAt: new Date().toISOString(),
       })
@@ -296,7 +330,6 @@ export default function EmailPreparationPanel({
             onChange={(event) => setRecipientColumn(event.target.value)}
             className="min-h-11 rounded-md border border-slate-200 bg-white px-3 text-sm font-semibold text-primary outline-none transition focus:border-accentBlue focus:ring-2 focus:ring-blue-100"
           >
-            <option value="Email">Email</option>
             {availableColumns.map((column) => (
               <option key={column} value={column}>{column}</option>
             ))}

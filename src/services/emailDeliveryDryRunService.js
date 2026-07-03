@@ -1,4 +1,5 @@
 import { isSupabaseConfigured, supabase } from '../lib/supabaseClient.js'
+import { validateEmailRecipient } from './emailDeliveryService.js'
 
 const EDGE_FUNCTION_NAME = 'email-delivery-dry-run'
 
@@ -80,9 +81,24 @@ export async function createEmailDeliveryDryRunOutputs(jobId, outputs = []) {
 export async function prepareBatchEmailDryRun({ organizationId = null, userId, generationJobId = null, previews = [] } = {}) {
   const job = await createEmailDeliveryDryRunJob({ organizationId, userId, generationJobId })
   const createdOutputs = await createEmailDeliveryDryRunOutputs(job.id, previews)
+  const validRecipientCount = (previews || []).filter((preview) => validateEmailRecipient(preview.recipient_email)).length
+
+  const { data: updatedJob, error: updateError } = await supabase
+    .from('email_delivery_jobs')
+    .update({
+      total_recipients: previews.length,
+      prepared_count: validRecipientCount,
+    })
+    .eq('id', job.id)
+    .select('*')
+    .single()
+
+  if (updateError) {
+    throw updateError
+  }
 
   return {
-    job,
+    job: updatedJob || job,
     outputs: createdOutputs,
   }
 }
