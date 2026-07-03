@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Copy, Download, Mail, Save } from 'lucide-react'
 import { prepareEmailPayloadPreview, validateEmailRecipient } from '../../services/emailDeliveryService'
-import { getEmailDeliveryDryRunErrorMessage, prepareBatchEmailDryRun } from '../../services/emailDeliveryDryRunService'
+import { getEmailDeliveryDryRunErrorMessage, listEmailDeliveryDryRunJobsForGeneration, prepareBatchEmailDryRun } from '../../services/emailDeliveryDryRunService'
 import { useAuth } from '../../context/AuthContext.jsx'
 
 function normalizeKey(key) {
@@ -87,6 +87,7 @@ export default function EmailPreparationPanel({
   helperText = 'Use this to quickly prepare personalized email messages for generated documents.',
   statusText = 'Manual Prep / Auto Send Coming Soon',
   showBatchTable = true,
+  generationJobId = null,
 }) {
   const [recipientColumn, setRecipientColumn] = useState('Email')
   const [subjectTemplate, setSubjectTemplate] = useState('Your certificate is ready - {{Name}}')
@@ -96,6 +97,8 @@ export default function EmailPreparationPanel({
   const [selectedOutputId, setSelectedOutputId] = useState(outputs[0]?.id || null)
   const [feedback, setFeedback] = useState('')
   const [savingDryRun, setSavingDryRun] = useState(false)
+  const [savedDryRunSummary, setSavedDryRunSummary] = useState(null)
+  const [savedDryRunError, setSavedDryRunError] = useState('')
   const { session } = useAuth()
 
   const availableColumns = useMemo(() => {
@@ -141,6 +144,55 @@ export default function EmailPreparationPanel({
     }
   }, [emailRows, selectedOutputId])
 
+  useEffect(() => {
+    let active = true
+
+    async function loadExistingDryRunRecords() {
+      if (!generationJobId || !session?.user?.id) {
+        return
+      }
+
+      try {
+        const jobs = await listEmailDeliveryDryRunJobsForGeneration(generationJobId)
+
+        if (!active) {
+          return
+        }
+
+        const latestJob = jobs.find((job) => job.mode === 'dry_run') || jobs[0] || null
+
+        if (latestJob) {
+          setSavedDryRunSummary({
+            preparedCount: latestJob.prepared_count ?? latestJob.total_recipients ?? 0,
+            mode: latestJob.mode || 'dry_run',
+            createdAt: latestJob.created_at,
+          })
+          setSavedDryRunError('')
+        } else {
+          setSavedDryRunSummary(null)
+          setSavedDryRunError('')
+        }
+      } catch (error) {
+        if (!active) {
+          return
+        }
+
+        const message = getEmailDeliveryDryRunErrorMessage(error)
+        const fallback = message.includes('does not exist') || message.includes('relation') || message.includes('table')
+          ? 'Email prep saving requires email delivery tables to be enabled.'
+          : message
+        setSavedDryRunSummary(null)
+        setSavedDryRunError(fallback)
+      }
+    }
+
+    loadExistingDryRunRecords()
+
+    return () => {
+      active = false
+    }
+  }, [generationJobId, session?.user?.id])
+
   const selectedRow = emailRows.find((item) => item.output.id === selectedOutputId) || emailRows[0] || null
   const previewSubject = renderTemplate(subjectTemplate, selectedRow?.row)
   const previewMessage = renderTemplate(messageTemplate, selectedRow?.row)
@@ -159,6 +211,7 @@ export default function EmailPreparationPanel({
 
     setSavingDryRun(true)
     setFeedback('')
+    setSavedDryRunError('')
 
     try {
       const previews = emailRows.map((item) => ({
@@ -169,18 +222,25 @@ export default function EmailPreparationPanel({
         message: renderTemplate(messageTemplate, item.row),
       }))
 
-      await prepareBatchEmailDryRun({
+      const result = await prepareBatchEmailDryRun({
         organizationId: null,
         userId: session.user.id,
+        generationJobId,
         previews,
       })
 
+      setSavedDryRunSummary({
+        preparedCount: result?.outputs?.length || previews.length,
+        mode: 'dry_run',
+        createdAt: new Date().toISOString(),
+      })
       setFeedback('Email preparation saved. No emails were sent.')
     } catch (error) {
       const message = getEmailDeliveryDryRunErrorMessage(error)
       const fallback = message.includes('does not exist') || message.includes('relation') || message.includes('table')
         ? 'Email prep saving requires the email delivery tables to be enabled.'
         : message
+      setSavedDryRunSummary(null)
       setFeedback(fallback)
     } finally {
       setSavingDryRun(false)
@@ -295,6 +355,16 @@ export default function EmailPreparationPanel({
       </div>
 
       {feedback ? <p className="mt-3 text-sm font-medium text-slate-600">{feedback}</p> : null}
+      {savedDryRunSummary ? (
+        <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 p-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="rounded-full bg-emerald-700 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-white">Dry Run</span>
+            <span className="text-sm font-semibold text-emerald-800">Prepared recipients: {savedDryRunSummary.preparedCount}</span>
+          </div>
+          <p className="mt-2 text-sm text-emerald-800">Saved {savedDryRunSummary.createdAt ? new Date(savedDryRunSummary.createdAt).toLocaleString() : 'recently'}.</p>
+        </div>
+      ) : null}
+      {savedDryRunError ? <p className="mt-3 text-sm font-semibold text-amber-700">{savedDryRunError}</p> : null}
 
       <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4">
         <p className="text-xs font-semibold uppercase tracking-[0.12em] text-amber-700">Future Auto Send Architecture Ready</p>

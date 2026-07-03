@@ -3,10 +3,12 @@ import { AlertCircle, CalendarDays, Download, FileClock, FileText, Loader2, Refr
 import DashboardLayout from '../components/dashboard/DashboardLayout.jsx'
 import EnvironmentBanner from '../components/dashboard/EnvironmentBanner.jsx'
 import { useWorkspace } from '../hooks/useWorkspace.js'
-import { downloadGeneratedCertificateDocx } from '../features/certificate/services/certificateOutputsService.js'
-import { getGeneratedDocumentsHistory, getGenerationJobsHistory } from '../services/generatedDocumentsService.js'
+import { createBatchDocxZip, downloadGeneratedCertificateDocx } from '../features/certificate/services/certificateOutputsService.js'
+import { deleteGeneratedDocument, deleteGenerationOutput, getGeneratedDocumentsHistory, getGenerationJobsHistory } from '../services/generatedDocumentsService.js'
 import { getDownloadError, getFriendlyError } from '../utils/errorMessages.js'
 import { navigateTo } from '../utils/routes.js'
+import EmailPreparationPanel from '../components/email/EmailPreparationPanel.jsx'
+import { getEmailDeliveryDryRunErrorMessage, listEmailDeliveryDryRunJobsForGeneration } from '../services/emailDeliveryDryRunService.js'
 
 const statusOptions = [
   { value: 'all', label: 'All statuses' },
@@ -152,9 +154,10 @@ function EmptyState({ filtered, onClear }) {
   )
 }
 
-function HistoryRow({ document, downloading, downloadError, onDownload }) {
+function HistoryRow({ document, downloading, deletingId, downloadError, deleteError, onDownload, onDelete }) {
   const rowError = typeof downloadError === 'string' ? downloadError : downloadError?.message
   const technicalDetail = typeof downloadError === 'string' ? '' : downloadError?.technicalDetail
+  const rowDeleteError = typeof deleteError === 'string' ? deleteError : deleteError?.message
 
   return (
     <tr className="border-t border-slate-100 align-top">
@@ -163,6 +166,7 @@ function HistoryRow({ document, downloading, downloadError, onDownload }) {
         <p className="mt-1 text-xs font-semibold text-slate-500">DOCX · {formatFileSize(document.file_size)}</p>
         {rowError ? <p className="mt-2 text-xs font-semibold text-red-600">{rowError}</p> : null}
         {technicalDetail ? <p className="mt-1 text-xs font-medium text-red-500">Detail: {technicalDetail}</p> : null}
+        {rowDeleteError ? <p className="mt-2 text-xs font-semibold text-red-600">{rowDeleteError}</p> : null}
       </td>
       <td className="px-4 py-4">
         <p className="text-sm font-semibold text-primary">{document.productName}</p>
@@ -182,23 +186,34 @@ function HistoryRow({ document, downloading, downloadError, onDownload }) {
       </td>
       <td className="px-4 py-4 text-sm font-semibold text-slate-600">{formatDate(document.created_at)}</td>
       <td className="px-4 py-4 text-right">
-        <button
-          type="button"
-          onClick={() => onDownload(document)}
-          disabled={downloading}
-          className="focus-ring inline-flex min-h-10 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-sm font-bold text-primary transition hover:border-accentBlue hover:text-accentBlue disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {downloading ? <Loader2 size={16} className="animate-spin" aria-hidden="true" /> : <Download size={16} aria-hidden="true" />}
-          Download
-        </button>
+        <div className="grid gap-2">
+          <button
+            type="button"
+            onClick={() => onDownload(document)}
+            disabled={downloading}
+            className="focus-ring inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-sm font-bold text-primary transition hover:border-accentBlue hover:text-accentBlue disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {downloading ? <Loader2 size={16} className="animate-spin" aria-hidden="true" /> : <Download size={16} aria-hidden="true" />}
+            Download
+          </button>
+          <button
+            type="button"
+            onClick={() => onDelete(document)}
+            disabled={deletingId === document.id}
+            className="focus-ring inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-red-200 bg-red-50 px-3 text-sm font-bold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            Delete
+          </button>
+        </div>
       </td>
     </tr>
   )
 }
 
-function HistoryCard({ document, downloading, downloadError, onDownload }) {
+function HistoryCard({ document, downloading, deletingId, downloadError, deleteError, onDownload, onDelete }) {
   const rowError = typeof downloadError === 'string' ? downloadError : downloadError?.message
   const technicalDetail = typeof downloadError === 'string' ? '' : downloadError?.technicalDetail
+  const rowDeleteError = typeof deleteError === 'string' ? deleteError : deleteError?.message
 
   return (
     <article className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
@@ -236,20 +251,91 @@ function HistoryCard({ document, downloading, downloadError, onDownload }) {
       </dl>
       {rowError ? <p className="mt-3 text-xs font-semibold text-red-600">{rowError}</p> : null}
       {technicalDetail ? <p className="mt-1 text-xs font-medium text-red-500">Detail: {technicalDetail}</p> : null}
-      <button
-        type="button"
-        onClick={() => onDownload(document)}
-        disabled={downloading}
-        className="focus-ring mt-4 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-sm font-bold text-primary transition hover:border-accentBlue hover:text-accentBlue disabled:cursor-not-allowed disabled:opacity-60"
-      >
-        {downloading ? <Loader2 size={16} className="animate-spin" aria-hidden="true" /> : <Download size={16} aria-hidden="true" />}
-        Download DOCX
-      </button>
+      {rowDeleteError ? <p className="mt-2 text-xs font-semibold text-red-600">{rowDeleteError}</p> : null}
+      <div className="mt-4 grid gap-2">
+        <button
+          type="button"
+          onClick={() => onDownload(document)}
+          disabled={downloading}
+          className="focus-ring inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-sm font-bold text-primary transition hover:border-accentBlue hover:text-accentBlue disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {downloading ? <Loader2 size={16} className="animate-spin" aria-hidden="true" /> : <Download size={16} aria-hidden="true" />}
+          Download DOCX
+        </button>
+        <button
+          type="button"
+          onClick={() => onDelete(document)}
+          disabled={deletingId === document.id}
+          className="focus-ring inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-md border border-red-200 bg-red-50 px-3 text-sm font-bold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {deletingId === document.id ? 'Deleting...' : 'Delete'}
+        </button>
+      </div>
     </article>
   )
 }
 
-function BatchJobCard({ job, expanded, onToggle, onDownload, downloadingId, downloadErrors }) {
+function BatchJobCard({ job, expanded, onToggle, onDownload, onDownloadZip, batchZipState, deletingId, onDeleteOutput, downloadingId, downloadErrors, deleteErrors }) {
+  const generatedCount = (job.outputs || []).filter((output) => output.status === 'generated').length
+  const canDownloadZip = generatedCount > 1
+  const zipState = batchZipState?.[job.id] || {}
+  const [emailPrepSummary, setEmailPrepSummary] = useState(null)
+  const [emailPrepLoading, setEmailPrepLoading] = useState(false)
+  const [emailPrepError, setEmailPrepError] = useState('')
+
+  const rowExample = job.outputs?.[0] || null
+  const exampleRow = rowExample ? { row_index: rowExample.row_index, display_name: rowExample.display_name } : null
+
+  useEffect(() => {
+    let active = true
+
+    async function loadEmailPrepStatus() {
+      if (!job?.id) {
+        return
+      }
+
+      setEmailPrepLoading(true)
+      setEmailPrepError('')
+
+      try {
+        const jobs = await listEmailDeliveryDryRunJobsForGeneration(job.id)
+
+        if (!active) {
+          return
+        }
+
+        const latestJob = jobs.find((entry) => entry.mode === 'dry_run') || jobs[0] || null
+        setEmailPrepSummary(latestJob ? {
+          status: latestJob.status || 'prepared',
+          mode: latestJob.mode || 'dry_run',
+          preparedCount: latestJob.prepared_count ?? latestJob.total_recipients ?? 0,
+          createdAt: latestJob.created_at,
+        } : null)
+      } catch (error) {
+        if (!active) {
+          return
+        }
+
+        const message = getEmailDeliveryDryRunErrorMessage(error)
+        const fallback = message.includes('does not exist') || message.includes('relation') || message.includes('table')
+          ? 'Email prep saving requires email delivery tables to be enabled.'
+          : message
+        setEmailPrepSummary(null)
+        setEmailPrepError(fallback)
+      } finally {
+        if (active) {
+          setEmailPrepLoading(false)
+        }
+      }
+    }
+
+    loadEmailPrepStatus()
+
+    return () => {
+      active = false
+    }
+  }, [job?.id])
+
   return (
     <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
       <div className="grid gap-4 lg:grid-cols-[1fr_auto] lg:items-start">
@@ -272,7 +358,37 @@ function BatchJobCard({ job, expanded, onToggle, onDownload, downloadingId, down
         </button>
       </div>
       {expanded ? (
-        <div className="mt-4 overflow-x-auto rounded-md border border-slate-200">
+        <div className="mt-4 space-y-4">
+          <div className="grid gap-4 rounded-md border border-slate-200 bg-lightBg p-4 sm:grid-cols-[repeat(4,minmax(0,1fr))]">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Generated</p>
+              <p className="mt-1 text-sm font-bold text-primary">{job.success_count}</p>
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Failed/Skipped</p>
+              <p className="mt-1 text-sm font-bold text-primary">{job.failure_count}</p>
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Total rows</p>
+              <p className="mt-1 text-sm font-bold text-primary">{job.total_rows}</p>
+            </div>
+            <div className="flex flex-col items-start justify-between gap-3 sm:items-end">
+              <button
+                type="button"
+                onClick={() => onDownloadZip(job)}
+                disabled={!canDownloadZip || zipState.preparing}
+                className="focus-ring inline-flex min-h-10 items-center justify-center gap-2 rounded-md bg-primary px-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60"
+              >
+                {zipState.preparing ? <Loader2 size={16} className="animate-spin" aria-hidden="true" /> : <Download size={16} aria-hidden="true" />}
+                {zipState.preparing ? 'Preparing ZIP...' : 'Download Batch ZIP'}
+              </button>
+              <p className="text-xs text-slate-600">Downloads all successful DOCX rows from this batch.</p>
+            </div>
+          </div>
+          {zipState.progressMessage ? <p className="text-sm font-medium text-slate-600">{zipState.progressMessage}</p> : null}
+          {zipState.warningMessage ? <p className="text-sm font-semibold text-amber-700">{zipState.warningMessage}</p> : null}
+          {zipState.errorMessage ? <p className="text-sm font-semibold text-red-600">{zipState.errorMessage}</p> : null}
+          <div className="overflow-x-auto rounded-md border border-slate-200">
           <table className="min-w-[760px] w-full text-left">
             <thead className="bg-lightBg text-xs font-bold uppercase tracking-[0.1em] text-slate-500">
               <tr>
@@ -291,26 +407,72 @@ function BatchJobCard({ job, expanded, onToggle, onDownload, downloadingId, down
                   <td className="px-3 py-3"><OutputStatusBadge status={output.status} /></td>
                   <td className="px-3 py-3 text-xs font-medium text-amber-700">{output.error_message || '-'}</td>
                   <td className="px-3 py-3 text-right">
-                    {output.status === 'generated' ? (
+                    <div className="grid gap-2">
+                      {output.status === 'generated' ? (
+                        <button
+                          type="button"
+                          onClick={() => onDownload(output)}
+                          disabled={downloadingId === output.id}
+                          className="focus-ring inline-flex min-h-9 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-xs font-bold text-primary transition hover:border-accentBlue hover:text-accentBlue disabled:opacity-60"
+                        >
+                          {downloadingId === output.id ? <Loader2 size={14} className="animate-spin" aria-hidden="true" /> : <Download size={14} aria-hidden="true" />}
+                          Download
+                        </button>
+                      ) : (
+                        <span className="text-xs font-semibold text-slate-400">No file</span>
+                      )}
                       <button
                         type="button"
-                        onClick={() => onDownload(output)}
-                        disabled={downloadingId === output.id}
-                        className="focus-ring inline-flex min-h-9 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-xs font-bold text-primary transition hover:border-accentBlue hover:text-accentBlue disabled:opacity-60"
+                        onClick={() => onDeleteOutput(output)}
+                        disabled={deletingId === output.id}
+                        className="focus-ring inline-flex min-h-9 items-center justify-center rounded-md border border-red-200 bg-red-50 px-3 text-xs font-bold text-red-700 transition hover:bg-red-100 disabled:opacity-60"
                       >
-                        {downloadingId === output.id ? <Loader2 size={14} className="animate-spin" aria-hidden="true" /> : <Download size={14} aria-hidden="true" />}
-                        Download
+                        Delete
                       </button>
-                    ) : (
-                      <span className="text-xs font-semibold text-slate-400">No file</span>
-                    )}
-                    {downloadErrors[output.id] ? <p className="mt-1 text-xs font-semibold text-red-600">{downloadErrors[output.id].message || downloadErrors[output.id]}</p> : null}
+                      {deleteErrors[output.id] ? <p className="mt-1 text-xs font-semibold text-red-600">{deleteErrors[output.id].message || deleteErrors[output.id]}</p> : null}
+                    </div>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
+        <div className="mt-5">
+          <div className="mb-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Email Preparation</p>
+            {emailPrepLoading ? (
+              <p className="mt-2 text-sm text-slate-600">Checking saved email prep…</p>
+            ) : emailPrepSummary ? (
+              <div className="mt-2 space-y-1 text-sm text-slate-700">
+                <p><span className="font-semibold">Status:</span> Saved</p>
+                <p><span className="font-semibold">Mode:</span> {emailPrepSummary.mode === 'dry_run' ? 'Dry Run' : emailPrepSummary.mode}</p>
+                <p><span className="font-semibold">Prepared recipients:</span> {emailPrepSummary.preparedCount}</p>
+                <p><span className="font-semibold">No emails sent</span></p>
+              </div>
+            ) : (
+              <div className="mt-2 space-y-1 text-sm text-slate-700">
+                <p><span className="font-semibold">Status:</span> Not saved</p>
+                <p><span className="font-semibold">Mode:</span> Dry Run</p>
+                <p><span className="font-semibold">No emails sent</span></p>
+              </div>
+            )}
+            {emailPrepError ? <p className="mt-2 text-sm font-semibold text-amber-700">{emailPrepError}</p> : null}
+          </div>
+          <EmailPreparationPanel
+            rows={[]}
+            outputs={job.outputs || []}
+            columns={[]}
+            onDownload={onDownload}
+            generationJobId={job.id}
+            title="Batch email preparation"
+            helperText="Prepare manual email copy for batch outputs. Actual recipient addresses are not stored in history rows."
+            statusText="Manual Prep / Auto Send Coming Soon"
+          />
+          <p className="mt-3 text-xs leading-5 text-slate-500">
+            Email preview uses saved row data when available. Older batch history records may not include recipient or row-level values.
+          </p>
+        </div>
+      </div>
       ) : null}
     </article>
   )
@@ -328,7 +490,10 @@ export default function HistoryPage() {
   const [statusFilter, setStatusFilter] = useState('all')
   const [dateFilter, setDateFilter] = useState('all')
   const [downloadingId, setDownloadingId] = useState('')
+  const [deletingId, setDeletingId] = useState('')
   const [downloadErrors, setDownloadErrors] = useState({})
+  const [deleteErrors, setDeleteErrors] = useState({})
+  const [batchZipProgress, setBatchZipProgress] = useState({})
   const [expandedJobs, setExpandedJobs] = useState({})
 
   async function loadHistory() {
@@ -456,6 +621,119 @@ export default function HistoryPage() {
     }
   }
 
+  async function handleDeleteDocument(document) {
+    if (!window.confirm('Delete this generated DOCX file from storage and history?')) {
+      return
+    }
+
+    setDeletingId(document.id)
+    setDeleteErrors((current) => ({ ...current, [document.id]: '' }))
+
+    try {
+      await deleteGeneratedDocument({
+        organizationId: currentOrganizationId,
+        documentId: document.id,
+        storageBucket: document.storage_bucket,
+        storagePath: document.storage_path,
+      })
+      await loadHistory()
+    } catch (deleteError) {
+      setDeleteErrors((current) => ({
+        ...current,
+        [document.id]: deleteError.message || 'Delete permission is not enabled yet.',
+      }))
+    } finally {
+      setDeletingId('')
+    }
+  }
+
+  async function handleDeleteOutput(output) {
+    if (!window.confirm('Delete this generated output row from storage and history?')) {
+      return
+    }
+
+    setDeletingId(output.id)
+    setDeleteErrors((current) => ({ ...current, [output.id]: '' }))
+
+    try {
+      await deleteGenerationOutput({
+        organizationId: currentOrganizationId,
+        outputId: output.id,
+        storageBucket: output.storage_bucket,
+        storagePath: output.storage_path,
+      })
+      await loadHistory()
+    } catch (deleteError) {
+      setDeleteErrors((current) => ({
+        ...current,
+        [output.id]: deleteError.message || 'Delete permission is not enabled yet.',
+      }))
+    } finally {
+      setDeletingId('')
+    }
+  }
+
+  async function handleDownloadBatchZip(job) {
+    const outputs = Array.isArray(job.outputs) ? job.outputs : []
+    const generatedOutputs = outputs.filter((output) => output.status === 'generated')
+
+    if (generatedOutputs.length === 0) {
+      return
+    }
+
+    setBatchZipProgress((current) => ({
+      ...current,
+      [job.id]: {
+        preparing: true,
+        progressMessage: 'Preparing ZIP...',
+        warningMessage: '',
+        errorMessage: '',
+      },
+    }))
+
+    try {
+      const fileName = `AR-CERT-PRO-batch-${job.id}.zip`
+      const { zipBlob, warnings } = await createBatchDocxZip(generatedOutputs, fileName, ({ message }) => {
+        setBatchZipProgress((current) => ({
+          ...current,
+          [job.id]: {
+            ...current[job.id],
+            progressMessage: message,
+          },
+        }))
+      })
+
+      const url = URL.createObjectURL(zipBlob)
+      const link = window.document.createElement('a')
+      link.href = url
+      link.download = fileName
+      window.document.body.appendChild(link)
+      link.click()
+      link.remove()
+      URL.revokeObjectURL(url)
+
+      setBatchZipProgress((current) => ({
+        ...current,
+        [job.id]: {
+          preparing: false,
+          progressMessage: 'ZIP ready. Download started.',
+          warningMessage: warnings.length ? 'Some files could not be added to ZIP.' : '',
+          errorMessage: '',
+        },
+      }))
+    } catch (error) {
+      setBatchZipProgress((current) => ({
+        ...current,
+        [job.id]: {
+          preparing: false,
+          progressMessage: '',
+          warningMessage: '',
+          errorMessage: 'Could not prepare ZIP. Please try individual downloads.',
+        },
+      }))
+    }
+  }
+
   const latestDocument = documents[0] || null
   const latestJob = jobs[0] || null
 
@@ -474,17 +752,17 @@ export default function HistoryPage() {
           <div className="grid gap-5 lg:grid-cols-[1fr_auto] lg:items-center">
             <div>
               <p className="text-sm font-semibold text-accentTeal">{currentOrganization?.name || 'Current workspace'}</p>
-              <h2 className="mt-2 text-2xl font-semibold text-primary">Stored DOCX outputs</h2>
-              <p className="mt-2 max-w-3xl leading-7 text-slate-600">Review the latest single-document generations and download the privately stored DOCX again.</p>
+              <h2 className="mt-2 text-2xl font-semibold text-primary">Generated DOCX history</h2>
+              <p className="mt-2 max-w-3xl leading-7 text-slate-600">Review completed workflows, batch results, and re-download DOCX outputs from the private storage bucket.</p>
             </div>
             <div className="grid gap-3 sm:grid-cols-2 lg:min-w-[360px]">
               <div className="rounded-md border border-slate-200 bg-lightBg p-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">DOCX records</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Total records</p>
                 <p className="mt-2 text-2xl font-bold text-primary">{jobs.length + documents.length}</p>
               </div>
               <div className="rounded-md border border-slate-200 bg-lightBg p-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Latest</p>
-                <p className="mt-2 text-sm font-bold text-primary">{latestJob || latestDocument ? formatDate((latestJob || latestDocument).created_at) : 'None yet'}</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Last generated</p>
+                <p className="mt-2 text-sm font-bold text-primary">{latestJob || latestDocument ? formatDate((latestJob || latestDocument).created_at) : 'No records yet'}</p>
               </div>
             </div>
           </div>
@@ -587,8 +865,13 @@ export default function HistoryPage() {
                     expanded={Boolean(expandedJobs[job.id])}
                     onToggle={(jobId) => setExpandedJobs((current) => ({ ...current, [jobId]: !current[jobId] }))}
                     onDownload={handleDownload}
+                    onDownloadZip={handleDownloadBatchZip}
+                    batchZipState={batchZipProgress}
+                    onDeleteOutput={handleDeleteOutput}
+                    deletingId={deletingId}
                     downloadingId={downloadingId}
                     downloadErrors={downloadErrors}
+                    deleteErrors={deleteErrors}
                   />
                 ))}
               </div>
@@ -617,8 +900,11 @@ export default function HistoryPage() {
                             key={document.id}
                             document={document}
                             downloading={downloadingId === document.id}
+                            deletingId={deletingId}
                             downloadError={downloadErrors[document.id]}
+                            deleteError={deleteErrors[document.id]}
                             onDownload={handleDownload}
+                            onDelete={handleDeleteDocument}
                           />
                         ))}
                       </tbody>
@@ -632,8 +918,11 @@ export default function HistoryPage() {
                       key={document.id}
                       document={document}
                       downloading={downloadingId === document.id}
+                      deletingId={deletingId}
                       downloadError={downloadErrors[document.id]}
+                      deleteError={deleteErrors[document.id]}
                       onDownload={handleDownload}
+                      onDelete={handleDeleteDocument}
                     />
                   ))}
                 </div>

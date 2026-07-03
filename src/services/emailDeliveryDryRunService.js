@@ -121,6 +121,24 @@ export async function listEmailDeliveryOutputs(jobId) {
   return data || []
 }
 
+export async function listEmailDeliveryDryRunJobsForGeneration(generationJobId) {
+  if (!generationJobId) {
+    return []
+  }
+
+  const { data, error } = await supabase
+    .from('email_delivery_jobs')
+    .select('*')
+    .eq('generation_job_id', generationJobId)
+    .order('created_at', { ascending: false })
+
+  if (error) {
+    throw error
+  }
+
+  return data || []
+}
+
 export function getEmailDeliveryDryRunErrorMessage(error) {
   return normalizeEmailDeliveryError(error)
 }
