@@ -322,6 +322,13 @@ export default function EmailPreparationPanel({
         <div className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">Manual prep only</div>
       </div>
 
+      <div className="mt-4 grid gap-2 rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700 sm:grid-cols-2 lg:grid-cols-4">
+        <p><span className="font-semibold">Provider:</span> SendGrid</p>
+        <p><span className="font-semibold">Mode:</span> Sandbox Validation Only</p>
+        <p><span className="font-semibold">Real emails will be sent:</span> No</p>
+        <p><span className="font-semibold">Next release action:</span> Validate Sandbox Send</p>
+      </div>
+
       <div className="mt-5 grid gap-4 lg:grid-cols-[1.1fr_1fr]">
         <label className="grid gap-2">
           <span className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Recipient email column</span>

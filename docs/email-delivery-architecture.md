@@ -66,6 +66,19 @@ Responsibilities:
 
 The Edge Function is the recommended place for all email-sending logic because it can safely hold provider credentials and enforce authorization rules.
 
+## v2.10 provider selection
+
+Project Atlas v2.10 selects SendGrid as the first MVP email provider for the next sandbox milestone.
+
+- Selected provider: SendGrid
+- Initial mode: sandbox only
+- Planned Edge Function: email-delivery-sendgrid-sandbox
+- Next implementation step: v2.11 SendGrid sandbox validation only
+
+SendGrid is selected first because its sandbox mode validates the request without delivering real emails. Resend remains a later optional provider because it is simple but does not provide a true sandbox mode. Mailgun should not be first because test mode is charged and sandbox domains are limited. Gmail and Outlook should come later because OAuth is more complex.
+
+No SendGrid API call is made in v2.10.
+
 ## Email provider role
 
 A dedicated email provider such as Resend, SendGrid, Postmark, or a similar service should handle actual delivery.
@@ -209,16 +222,48 @@ Possible future tables:
 
 ## Future environment variables needed
 
-A future implementation will likely require environment variables such as:
+A future implementation will require provider configuration in Supabase Edge Function secrets only. Do not place these values in Vite frontend environment variables.
 
-- EMAIL_PROVIDER_API_KEY
-- EMAIL_PROVIDER_FROM_ADDRESS
+- EMAIL_PROVIDER=sendgrid
+- EMAIL_MODE=sandbox
+- SENDGRID_API_KEY
+- SENDGRID_FROM_EMAIL
+- SENDGRID_FROM_NAME
+- EMAIL_MAX_RECIPIENTS_PER_JOB=5
+- EMAIL_MAX_ATTACHMENT_MB=10
+- EMAIL_REQUIRE_CONFIRMATION=true
+- EMAIL_ALLOW_PRODUCTION_SEND=false
 - SUPABASE_URL
 - SUPABASE_SERVICE_ROLE_KEY (stored only on the server-side edge function environment)
-- EMAIL_PROVIDER_BASE_URL or equivalent provider settings
-- Optional retry and rate-limit configuration values
 
 Frontend code should never contain these values.
+
+## v2.11 sandbox flow plan
+
+The planned `email-delivery-sendgrid-sandbox` Edge Function should:
+
+1. Validate the authenticated user
+2. Validate the job belongs to the user and organization
+3. Read `email_delivery_jobs`
+4. Read `email_delivery_outputs`
+5. Read `generation_outputs` row data and storage path
+6. Download each generated DOCX from Supabase Storage server-side
+7. Convert each DOCX to a Base64 attachment
+8. Call SendGrid sandbox mode in v2.11 only
+9. Update `email_delivery_outputs` row status
+10. Return a summary
+
+The first sandbox release should allow a maximum of 5 recipients per job, a maximum 10 MB attachment per email, DOCX attachments only, no ZIP email attachment, no PDF email attachment, and no production send.
+
+Planned future statuses:
+
+- draft
+- readiness_checked
+- confirmation_required
+- sandbox_queued
+- sandbox_validated
+- sandbox_failed
+- blocked
 
 ## Recommended rollout phases
 
