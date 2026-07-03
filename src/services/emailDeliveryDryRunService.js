@@ -162,5 +162,15 @@ export async function checkEmailDeliveryDryRunWithEdgeFunction(emailDeliveryJobI
 }
 
 export function getEmailDeliveryDryRunErrorMessage(error) {
-  return normalizeEmailDeliveryError(error)
+  const message = normalizeEmailDeliveryError(error)
+
+  if (/not found|404|function/.test(message)) {
+    return 'Send readiness check is not deployed yet. Email prep is saved, and no emails were sent.'
+  }
+
+  if (/network|failed to fetch|fetch/i.test(message)) {
+    return 'Send readiness check is not deployed yet. Email prep is saved, and no emails were sent.'
+  }
+
+  return message
 }

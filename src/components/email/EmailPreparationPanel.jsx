@@ -267,8 +267,8 @@ export default function EmailPreparationPanel({
       setFeedback(result?.message || 'Dry-run checked successfully. No emails were sent.')
     } catch (error) {
       const message = getEmailDeliveryDryRunErrorMessage(error)
-      const fallback = message.includes('not deployed') || message.includes('function')
-        ? 'The dry-run email function is not deployed yet. This app is ready for it, but no emails were sent.'
+      const fallback = message.includes('not deployed') || message.includes('function') || message.includes('network') || message.includes('fetch')
+        ? 'Send readiness check is not deployed yet. Email prep is saved, and no emails were sent.'
         : message
       setEdgeFunctionSummary(null)
       setFeedback(fallback)
@@ -410,7 +410,10 @@ export default function EmailPreparationPanel({
         <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-4">
           <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Edge Function Dry Run</p>
           <p className="mt-2 text-sm font-semibold text-slate-700">{edgeFunctionSummary.message || 'Dry-run checked successfully. No emails were sent.'}</p>
+          <p className="mt-1 text-sm text-slate-600">Mode: {edgeFunctionSummary.mode || 'dry_run'}</p>
           <p className="mt-1 text-sm text-slate-600">Recipients: {edgeFunctionSummary.totalRecipients ?? 0} · Prepared: {edgeFunctionSummary.preparedCount ?? 0}</p>
+          <p className="mt-1 text-sm text-slate-600">Send ready: {edgeFunctionSummary.sendReady ? 'yes' : 'no'}</p>
+          <p className="mt-1 text-sm text-slate-600">No emails were sent</p>
         </div>
       ) : null}
 
