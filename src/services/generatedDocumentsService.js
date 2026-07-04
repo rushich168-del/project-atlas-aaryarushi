@@ -444,3 +444,29 @@ export async function deleteGenerationOutput({ organizationId, outputId, storage
     throw error
   }
 }
+
+export async function deleteGenerationJob({ organizationId, jobId, outputs = [] }) {
+  for (const output of outputs) {
+    await removeStorageFile(output.storage_bucket, output.storage_path)
+  }
+
+  const { error: outputsError } = await supabase
+    .from('generation_outputs')
+    .delete()
+    .eq('organization_id', organizationId)
+    .eq('job_id', jobId)
+
+  if (outputsError) {
+    throw outputsError
+  }
+
+  const { error: jobError } = await supabase
+    .from('generation_jobs')
+    .delete()
+    .eq('organization_id', organizationId)
+    .eq('id', jobId)
+
+  if (jobError) {
+    throw jobError
+  }
+}
