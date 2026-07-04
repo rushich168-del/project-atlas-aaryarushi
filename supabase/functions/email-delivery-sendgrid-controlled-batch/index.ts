@@ -1,6 +1,11 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
 
+// Flexible local client type: matches the type inferred from createClient(url, key)
+// at the call sites (SupabaseClient<any, 'public', any>), which is wider than the
+// default-parameterized ReturnType<typeof createClient>.
+type EdgeSupabaseClient = ReturnType<typeof createClient<any, 'public', any>>
+
 const SENDGRID_MAIL_SEND_URL = 'https://api.sendgrid.com/v3/mail/send'
 const DOCX_MIME_TYPE = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
 const DEFAULT_MAX_RECIPIENTS = 5
@@ -184,7 +189,7 @@ function buildSummary({
 }
 
 async function markBatchBlocked(
-  supabase: ReturnType<typeof createClient>,
+  supabase: EdgeSupabaseClient,
   emailDeliveryJobId: string,
   errorCode: string,
   errorMessage: string,
