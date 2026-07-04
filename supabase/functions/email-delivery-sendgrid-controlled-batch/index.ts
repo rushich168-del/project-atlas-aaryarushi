@@ -133,6 +133,45 @@ async function getSharedRealSendWindowCount(
   return batchCount + resendCount
 }
 
+// H6: structured, PII-safe audit logging. Never logs raw recipient emails,
+// phrases, secrets, allowlist values, or attachment content.
+const AUDIT_FUNCTION_NAME = 'controlled_batch'
+
+function isAuditLogEnabled() {
+  return String(Deno.env.get('EMAIL_AUDIT_LOG_ENABLED') || 'true').trim().toLowerCase() !== 'false'
+}
+
+// Returns a short salted SHA-256 of the recipient, or null when no salt is
+// configured. Never returns or logs the raw email.
+async function hashRecipientForAudit(email: unknown): Promise<string | null> {
+  const salt = Deno.env.get('EMAIL_AUDIT_RECIPIENT_HASH_SALT')
+  const normalizedEmail = normalizeEmail(email)
+
+  if (!salt || !normalizedEmail) {
+    return null
+  }
+
+  const data = new TextEncoder().encode(`${salt}:${normalizedEmail}`)
+  const digest = await crypto.subtle.digest('SHA-256', data)
+  return Array.from(new Uint8Array(digest))
+    .map((byte) => byte.toString(16).padStart(2, '0'))
+    .join('')
+    .slice(0, 16)
+}
+
+function auditLog(event: string, fields: Record<string, unknown> = {}) {
+  if (!isAuditLogEnabled()) {
+    return
+  }
+
+  console.info('[email-audit]', {
+    event,
+    functionName: AUDIT_FUNCTION_NAME,
+    timestamp: new Date().toISOString(),
+    ...fields,
+  })
+}
+
 function bytesToBase64(bytes: Uint8Array) {
   let binary = ''
   const chunkSize = 0x8000
@@ -356,6 +395,7 @@ serve(async (req) => {
       status = 'batch_blocked',
       diagnostics: Record<string, unknown> | null = null,
     ) {
+      auditLog('blocked_attempt', { emailDeliveryJobId, reasonCode: errorCode, plannedCount: plannedRecipients })
       await markBatchBlocked(supabase, emailDeliveryJobId, errorCode, errorMessage)
 
       return jsonResponse(buildSummary({
@@ -625,12 +665,10 @@ serve(async (req) => {
         )
       }
 
-      console.info('Controlled batch attachment prepared', {
+      auditLog('send_attempt_start', {
         emailDeliveryJobId,
-        rowId: output.id,
         rowNumber: output.row_number ?? null,
-        recipient: normalizeEmail(output.recipient_email),
-        attachmentFileName,
+        recipientHash: await hashRecipientForAudit(output.recipient_email),
         attachmentSizeBytes: attachmentBytes.byteLength,
       })
 
@@ -701,17 +739,7 @@ serve(async (req) => {
       const providerMessageId = sendGridResponse.headers.get('x-message-id')
       const providerStatusCode = sendGridResponse.status
 
-      console.info('Controlled batch SendGrid response', {
-        emailDeliveryJobId,
-        rowId: output.id,
-        rowNumber: output.row_number ?? null,
-        recipient,
-        attachmentFileName: item.attachmentFileName,
-        attachmentSizeBytes: item.attachmentBytes.byteLength,
-        providerStatusCode,
-        providerMessageId,
-        responseBody: safeResponseBodyForLog(responseText, responseBody),
-      })
+      const recipientHash = await hashRecipientForAudit(output.recipient_email)
 
       if (!sendGridResponse.ok) {
         const providerErrorPreview = safeResponseBodyForLog(responseText, responseBody)
@@ -750,6 +778,15 @@ serve(async (req) => {
           attachmentFileName: item.attachmentFileName,
           attachmentSizeBytes: item.attachmentBytes.byteLength,
         })
+        auditLog('failed_send', {
+          emailDeliveryJobId,
+          rowNumber: output.row_number ?? null,
+          recipientHash,
+          providerStatus: providerStatusCode,
+          providerMessageId,
+          reasonCode: errorCode,
+          responseBody: safeResponseBodyForLog(responseText, responseBody),
+        })
         failed += 1
         continue
       }
@@ -777,6 +814,13 @@ serve(async (req) => {
         recipient,
         attachmentFileName: item.attachmentFileName,
         attachmentSizeBytes: item.attachmentBytes.byteLength,
+      })
+      auditLog('successful_send', {
+        emailDeliveryJobId,
+        rowNumber: output.row_number ?? null,
+        recipientHash,
+        providerStatus: providerStatusCode,
+        providerMessageId,
       })
       sent += 1
     }

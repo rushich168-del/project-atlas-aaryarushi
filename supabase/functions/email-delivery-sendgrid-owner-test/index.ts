@@ -71,6 +71,46 @@ function parsePositiveInt(value: string | undefined, fallback: number) {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback
 }
 
+// H6: structured, PII-safe audit logging. Never logs raw recipient emails,
+// the owner/test target email, original recipient preview, phrases, secrets,
+// allowlist values, or attachment content.
+const AUDIT_FUNCTION_NAME = 'owner_test'
+
+function isAuditLogEnabled() {
+  return String(Deno.env.get('EMAIL_AUDIT_LOG_ENABLED') || 'true').trim().toLowerCase() !== 'false'
+}
+
+// Returns a short salted SHA-256 of the recipient, or null when no salt is
+// configured. Never returns or logs the raw email.
+async function hashRecipientForAudit(email: unknown): Promise<string | null> {
+  const salt = Deno.env.get('EMAIL_AUDIT_RECIPIENT_HASH_SALT')
+  const normalizedEmail = normalizeEmail(email)
+
+  if (!salt || !normalizedEmail) {
+    return null
+  }
+
+  const data = new TextEncoder().encode(`${salt}:${normalizedEmail}`)
+  const digest = await crypto.subtle.digest('SHA-256', data)
+  return Array.from(new Uint8Array(digest))
+    .map((byte) => byte.toString(16).padStart(2, '0'))
+    .join('')
+    .slice(0, 16)
+}
+
+function auditLog(event: string, fields: Record<string, unknown> = {}) {
+  if (!isAuditLogEnabled()) {
+    return
+  }
+
+  console.info('[email-audit]', {
+    event,
+    functionName: AUDIT_FUNCTION_NAME,
+    timestamp: new Date().toISOString(),
+    ...fields,
+  })
+}
+
 function bytesToBase64(bytes: Uint8Array) {
   let binary = ''
   const chunkSize = 0x8000
@@ -214,8 +254,9 @@ serve(async (req) => {
     ].filter(Boolean)
 
     if (requiredSecrets.length > 0) {
-      console.warn('SendGrid owner-test configuration missing or unsafe', {
-        missingOrUnsafeSecrets: requiredSecrets,
+      auditLog('blocked_attempt', {
+        reasonCode: 'owner_test_configuration_blocked',
+        missingConfigCount: requiredSecrets.length,
       })
 
       return jsonResponse({
@@ -418,14 +459,10 @@ serve(async (req) => {
       throw new Error('blocked:attachment_too_large:DOCX attachment exceeds the owner-test size limit.')
     }
 
-    console.info('SendGrid owner-test attachment prepared', {
+    auditLog('send_attempt_start', {
       emailDeliveryJobId,
-      rowId: selectedOutputId,
-      generationOutputId: selectedOutput.generation_output_id,
       rowNumber: selectedOutput.row_number || null,
-      ownerTestTarget: ownerTestEmail,
-      originalRecipientPreview: originalRecipient,
-      attachmentFileName,
+      recipientHash: await hashRecipientForAudit(originalRecipient),
       attachmentSizeBytes: attachmentBytes.byteLength,
     })
 
@@ -477,15 +514,7 @@ serve(async (req) => {
     const responseBody = parseJsonOrNull(responseText)
     const providerMessageId = sendGridResponse.headers.get('x-message-id')
 
-    console.info('SendGrid owner-test response', {
-      emailDeliveryJobId,
-      rowId: selectedOutputId,
-      statusCode: sendGridResponse.status,
-      providerMessageId,
-      ownerTestTarget: ownerTestEmail,
-      originalRecipientPreview: originalRecipient,
-      responseBody: safeResponseBodyForLog(responseText, responseBody),
-    })
+    const recipientHash = await hashRecipientForAudit(originalRecipient)
 
     if (!sendGridResponse.ok) {
       const errorCode = getSendGridErrorCode(responseBody, `sendgrid_${sendGridResponse.status}`)
@@ -509,6 +538,16 @@ serve(async (req) => {
           owner_test_failed_count: 1,
         })
         .eq('id', emailDeliveryJobId)
+
+      auditLog('failed_send', {
+        emailDeliveryJobId,
+        rowNumber: selectedOutput.row_number || null,
+        recipientHash,
+        providerStatus: sendGridResponse.status,
+        providerMessageId,
+        reasonCode: errorCode,
+        responseBody: safeResponseBodyForLog(responseText, responseBody),
+      })
 
       return jsonResponse({
         ok: false,
@@ -547,6 +586,14 @@ serve(async (req) => {
         owner_test_last_sent_at: sentAt,
       })
       .eq('id', emailDeliveryJobId)
+
+    auditLog('successful_send', {
+      emailDeliveryJobId,
+      rowNumber: selectedOutput.row_number || null,
+      recipientHash,
+      providerStatus: sendGridResponse.status,
+      providerMessageId,
+    })
 
     return jsonResponse({
       ok: true,
