@@ -5,6 +5,7 @@ const EDGE_FUNCTION_NAME = 'email-delivery-dry-run'
 const SENDGRID_SANDBOX_FUNCTION_NAME = 'email-delivery-sendgrid-sandbox'
 const SENDGRID_OWNER_TEST_FUNCTION_NAME = 'email-delivery-sendgrid-owner-test'
 const SENDGRID_CONTROLLED_BATCH_FUNCTION_NAME = 'email-delivery-sendgrid-controlled-batch'
+const SENDGRID_RESEND_FAILED_FUNCTION_NAME = 'email-delivery-sendgrid-resend-failed'
 
 function normalizeEmailDeliveryError(error) {
   if (!error) {
@@ -243,6 +244,29 @@ export async function checkEmailDeliverySendGridControlledBatchGate({ emailDeliv
   return data
 }
 
+export async function checkEmailDeliverySendGridResendFailedGate({ emailDeliveryJobId, confirmationPhrase } = {}) {
+  if (!isSupabaseConfigured) {
+    throw new Error('Failed row resend gate check requires Supabase to be configured.')
+  }
+
+  if (!emailDeliveryJobId) {
+    throw new Error('An email delivery job is required for the failed row resend gate check.')
+  }
+
+  const { data, error } = await supabase.functions.invoke(SENDGRID_RESEND_FAILED_FUNCTION_NAME, {
+    body: {
+      emailDeliveryJobId,
+      confirmationPhrase,
+    },
+  })
+
+  if (error) {
+    throw error
+  }
+
+  return data
+}
+
 export function getEmailDeliveryDryRunErrorMessage(error) {
   const message = normalizeEmailDeliveryError(error)
 
@@ -294,6 +318,20 @@ export function getEmailDeliveryControlledBatchErrorMessage(error) {
 
   if (/network|failed to fetch|fetch/i.test(message)) {
     return 'Controlled batch gate function is not deployed yet. No row-recipient emails were sent.'
+  }
+
+  return message
+}
+
+export function getEmailDeliveryResendFailedErrorMessage(error) {
+  const message = normalizeEmailDeliveryError(error)
+
+  if (/not found|404|function|failed to send/i.test(message)) {
+    return 'Failed row resend gate function is not deployed yet. No row-recipient emails were sent.'
+  }
+
+  if (/network|failed to fetch|fetch/i.test(message)) {
+    return 'Failed row resend gate function is not deployed yet. No row-recipient emails were sent.'
   }
 
   return message

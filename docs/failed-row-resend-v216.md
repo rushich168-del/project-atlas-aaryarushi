@@ -117,3 +117,23 @@ The note must not include a working button or any frontend service call.
 ## Acceptance Summary
 
 v2.16 is complete when the failed-row resend plan is documented and the UI clearly indicates resend is coming later, while all existing email flows remain unchanged.
+
+## v2.17 Behind Disabled Flag
+
+Project Atlas v2.17 adds failed-row resend infrastructure behind a disabled backend flag.
+
+Function name:
+
+```text
+email-delivery-sendgrid-resend-failed
+```
+
+Default behavior:
+
+- `EMAIL_ALLOW_FAILED_ROW_RESEND` must be exactly `true` before any provider call.
+- If the flag is missing or any value other than `true`, the function returns `resend_blocked`.
+- The function selects only rows where `batch_send_status = 'batch_failed'`.
+- The function never selects rows where `batch_send_status = 'batch_sent'`.
+- The frontend action is labeled `Check Failed Row Resend Gate`.
+- The confirmation phrase is `RESEND FAILED ROWS`.
+- The default blocked result sends 0 row-recipient emails.

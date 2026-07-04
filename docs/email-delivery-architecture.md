@@ -377,6 +377,19 @@ Detailed design:
 docs/failed-row-resend-v216.md
 ```
 
+## v2.17 failed-row resend behind disabled flag
+
+Project Atlas v2.17 adds the planned `email-delivery-sendgrid-resend-failed` Edge Function and frontend gate integration, but resend remains blocked unless `EMAIL_ALLOW_FAILED_ROW_RESEND` is exactly `true`.
+
+Default behavior:
+
+- The frontend action is labeled "Check Failed Row Resend Gate".
+- The confirmation phrase is `RESEND FAILED ROWS`.
+- The function selects only rows where `batch_send_status = 'batch_failed'`.
+- Rows where `batch_send_status = 'batch_sent'` are never resent.
+- `EMAIL_ALLOW_FAILED_ROW_RESEND=false` blocks before any SendGrid call.
+- The blocked result reports planned rows, sent, failed, blocked, skipped, safety flag status, and first error message.
+
 ## Recommended rollout phases
 
 1. Architecture and documentation only

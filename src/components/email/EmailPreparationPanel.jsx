@@ -3,10 +3,12 @@ import { Copy, Download, Mail, Save, ShieldCheck } from 'lucide-react'
 import { prepareEmailPayloadPreview, validateEmailRecipient } from '../../services/emailDeliveryService'
 import {
   checkEmailDeliveryDryRunWithEdgeFunction,
+  checkEmailDeliverySendGridResendFailedGate,
   checkEmailDeliverySendGridControlledBatchGate,
   getEmailDeliveryControlledBatchErrorMessage,
   getEmailDeliveryDryRunErrorMessage,
   getEmailDeliveryOwnerTestErrorMessage,
+  getEmailDeliveryResendFailedErrorMessage,
   getEmailDeliverySandboxErrorMessage,
   listEmailDeliveryOutputs,
   listEmailDeliveryDryRunJobsForGeneration,
@@ -187,6 +189,9 @@ export default function EmailPreparationPanel({
   const [controlledBatchPhrase, setControlledBatchPhrase] = useState('')
   const [checkingControlledBatch, setCheckingControlledBatch] = useState(false)
   const [controlledBatchSummary, setControlledBatchSummary] = useState(null)
+  const [resendFailedPhrase, setResendFailedPhrase] = useState('')
+  const [checkingResendFailed, setCheckingResendFailed] = useState(false)
+  const [resendFailedSummary, setResendFailedSummary] = useState(null)
   const { session } = useAuth()
 
   const availableColumns = useMemo(() => {
@@ -379,6 +384,7 @@ export default function EmailPreparationPanel({
       setSandboxSummary(null)
       setOwnerTestSummary(null)
       setControlledBatchSummary(null)
+      setResendFailedSummary(null)
       setFeedback(result?.message || 'Dry-run checked successfully. No emails were sent.')
     } catch (error) {
       const message = getEmailDeliveryDryRunErrorMessage(error)
@@ -403,6 +409,7 @@ export default function EmailPreparationPanel({
         setSandboxSummary(null)
         setOwnerTestSummary(null)
         setControlledBatchSummary(null)
+        setResendFailedSummary(null)
         setFeedback(fallbackSummary.message)
         return
       }
@@ -414,6 +421,7 @@ export default function EmailPreparationPanel({
       setSandboxSummary(null)
       setOwnerTestSummary(null)
       setControlledBatchSummary(null)
+      setResendFailedSummary(null)
       setFeedback(fallback)
     } finally {
       setCheckingReadiness(false)
@@ -436,6 +444,7 @@ export default function EmailPreparationPanel({
       setSavedEmailDeliveryOutputs(latestOutputs)
       setOwnerTestSummary(null)
       setControlledBatchSummary(null)
+      setResendFailedSummary(null)
       setFeedback(result?.message || 'SendGrid sandbox validation finished. No real emails were delivered.')
     } catch (error) {
       setSandboxSummary(null)
@@ -502,6 +511,7 @@ export default function EmailPreparationPanel({
       setOwnerTestSummary(result)
       setSavedEmailDeliveryOutputs(latestOutputs)
       setControlledBatchSummary(null)
+      setResendFailedSummary(null)
       setFeedback(result?.message || result?.errorMessage || 'Owner test email finished.')
     } catch (error) {
       setOwnerTestSummary(null)
@@ -516,6 +526,9 @@ export default function EmailPreparationPanel({
     && sandboxAllPreparedRowsValidated
     && ownerTestSent,
   )
+  const failedBatchRowsCount = savedEmailDeliveryOutputs.filter((output) => output.batch_send_status === 'batch_failed').length
+  const emailPrepOutputsLoaded = Boolean(savedDryRunSummary?.jobId && savedEmailDeliveryOutputs.length > 0)
+  const failedRowResendGateAvailable = emailPrepOutputsLoaded
 
   async function handleCheckControlledBatchGate() {
     if (!controlledBatchGateAvailable || !savedDryRunSummary?.jobId) {
@@ -545,12 +558,39 @@ export default function EmailPreparationPanel({
       const latestOutputs = await listEmailDeliveryOutputs(savedDryRunSummary.jobId).catch(() => [])
       setControlledBatchSummary(result)
       setSavedEmailDeliveryOutputs(latestOutputs)
+      setResendFailedSummary(null)
       setFeedback(result?.firstErrorMessage || result?.message || 'Controlled batch gate checked. No row-recipient emails were sent.')
     } catch (error) {
       setControlledBatchSummary(null)
       setFeedback(getEmailDeliveryControlledBatchErrorMessage(error))
     } finally {
       setCheckingControlledBatch(false)
+    }
+  }
+
+  async function handleCheckResendFailedGate() {
+    if (!failedRowResendGateAvailable || !savedDryRunSummary?.jobId) {
+      setFeedback('Save Email Prep first. No row-recipient emails were sent.')
+      return
+    }
+
+    setCheckingResendFailed(true)
+    setFeedback('')
+
+    try {
+      const result = await checkEmailDeliverySendGridResendFailedGate({
+        emailDeliveryJobId: savedDryRunSummary.jobId,
+        confirmationPhrase: resendFailedPhrase,
+      })
+      const latestOutputs = await listEmailDeliveryOutputs(savedDryRunSummary.jobId).catch(() => [])
+      setResendFailedSummary(result)
+      setSavedEmailDeliveryOutputs(latestOutputs)
+      setFeedback(result?.firstErrorMessage || result?.message || 'Failed row resend gate checked. No row-recipient emails were sent.')
+    } catch (error) {
+      setResendFailedSummary(null)
+      setFeedback(getEmailDeliveryResendFailedErrorMessage(error))
+    } finally {
+      setCheckingResendFailed(false)
     }
   }
 
@@ -845,12 +885,71 @@ export default function EmailPreparationPanel({
         </div>
       ) : null}
 
-      <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
-        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Failed Row Resend - Coming Soon</p>
-        <p className="mt-2 text-sm font-semibold text-slate-700">
-          Future resend will be limited to rows marked as failed in controlled batch logs. Successful rows will not be resent.
-        </p>
-      </div>
+      {failedRowResendGateAvailable ? (
+        <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Failed Row Resend</p>
+              <p className="mt-2 text-sm font-semibold text-slate-700">
+                Failed row resend is blocked by default. Only rows marked as failed in controlled batch logs can be checked.
+              </p>
+              {failedBatchRowsCount === 0 ? (
+                <p className="mt-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700">
+                  No failed rows available for resend.
+                </p>
+              ) : null}
+              <div className="mt-3 grid gap-2 text-sm text-slate-600 sm:grid-cols-2 lg:grid-cols-4">
+                <p><span className="font-semibold">Failed rows:</span> {failedBatchRowsCount}</p>
+                <p><span className="font-semibold">Limit:</span> Max 5 rows</p>
+                <p><span className="font-semibold">Attachment:</span> DOCX only</p>
+                <p><span className="font-semibold">Successful rows:</span> Never resent</p>
+              </div>
+            </div>
+            <div className="grid w-full gap-2 sm:w-auto sm:min-w-[280px]">
+              <label className="grid gap-2">
+                <span className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Confirmation phrase</span>
+                <input
+                  value={resendFailedPhrase}
+                  onChange={(event) => setResendFailedPhrase(event.target.value)}
+                  placeholder="RESEND FAILED ROWS"
+                  className="min-h-10 rounded-md border border-slate-200 bg-white px-3 text-sm font-semibold text-primary outline-none transition focus:border-accentBlue focus:ring-2 focus:ring-blue-100"
+                />
+              </label>
+              <button
+                type="button"
+                onClick={handleCheckResendFailedGate}
+                disabled={checkingResendFailed}
+                className="focus-ring inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-4 text-sm font-semibold text-primary transition hover:border-accentBlue hover:text-accentBlue disabled:opacity-60"
+                title="Checks the failed-row resend backend gate. Default configuration blocks resend delivery."
+              >
+                <ShieldCheck size={16} aria-hidden="true" />
+                {checkingResendFailed ? 'Checking...' : 'Check Failed Row Resend Gate'}
+              </button>
+            </div>
+          </div>
+          <p className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-800">
+            Failed row resend is expected to be blocked by safety flag. No row-recipient emails should be sent.
+          </p>
+          {resendFailedSummary ? (
+            <div className="mt-3 rounded-lg border border-slate-200 bg-white p-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Failed Row Resend Gate Result</p>
+              {resendFailedSummary.firstErrorMessage ? (
+                <p className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-800">
+                  {resendFailedSummary.firstErrorMessage}
+                </p>
+              ) : null}
+              <div className="mt-3 grid gap-2 text-sm text-slate-700 sm:grid-cols-2 lg:grid-cols-3">
+                <p><span className="font-semibold">Planned rows:</span> {resendFailedSummary.plannedRows ?? 0}</p>
+                <p><span className="font-semibold">Sent:</span> {resendFailedSummary.sent ?? 0}</p>
+                <p><span className="font-semibold">Failed:</span> {resendFailedSummary.failed ?? 0}</p>
+                <p><span className="font-semibold">Blocked:</span> {resendFailedSummary.blocked ?? 0}</p>
+                <p><span className="font-semibold">Skipped:</span> {resendFailedSummary.skipped ?? 0}</p>
+                <p><span className="font-semibold">Safety flag:</span> {resendFailedSummary.safetyFlagStatus || 'unknown'}</p>
+              </div>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
 
       <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4">
         <p className="text-xs font-semibold uppercase tracking-[0.12em] text-amber-700">Future Auto Send Architecture Ready</p>
