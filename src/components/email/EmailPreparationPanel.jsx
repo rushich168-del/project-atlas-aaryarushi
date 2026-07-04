@@ -523,6 +523,17 @@ export default function EmailPreparationPanel({
       return
     }
 
+    const normalizedPhrase = controlledBatchPhrase.trim()
+
+    if (normalizedPhrase === 'SEND 5 TEST EMAILS') {
+      const confirmed = window.confirm(`This will send real emails to ${preparedRecipientCount} row recipients. Continue?`)
+
+      if (!confirmed) {
+        setFeedback('Controlled batch send cancelled. No row-recipient emails were sent.')
+        return
+      }
+    }
+
     setCheckingControlledBatch(true)
     setFeedback('')
 
@@ -531,7 +542,9 @@ export default function EmailPreparationPanel({
         emailDeliveryJobId: savedDryRunSummary.jobId,
         confirmationPhrase: controlledBatchPhrase,
       })
+      const latestOutputs = await listEmailDeliveryOutputs(savedDryRunSummary.jobId).catch(() => [])
       setControlledBatchSummary(result)
+      setSavedEmailDeliveryOutputs(latestOutputs)
       setFeedback(result?.firstErrorMessage || result?.message || 'Controlled batch gate checked. No row-recipient emails were sent.')
     } catch (error) {
       setControlledBatchSummary(null)
@@ -775,6 +788,9 @@ export default function EmailPreparationPanel({
               <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Controlled Batch Send</p>
               <p className="mt-2 text-sm font-semibold text-slate-700">
                 Real batch sending is disabled by default. This gate check is blocked unless the backend safety flag is enabled.
+              </p>
+              <p className="mt-2 text-sm font-semibold text-red-700">
+                This will send real emails to row recipients.
               </p>
               <div className="mt-3 grid gap-2 text-sm text-slate-600 sm:grid-cols-2 lg:grid-cols-4">
                 <p><span className="font-semibold">Provider:</span> SendGrid</p>

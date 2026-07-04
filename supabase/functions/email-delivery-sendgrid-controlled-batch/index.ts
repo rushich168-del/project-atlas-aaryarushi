@@ -85,6 +85,18 @@ function getErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback
 }
 
+function truncate(value: string, maxLength = 1000) {
+  return value.length > maxLength ? `${value.slice(0, maxLength)}...` : value
+}
+
+function safeResponseBodyForLog(responseText: string, responseBody: unknown) {
+  if (responseBody) {
+    return truncate(JSON.stringify(responseBody))
+  }
+
+  return truncate(responseText || '')
+}
+
 function buildSummary({
   emailDeliveryJobId,
   status,
@@ -131,6 +143,24 @@ function buildSummary({
     rowResults,
     realRowRecipientEmailsSent: sent,
   }
+}
+
+async function markBatchBlocked(
+  supabase: ReturnType<typeof createClient>,
+  emailDeliveryJobId: string,
+  errorCode: string,
+  errorMessage: string,
+) {
+  await supabase
+    .from('email_delivery_outputs')
+    .update({
+      batch_send_status: 'batch_blocked',
+      batch_send_error_code: errorCode,
+      batch_send_error_message: errorMessage,
+      batch_send_sent_at: null,
+      batch_send_provider_message_id: null,
+    })
+    .eq('email_delivery_job_id', emailDeliveryJobId)
 }
 
 serve(async (req) => {
@@ -220,28 +250,26 @@ serve(async (req) => {
     const allowControlledBatchSend = Deno.env.get('EMAIL_ALLOW_CONTROLLED_BATCH_SEND') === 'true'
     const safetyFlagStatus = allowControlledBatchSend ? 'enabled' : 'blocked'
 
-    if (body.cc || body.bcc) {
+    async function blockedResponse(errorCode: string, errorMessage: string, status = 'batch_blocked') {
+      await markBatchBlocked(supabase, emailDeliveryJobId, errorCode, errorMessage)
+
       return jsonResponse(buildSummary({
         emailDeliveryJobId,
-        status: 'batch_blocked',
+        status,
         plannedRecipients,
         blocked: plannedRecipients,
         safetyFlagStatus,
-        firstErrorCode: 'blocked_by_safety_limit',
-        firstErrorMessage: 'CC and BCC are blocked for controlled batch sending.',
+        firstErrorCode: errorCode,
+        firstErrorMessage: errorMessage,
       }))
     }
 
+    if (body.cc || body.bcc) {
+      return await blockedResponse('blocked_by_safety_limit', 'CC and BCC are blocked for controlled batch sending.')
+    }
+
     if (['zip', 'pdf'].includes(String(body.attachmentType || '').trim().toLowerCase())) {
-      return jsonResponse(buildSummary({
-        emailDeliveryJobId,
-        status: 'batch_blocked',
-        plannedRecipients,
-        blocked: plannedRecipients,
-        safetyFlagStatus,
-        firstErrorCode: 'attachment_not_docx',
-        firstErrorMessage: 'ZIP and PDF attachments are blocked for controlled batch sending.',
-      }))
+      return await blockedResponse('attachment_not_docx', 'ZIP and PDF attachments are blocked for controlled batch sending.')
     }
 
     if (!allowControlledBatchSend) {
@@ -251,15 +279,10 @@ serve(async (req) => {
         safetyFlagStatus,
       })
 
-      return jsonResponse(buildSummary({
-        emailDeliveryJobId,
-        status: 'batch_blocked',
-        plannedRecipients,
-        blocked: plannedRecipients,
-        safetyFlagStatus,
-        firstErrorCode: 'controlled_batch_safety_flag_disabled',
-        firstErrorMessage: 'Controlled batch send is blocked by safety flag. No row-recipient emails were sent.',
-      }))
+      return await blockedResponse(
+        'controlled_batch_safety_flag_disabled',
+        'Controlled batch send is blocked by safety flag. No row-recipient emails were sent.',
+      )
     }
 
     const provider = Deno.env.get('EMAIL_PROVIDER')
@@ -286,102 +309,64 @@ serve(async (req) => {
     ].filter(Boolean)
 
     if (missingOrUnsafeSecrets.length > 0) {
-      return jsonResponse(buildSummary({
-        emailDeliveryJobId,
-        status: 'batch_blocked',
-        plannedRecipients,
-        blocked: plannedRecipients,
-        safetyFlagStatus,
-        firstErrorCode: 'controlled_batch_configuration_blocked',
-        firstErrorMessage: `Controlled batch configuration is incomplete or unsafe: ${missingOrUnsafeSecrets.join(', ')}`,
-      }))
+      return await blockedResponse(
+        'controlled_batch_configuration_blocked',
+        `Controlled batch configuration is incomplete or unsafe: ${missingOrUnsafeSecrets.join(', ')}`,
+      )
     }
 
     if (job.status !== 'sandbox_validated') {
-      return jsonResponse(buildSummary({
-        emailDeliveryJobId,
-        status: 'batch_blocked',
-        plannedRecipients,
-        blocked: plannedRecipients,
-        safetyFlagStatus,
-        firstErrorCode: 'sandbox_validation_required',
-        firstErrorMessage: 'Controlled batch send requires successful sandbox validation for all prepared rows.',
-      }))
+      return await blockedResponse(
+        'sandbox_validation_required',
+        'Controlled batch send requires successful sandbox validation for all prepared rows.',
+      )
     }
 
     if (job.owner_test_status !== 'owner_test_sent' || (job.owner_test_sent_count || 0) < 1) {
-      return jsonResponse(buildSummary({
-        emailDeliveryJobId,
-        status: 'batch_blocked',
-        plannedRecipients,
-        blocked: plannedRecipients,
-        safetyFlagStatus,
-        firstErrorCode: 'owner_test_required',
-        firstErrorMessage: 'Controlled batch send requires a successful owner/test email first.',
-      }))
+      return await blockedResponse(
+        'owner_test_required',
+        'Controlled batch send requires a successful owner/test email first.',
+      )
     }
 
     if (confirmationPhrase !== requiredConfirmationPhrase) {
-      return jsonResponse(buildSummary({
-        emailDeliveryJobId,
-        status: 'batch_confirmation_required',
-        plannedRecipients,
-        blocked: plannedRecipients,
-        safetyFlagStatus,
-        firstErrorCode: 'confirmation_phrase_required',
-        firstErrorMessage: 'Controlled batch send requires the exact confirmation phrase.',
-      }))
+      return await blockedResponse(
+        'confirmation_phrase_required',
+        'Controlled batch send requires the exact confirmation phrase.',
+        'batch_confirmation_required',
+      )
     }
 
     if (plannedRecipients === 0) {
-      return jsonResponse(buildSummary({
-        emailDeliveryJobId,
-        status: 'batch_blocked',
-        plannedRecipients,
-        safetyFlagStatus,
-        firstErrorCode: 'recipient_count_zero',
-        firstErrorMessage: 'Controlled batch send requires at least one prepared recipient.',
-      }))
+      return await blockedResponse(
+        'recipient_count_zero',
+        'Controlled batch send requires at least one prepared recipient.',
+      )
     }
 
     if (plannedRecipients > maxRecipients) {
-      return jsonResponse(buildSummary({
-        emailDeliveryJobId,
-        status: 'batch_blocked',
-        plannedRecipients,
-        blocked: plannedRecipients,
-        safetyFlagStatus,
-        firstErrorCode: 'blocked_by_safety_limit',
-        firstErrorMessage: `Controlled batch send is limited to ${maxRecipients} recipients.`,
-      }))
+      return await blockedResponse(
+        'blocked_by_safety_limit',
+        `Controlled batch send is limited to ${maxRecipients} recipients.`,
+      )
     }
 
     const invalidRecipient = deliveryOutputs.find((output) => !isValidEmail(output.recipient_email))
 
     if (invalidRecipient) {
-      return jsonResponse(buildSummary({
-        emailDeliveryJobId,
-        status: 'batch_blocked',
-        plannedRecipients,
-        blocked: plannedRecipients,
-        safetyFlagStatus,
-        firstErrorCode: 'invalid_recipient',
-        firstErrorMessage: `Invalid recipient on row ${invalidRecipient.row_number || '-'}.`,
-      }))
+      return await blockedResponse(
+        'invalid_recipient',
+        `Invalid recipient on row ${invalidRecipient.row_number || '-'}.`,
+      )
     }
 
     const unsandboxedOutput = deliveryOutputs.find((output) => output.status !== 'sandbox_validated')
 
     if (unsandboxedOutput) {
-      return jsonResponse(buildSummary({
-        emailDeliveryJobId,
-        status: 'batch_blocked',
-        plannedRecipients,
-        blocked: plannedRecipients,
-        safetyFlagStatus,
-        firstErrorCode: 'sandbox_validation_required',
-        firstErrorMessage: `Row ${unsandboxedOutput.row_number || '-'} has not passed sandbox validation.`,
-      }))
+      return await blockedResponse(
+        'sandbox_validation_required',
+        `Row ${unsandboxedOutput.row_number || '-'} has not passed sandbox validation.`,
+      )
     }
 
     const generationOutputIds = deliveryOutputs
@@ -410,27 +395,17 @@ serve(async (req) => {
       const generationOutput = output.generation_output_id ? generationOutputById.get(output.generation_output_id) : null
 
       if (!generationOutput || generationOutput.status !== 'generated') {
-        return jsonResponse(buildSummary({
-          emailDeliveryJobId,
-          status: 'batch_blocked',
-          plannedRecipients,
-          blocked: plannedRecipients,
-          safetyFlagStatus,
-          firstErrorCode: 'attachment_missing',
-          firstErrorMessage: `Generated DOCX is missing for row ${output.row_number || '-'}.`,
-        }))
+        return await blockedResponse(
+          'attachment_missing',
+          `Generated DOCX is missing for row ${output.row_number || '-'}.`,
+        )
       }
 
       if (!generationOutput.storage_bucket || !generationOutput.storage_path) {
-        return jsonResponse(buildSummary({
-          emailDeliveryJobId,
-          status: 'batch_blocked',
-          plannedRecipients,
-          blocked: plannedRecipients,
-          safetyFlagStatus,
-          firstErrorCode: 'attachment_missing',
-          firstErrorMessage: `Generated DOCX storage path is missing for row ${output.row_number || '-'}.`,
-        }))
+        return await blockedResponse(
+          'attachment_missing',
+          `Generated DOCX storage path is missing for row ${output.row_number || '-'}.`,
+        )
       }
 
       const fileName = String(generationOutput.file_name || '')
@@ -439,27 +414,17 @@ serve(async (req) => {
       const lowerAttachmentName = attachmentFileName.toLowerCase()
 
       if (![fileName, storagePath, attachmentFileName].some((value) => String(value || '').toLowerCase().endsWith('.docx'))) {
-        return jsonResponse(buildSummary({
-          emailDeliveryJobId,
-          status: 'batch_blocked',
-          plannedRecipients,
-          blocked: plannedRecipients,
-          safetyFlagStatus,
-          firstErrorCode: 'attachment_not_docx',
-          firstErrorMessage: `Only DOCX attachments are allowed. Row ${output.row_number || '-'} is not DOCX.`,
-        }))
+        return await blockedResponse(
+          'attachment_not_docx',
+          `Only DOCX attachments are allowed. Row ${output.row_number || '-'} is not DOCX.`,
+        )
       }
 
       if (lowerAttachmentName.endsWith('.zip') || lowerAttachmentName.endsWith('.pdf')) {
-        return jsonResponse(buildSummary({
-          emailDeliveryJobId,
-          status: 'batch_blocked',
-          plannedRecipients,
-          blocked: plannedRecipients,
-          safetyFlagStatus,
-          firstErrorCode: 'attachment_not_docx',
-          firstErrorMessage: 'ZIP and PDF attachments are blocked for controlled batch sending.',
-        }))
+        return await blockedResponse(
+          'attachment_not_docx',
+          'ZIP and PDF attachments are blocked for controlled batch sending.',
+        )
       }
 
       const { data: fileData, error: downloadError } = await supabase.storage
@@ -467,42 +432,36 @@ serve(async (req) => {
         .download(generationOutput.storage_path)
 
       if (downloadError || !fileData) {
-        return jsonResponse(buildSummary({
-          emailDeliveryJobId,
-          status: 'batch_blocked',
-          plannedRecipients,
-          blocked: plannedRecipients,
-          safetyFlagStatus,
-          firstErrorCode: 'attachment_missing',
-          firstErrorMessage: `Generated DOCX could not be downloaded for row ${output.row_number || '-'}.`,
-        }))
+        return await blockedResponse(
+          'attachment_missing',
+          `Generated DOCX could not be downloaded for row ${output.row_number || '-'}.`,
+        )
       }
 
       const attachmentBytes = new Uint8Array(await fileData.arrayBuffer())
 
       if (attachmentBytes.byteLength === 0) {
-        return jsonResponse(buildSummary({
-          emailDeliveryJobId,
-          status: 'batch_blocked',
-          plannedRecipients,
-          blocked: plannedRecipients,
-          safetyFlagStatus,
-          firstErrorCode: 'attachment_missing',
-          firstErrorMessage: `Generated DOCX is empty for row ${output.row_number || '-'}.`,
-        }))
+        return await blockedResponse(
+          'attachment_missing',
+          `Generated DOCX is empty for row ${output.row_number || '-'}.`,
+        )
       }
 
       if (attachmentBytes.byteLength > maxAttachmentBytes) {
-        return jsonResponse(buildSummary({
-          emailDeliveryJobId,
-          status: 'batch_blocked',
-          plannedRecipients,
-          blocked: plannedRecipients,
-          safetyFlagStatus,
-          firstErrorCode: 'attachment_too_large',
-          firstErrorMessage: `Generated DOCX exceeds the 10 MB safety limit for row ${output.row_number || '-'}.`,
-        }))
+        return await blockedResponse(
+          'attachment_too_large',
+          `Generated DOCX exceeds the 10 MB safety limit for row ${output.row_number || '-'}.`,
+        )
       }
+
+      console.info('Controlled batch attachment prepared', {
+        emailDeliveryJobId,
+        rowId: output.id,
+        rowNumber: output.row_number ?? null,
+        recipient: normalizeEmail(output.recipient_email),
+        attachmentFileName,
+        attachmentSizeBytes: attachmentBytes.byteLength,
+      })
 
       preparedAttachments.push({
         output,
@@ -569,13 +528,29 @@ serve(async (req) => {
       const responseText = await sendGridResponse.text()
       const responseBody = parseJsonOrNull(responseText)
       const providerMessageId = sendGridResponse.headers.get('x-message-id')
+      const providerStatusCode = sendGridResponse.status
+
+      console.info('Controlled batch SendGrid response', {
+        emailDeliveryJobId,
+        rowId: output.id,
+        rowNumber: output.row_number ?? null,
+        recipient,
+        attachmentFileName: item.attachmentFileName,
+        attachmentSizeBytes: item.attachmentBytes.byteLength,
+        providerStatusCode,
+        providerMessageId,
+        responseBody: safeResponseBodyForLog(responseText, responseBody),
+      })
 
       if (!sendGridResponse.ok) {
-        const fallbackCode = sendGridResponse.status === 401
+        const providerErrorPreview = safeResponseBodyForLog(responseText, responseBody)
+        const fallbackCode = providerStatusCode === 403 && /sender|verified|verification/i.test(providerErrorPreview)
+          ? 'sender_not_verified'
+          : providerStatusCode === 401
           ? 'provider_401'
-          : sendGridResponse.status === 403
+          : providerStatusCode === 403
             ? 'provider_403'
-            : sendGridResponse.status === 429
+            : providerStatusCode === 429
               ? 'rate_limited'
               : 'provider_temp_error'
         const errorCode = getSendGridErrorCode(responseBody, fallbackCode)
@@ -599,6 +574,10 @@ serve(async (req) => {
           errorCode,
           errorMessage,
           providerMessageId,
+          providerStatusCode,
+          recipient,
+          attachmentFileName: item.attachmentFileName,
+          attachmentSizeBytes: item.attachmentBytes.byteLength,
         })
         failed += 1
         continue
@@ -623,6 +602,10 @@ serve(async (req) => {
         rowNumber: output.row_number ?? null,
         status: 'batch_sent',
         providerMessageId,
+        providerStatusCode,
+        recipient,
+        attachmentFileName: item.attachmentFileName,
+        attachmentSizeBytes: item.attachmentBytes.byteLength,
       })
       sent += 1
     }
