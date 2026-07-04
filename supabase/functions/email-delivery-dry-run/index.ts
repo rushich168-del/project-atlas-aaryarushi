@@ -1,6 +1,11 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
 
+// Server-side recipient validation. Readiness is decided here, not by the client.
+function isValidRecipientEmail(value: unknown) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || '').trim())
+}
+
 serve(async (req) => {
   try {
     const authHeader = req.headers.get('Authorization') || ''
@@ -80,29 +85,22 @@ serve(async (req) => {
       })
     }
 
-    if (!outputs || outputs.length === 0) {
-      return new Response(JSON.stringify({
-        ok: true,
-        mode: 'dry_run',
-        message: 'Dry-run checked successfully. No emails were sent.',
-        emailDeliveryJobId,
-        totalRecipients: 0,
-        preparedCount: 0,
-        sendReady: false,
-      }), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-      })
-    }
+    const deliveryOutputs = outputs || []
+    const totalRecipients = deliveryOutputs.length
+    // preparedCount is the count of rows with a valid recipient email, not the raw
+    // row count. Readiness is authoritative and computed entirely server-side.
+    const preparedCount = deliveryOutputs.filter((output) => isValidRecipientEmail(output.recipient_email)).length
+    const sendReady = totalRecipients > 0 && preparedCount === totalRecipients
 
     return new Response(JSON.stringify({
       ok: true,
       mode: 'dry_run',
+      authoritative: true,
       message: 'Dry-run checked successfully. No emails were sent.',
       emailDeliveryJobId,
-      totalRecipients: outputs.length,
-      preparedCount: outputs.length,
-      sendReady: true,
+      totalRecipients,
+      preparedCount,
+      sendReady,
     }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },

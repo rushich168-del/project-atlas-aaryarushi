@@ -340,6 +340,10 @@ export default function EmailPreparationPanel({
     [previewRecipient, previewSubject, previewMessage],
   )
   const recipientIsValid = validateEmailRecipient(previewRecipient)
+  // Only a server-authoritative dry-run result may unlock send-related controls.
+  // A client fallback summary (authoritative !== true) is treated as degraded and
+  // never gates sandbox/owner-test/controlled-batch affordances.
+  const isAuthoritativeSendReady = edgeFunctionSummary?.authoritative === true && edgeFunctionSummary?.sendReady === true
 
   async function handleSaveDryRun() {
     if (!session?.user?.id) {
@@ -418,7 +422,10 @@ export default function EmailPreparationPanel({
         const fallbackSummary = {
           ok: true,
           mode: 'dry_run',
-          message: 'Dry-run readiness checked from saved email prep. No emails were sent.',
+          // Client-computed fallback is NOT authoritative: it may display a degraded
+          // readiness status but must never unlock send-related controls.
+          authoritative: false,
+          message: 'Dry-run readiness checked from saved email prep (fallback). No emails were sent.',
           emailDeliveryJobId: savedDryRunSummary.jobId,
           totalRecipients: savedOutputs.length || savedDryRunSummary.preparedCount,
           preparedCount: validSavedRecipients,
@@ -451,7 +458,7 @@ export default function EmailPreparationPanel({
   }
 
   async function handleValidateSandboxSend() {
-    if (!edgeFunctionSummary?.sendReady || !savedDryRunSummary?.jobId || !generationJobId) {
+    if (!isAuthoritativeSendReady || !savedDryRunSummary?.jobId || !generationJobId) {
       setFeedback('Check Send Readiness first. No real emails were delivered.')
       return
     }
@@ -476,7 +483,7 @@ export default function EmailPreparationPanel({
     }
   }
 
-  const sandboxValidationAvailable = Boolean(edgeFunctionSummary?.sendReady && generationJobId)
+  const sandboxValidationAvailable = Boolean(isAuthoritativeSendReady && generationJobId)
   const preparedRecipientCount = Number(
     sandboxSummary?.preparedRecipients
     ?? edgeFunctionSummary?.preparedCount
@@ -565,7 +572,7 @@ export default function EmailPreparationPanel({
   }
 
   const controlledBatchGateAvailable = Boolean(
-    edgeFunctionSummary?.sendReady
+    isAuthoritativeSendReady
     && sandboxAllPreparedRowsValidated
     && ownerTestSent,
   )
@@ -820,7 +827,12 @@ export default function EmailPreparationPanel({
             <span>Mode: {edgeFunctionSummary.mode || 'dry_run'}</span>
             <span>Recipients: {edgeFunctionSummary.totalRecipients ?? 0}</span>
             <span>Prepared: {edgeFunctionSummary.preparedCount ?? 0}</span>
-            <span>Ready: {edgeFunctionSummary.sendReady ? 'yes' : 'no'}</span>
+            <span>Ready: {isAuthoritativeSendReady ? 'yes' : 'no'}</span>
+            <span>
+              Source: {edgeFunctionSummary.authoritative === true
+                ? 'server-authoritative'
+                : 'fallback (degraded, send controls locked)'}
+            </span>
             <span>No emails were sent</span>
           </div>
         </div>
