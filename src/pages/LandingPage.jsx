@@ -207,7 +207,7 @@ function HeroScene() {
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-sm font-semibold text-primary">AR Automation Engine</p>
-              <p className="mt-1 text-xs text-slate-500">Word, Excel, PDF workflow control</p>
+              <p className="mt-1 text-xs text-slate-500">Word and Excel workflow control</p>
             </div>
             <span className="inline-flex w-fit items-center rounded-md bg-accentTeal/10 px-3 py-1.5 text-xs font-semibold text-teal-700">
               Ready
@@ -274,8 +274,8 @@ function HeroScene() {
                 </div>
                 <div className="rounded-xl border border-teal-100 bg-teal-50/80 p-4">
                   <FileCheck2 className="text-accentTeal" size={22} aria-hidden="true" />
-                  <p className="mt-3 text-sm font-semibold text-primary">PDF</p>
-                  <p className="mt-1 text-xs text-slate-500">ready to share</p>
+                  <p className="mt-3 text-sm font-semibold text-primary">History</p>
+                  <p className="mt-1 text-xs text-slate-500">stored output</p>
                 </div>
               </div>
             </div>

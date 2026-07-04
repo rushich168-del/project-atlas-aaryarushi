@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Activity, Boxes, CheckCircle2, Clock3, Layers3 } from 'lucide-react'
+import { Activity, Boxes, CheckCircle2, Clock3, FileClock, FileText, Layers3, UploadCloud } from 'lucide-react'
 import DataStateBanner from '../components/dashboard/DataStateBanner.jsx'
 import DashboardLayout from '../components/dashboard/DashboardLayout.jsx'
 import EnvironmentBanner from '../components/dashboard/EnvironmentBanner.jsx'
@@ -12,6 +12,7 @@ import { navigateTo } from '../utils/routes.js'
 export default function DashboardPage() {
   const { organization, categories, products, source, status, loading, error } = useProductCatalog()
   const [hasRecentWork, setHasRecentWork] = useState(false)
+  const [selectedSuite, setSelectedSuite] = useState('Education Suite')
 
   useEffect(() => {
     let active = true
@@ -206,6 +207,27 @@ export default function DashboardPage() {
       active: false,
     },
   ]
+  const suiteSections = [
+    {
+      title: 'Education Suite',
+      description: 'Certificates, worksheets, reports, marksheets, and student documents.',
+      tone: 'education',
+      products: suiteProducts.filter((card) => card.suiteLabel === 'Education Suite'),
+    },
+    {
+      title: 'HR Suite',
+      description: 'Offer letters, payslips, employee IDs, experience letters, and HR mail.',
+      tone: 'hr',
+      products: suiteProducts.filter((card) => card.suiteLabel === 'HR Suite'),
+    },
+    {
+      title: 'Office / Business Suite',
+      description: 'Invoices, quotations, purchase orders, receipts, and business mail.',
+      tone: 'business',
+      products: suiteProducts.filter((card) => card.suiteLabel === 'Office / Business Suite'),
+    },
+  ]
+  const selectedSuiteSection = suiteSections.find((section) => section.title === selectedSuite) || suiteSections[0]
 
   return (
     <DashboardLayout title="Product Dashboard" eyebrow="Project Atlas MVP" currentView="dashboard" workspaceStatus={status}>
@@ -213,7 +235,7 @@ export default function DashboardPage() {
         <EnvironmentBanner />
         <DataStateBanner loading={loading} error={error} source={source} status={status} organization={organization} />
         <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="grid gap-5 lg:grid-cols-[1.2fr_auto] lg:items-center">
+          <div className="grid gap-6 lg:grid-cols-[1.2fr_auto] lg:items-center">
             <div>
               <p className="text-sm font-semibold text-accentTeal">Welcome to Project Atlas</p>
               <h2 className="mt-2 text-3xl font-semibold text-primary">Choose an automation product and continue your latest generation workflow.</h2>
@@ -221,30 +243,42 @@ export default function DashboardPage() {
                 This dashboard keeps your SaaS workflow clean and ready for demos. Continue AR-CERT-PRO, start a new generation, or review History from one place.
               </p>
             </div>
-            <div className="rounded-md border border-slate-200 bg-lightBg p-4">
-              <Layers3 className="text-accentBlue" size={22} aria-hidden="true" />
-              <p className="mt-4 text-sm font-semibold text-slate-500">Current release</p>
-              <p className="mt-1 text-lg font-semibold text-primary">Project Atlas v2.0 batch DOCX generation</p>
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+              <div className="flex items-center gap-3">
+                <span className="flex h-10 w-10 items-center justify-center rounded-md bg-blue-50 text-accentBlue">
+                  <Layers3 size={20} aria-hidden="true" />
+                </span>
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Stable checkpoint</p>
+                  <p className="mt-1 text-sm font-semibold text-primary">v2.24 demo ready</p>
+                </div>
+              </div>
             </div>
           </div>
         </section>
 
         <section className="mt-5 grid gap-4 lg:grid-cols-4">
-          <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-            <h3 className="text-sm font-semibold uppercase tracking-[0.16em] text-slate-400">Quick action</h3>
-            <p className="mt-3 text-lg font-semibold text-primary">Open Certificate Engine</p>
+          <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="flex h-10 w-10 items-center justify-center rounded-md bg-slate-100 text-primary">
+              <FileText size={19} aria-hidden="true" />
+            </div>
+            <h3 className="mt-4 text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Quick action</h3>
+            <p className="mt-2 text-lg font-semibold text-primary">Open Certificate Engine</p>
             <p className="mt-2 text-sm leading-6 text-slate-600">Resume the AR-CERT-PRO workspace and continue the existing certificate generation workflow.</p>
             <button
               type="button"
               onClick={() => navigateTo('/dashboard/products/ar-cert-pro/workspace')}
-              className="focus-ring mt-4 inline-flex min-h-11 items-center justify-center rounded-md bg-primary px-4 text-sm font-semibold text-white transition hover:bg-slate-800"
+              className="focus-ring mt-4 inline-flex min-h-11 items-center justify-center rounded-md bg-accentTeal px-4 text-sm font-semibold text-white transition hover:bg-teal-800"
             >
               Open AR-CERT-PRO
             </button>
           </div>
-          <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-            <h3 className="text-sm font-semibold uppercase tracking-[0.16em] text-slate-400">Quick action</h3>
-            <p className="mt-3 text-lg font-semibold text-primary">View Generation History</p>
+          <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="flex h-10 w-10 items-center justify-center rounded-md bg-blue-50 text-accentBlue">
+              <FileClock size={19} aria-hidden="true" />
+            </div>
+            <h3 className="mt-4 text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Quick action</h3>
+            <p className="mt-2 text-lg font-semibold text-primary">View Generation History</p>
             <p className="mt-2 text-sm leading-6 text-slate-600">See previously generated DOCX files and re-download from History.</p>
             <button
               type="button"
@@ -254,9 +288,12 @@ export default function DashboardPage() {
               Open History
             </button>
           </div>
-          <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-            <h3 className="text-sm font-semibold uppercase tracking-[0.16em] text-slate-400">Quick action</h3>
-            <p className="mt-3 text-lg font-semibold text-primary">Upload Template</p>
+          <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="flex h-10 w-10 items-center justify-center rounded-md bg-teal-50 text-accentTeal">
+              <UploadCloud size={19} aria-hidden="true" />
+            </div>
+            <h3 className="mt-4 text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Quick action</h3>
+            <p className="mt-2 text-lg font-semibold text-primary">Upload Template</p>
             <p className="mt-2 text-sm leading-6 text-slate-600">Start a new batch by uploading your certificate template file in AR-CERT-PRO.</p>
             <button
               type="button"
@@ -267,14 +304,17 @@ export default function DashboardPage() {
             </button>
           </div>
           {hasRecentWork ? (
-            <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-              <h3 className="text-sm font-semibold uppercase tracking-[0.16em] text-slate-400">Quick action</h3>
-              <p className="mt-3 text-lg font-semibold text-primary">Continue Recent Work</p>
+            <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="flex h-10 w-10 items-center justify-center rounded-md bg-emerald-50 text-emerald-700">
+                <Clock3 size={19} aria-hidden="true" />
+              </div>
+              <h3 className="mt-4 text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Quick action</h3>
+              <p className="mt-2 text-lg font-semibold text-primary">Continue Recent Work</p>
               <p className="mt-2 text-sm leading-6 text-slate-600">Resume your most recent Certificate Engine workflow from the workspace.</p>
               <button
                 type="button"
                 onClick={() => navigateTo('/dashboard/products/ar-cert-pro/workspace')}
-                className="focus-ring mt-4 inline-flex min-h-11 items-center justify-center rounded-md bg-primary px-4 text-sm font-semibold text-white transition hover:bg-slate-800"
+                className="focus-ring mt-4 inline-flex min-h-11 items-center justify-center rounded-md bg-accentTeal px-4 text-sm font-semibold text-white transition hover:bg-teal-800"
               >
                 Continue work
               </button>
@@ -288,41 +328,51 @@ export default function DashboardPage() {
           ))}
         </section>
 
-        <section className="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          {[
-            {
-              title: 'Education Suite',
-              description: 'Documents for schools, colleges, training institutes, and academic teams.',
-              products: suiteProducts.filter((card) => card.suiteLabel === 'Education Suite'),
-            },
-            {
-              title: 'HR Suite',
-              description: 'Offer letters, payslips, IDs, experience letters, and HR mail workflows.',
-              products: suiteProducts.filter((card) => card.suiteLabel === 'HR Suite'),
-            },
-            {
-              title: 'Office / Business Suite',
-              description: 'Invoices, quotations, purchase orders, receipts, and business mail.',
-              products: suiteProducts.filter((card) => card.suiteLabel === 'Office / Business Suite'),
-            },
-          ].map((section) => (
-            <section key={section.title} className="rounded-3xl border border-slate-200 bg-slate-50 p-6">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div>
-                  <p className="text-sm font-semibold uppercase tracking-[0.16em] text-slate-500">{section.title}</p>
-                  <p className="mt-2 text-sm leading-6 text-slate-600">{section.description}</p>
+        <section className="mt-6 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="grid gap-4 lg:grid-cols-3">
+            {suiteSections.map((section) => {
+            const toneClass = section.tone === 'education'
+              ? 'border-blue-100 bg-blue-50/70 text-blue-800'
+              : section.tone === 'hr'
+                ? 'border-emerald-100 bg-emerald-50/70 text-emerald-800'
+                : 'border-slate-200 bg-slate-50 text-slate-800'
+            const selected = selectedSuite === section.title
+
+            return (
+              <button
+                key={section.title}
+                type="button"
+                onClick={() => setSelectedSuite(section.title)}
+                className={`focus-ring rounded-lg border p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${toneClass} ${selected ? 'ring-2 ring-primary/10' : ''}`}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-base font-bold">{section.title}</p>
+                    <p className="mt-2 text-sm leading-5 text-slate-600">{section.description}</p>
+                  </div>
+                  <span className="shrink-0 rounded-md border border-white/70 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700">
+                    {section.products.length} products
+                  </span>
                 </div>
-                <div className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600">
-                  {section.products.length} products
-                </div>
+              </button>
+            )
+          })}
+          </div>
+
+          <div className="mt-5 border-t border-slate-200 pt-5">
+            <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-400">Selected suite</p>
+                <h3 className="mt-1 text-xl font-semibold text-primary">{selectedSuiteSection.title}</h3>
               </div>
-              <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                {section.products.map((card) => (
-                  <SuiteProductCard key={card.productCode} card={card} />
-                ))}
-              </div>
-            </section>
-          ))}
+              <p className="text-sm font-semibold text-slate-500">{selectedSuiteSection.products.length} products shown</p>
+            </div>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {selectedSuiteSection.products.map((card) => (
+                <SuiteProductCard key={card.productCode} card={card} />
+              ))}
+            </div>
+          </div>
         </section>
       </div>
     </DashboardLayout>
