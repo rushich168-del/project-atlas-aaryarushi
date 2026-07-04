@@ -109,6 +109,7 @@ function buildSummary({
   firstErrorCode = null,
   firstErrorMessage = null,
   rowResults = [],
+  diagnostics = null,
 }: {
   emailDeliveryJobId: string | null
   status: string
@@ -121,6 +122,7 @@ function buildSummary({
   firstErrorCode?: string | null
   firstErrorMessage?: string | null
   rowResults?: Array<Record<string, unknown>>
+  diagnostics?: Record<string, unknown> | null
 }) {
   return {
     ok: sent > 0 && failed === 0 && blocked === 0,
@@ -141,6 +143,7 @@ function buildSummary({
       : null,
     firstErrorMessage,
     rowResults,
+    diagnostics,
     realRowRecipientEmailsSent: sent,
   }
 }
@@ -250,7 +253,12 @@ serve(async (req) => {
     const allowControlledBatchSend = Deno.env.get('EMAIL_ALLOW_CONTROLLED_BATCH_SEND') === 'true'
     const safetyFlagStatus = allowControlledBatchSend ? 'enabled' : 'blocked'
 
-    async function blockedResponse(errorCode: string, errorMessage: string, status = 'batch_blocked') {
+    async function blockedResponse(
+      errorCode: string,
+      errorMessage: string,
+      status = 'batch_blocked',
+      diagnostics: Record<string, unknown> | null = null,
+    ) {
       await markBatchBlocked(supabase, emailDeliveryJobId, errorCode, errorMessage)
 
       return jsonResponse(buildSummary({
@@ -261,6 +269,7 @@ serve(async (req) => {
         safetyFlagStatus,
         firstErrorCode: errorCode,
         firstErrorMessage: errorMessage,
+        diagnostics,
       }))
     }
 
@@ -322,10 +331,24 @@ serve(async (req) => {
       )
     }
 
-    if (job.owner_test_status !== 'owner_test_sent' || (job.owner_test_sent_count || 0) < 1) {
+    const checkedOutputIds = deliveryOutputs.map((output) => output.id).filter(Boolean)
+    const ownerTestRows = deliveryOutputs.filter((output) => Boolean(output.owner_test_status))
+    const ownerTestSentRows = deliveryOutputs.filter((output) => output.owner_test_status === 'owner_test_sent')
+    const ownerTestDiagnostics = {
+      ownerTestRowsFound: ownerTestRows.length,
+      ownerTestSentRowsFound: ownerTestSentRows.length,
+      checkedEmailPrepJobId: emailDeliveryJobId,
+      checkedOutputIds,
+    }
+
+    console.info('Controlled batch owner-test prerequisite check', ownerTestDiagnostics)
+
+    if (ownerTestRequired && ownerTestSentRows.length === 0) {
       return await blockedResponse(
         'owner_test_required',
         'Controlled batch send requires a successful owner/test email first.',
+        'batch_blocked',
+        ownerTestDiagnostics,
       )
     }
 
