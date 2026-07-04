@@ -4,10 +4,12 @@ import { prepareEmailPayloadPreview, validateEmailRecipient } from '../../servic
 import {
   checkEmailDeliveryDryRunWithEdgeFunction,
   getEmailDeliveryDryRunErrorMessage,
+  getEmailDeliveryOwnerTestErrorMessage,
   getEmailDeliverySandboxErrorMessage,
   listEmailDeliveryOutputs,
   listEmailDeliveryDryRunJobsForGeneration,
   prepareBatchEmailDryRun,
+  sendEmailDeliverySendGridOwnerTest,
   validateEmailDeliverySendGridSandbox,
 } from '../../services/emailDeliveryDryRunService'
 import { useAuth } from '../../context/AuthContext.jsx'
@@ -177,6 +179,8 @@ export default function EmailPreparationPanel({
   const [edgeFunctionSummary, setEdgeFunctionSummary] = useState(null)
   const [validatingSandbox, setValidatingSandbox] = useState(false)
   const [sandboxSummary, setSandboxSummary] = useState(null)
+  const [sendingOwnerTest, setSendingOwnerTest] = useState(false)
+  const [ownerTestSummary, setOwnerTestSummary] = useState(null)
   const { session } = useAuth()
 
   const availableColumns = useMemo(() => {
@@ -355,6 +359,7 @@ export default function EmailPreparationPanel({
       const result = await checkEmailDeliveryDryRunWithEdgeFunction(savedDryRunSummary.jobId)
       setEdgeFunctionSummary(result)
       setSandboxSummary(null)
+      setOwnerTestSummary(null)
       setFeedback(result?.message || 'Dry-run checked successfully. No emails were sent.')
     } catch (error) {
       const message = getEmailDeliveryDryRunErrorMessage(error)
@@ -376,6 +381,7 @@ export default function EmailPreparationPanel({
 
         setEdgeFunctionSummary(fallbackSummary)
         setSandboxSummary(null)
+        setOwnerTestSummary(null)
         setFeedback(fallbackSummary.message)
         return
       }
@@ -385,6 +391,7 @@ export default function EmailPreparationPanel({
         : message
       setEdgeFunctionSummary(null)
       setSandboxSummary(null)
+      setOwnerTestSummary(null)
       setFeedback(fallback)
     } finally {
       setCheckingReadiness(false)
@@ -403,6 +410,7 @@ export default function EmailPreparationPanel({
     try {
       const result = await validateEmailDeliverySendGridSandbox(savedDryRunSummary.jobId)
       setSandboxSummary(result)
+      setOwnerTestSummary(null)
       setFeedback(result?.message || 'SendGrid sandbox validation finished. No real emails were delivered.')
     } catch (error) {
       setSandboxSummary(null)
@@ -413,6 +421,42 @@ export default function EmailPreparationPanel({
   }
 
   const sandboxValidationAvailable = Boolean(edgeFunctionSummary?.sendReady && generationJobId)
+  const ownerTestAvailable = Boolean(
+    savedDryRunSummary?.jobId
+    && sandboxSummary?.ok
+    && (sandboxSummary?.sandboxValidated ?? 0) > 0
+    && (sandboxSummary?.sandboxFailed ?? 0) === 0
+    && (sandboxSummary?.blocked ?? 0) === 0
+    && ownerTestSummary?.status !== 'owner_test_sent',
+  )
+
+  async function handleSendOwnerTestEmail() {
+    if (!ownerTestAvailable) {
+      setFeedback('Validate Sandbox Send first. No owner test email was sent.')
+      return
+    }
+
+    const confirmed = window.confirm('Send 1 real test email to the configured owner/test email?')
+
+    if (!confirmed) {
+      setFeedback('Owner test email cancelled. No owner test email was sent.')
+      return
+    }
+
+    setSendingOwnerTest(true)
+    setFeedback('')
+
+    try {
+      const result = await sendEmailDeliverySendGridOwnerTest(savedDryRunSummary.jobId)
+      setOwnerTestSummary(result)
+      setFeedback(result?.message || result?.errorMessage || 'Owner test email finished.')
+    } catch (error) {
+      setOwnerTestSummary(null)
+      setFeedback(getEmailDeliveryOwnerTestErrorMessage(error))
+    } finally {
+      setSendingOwnerTest(false)
+    }
+  }
 
   return (
     <section className="mt-5 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
@@ -428,8 +472,8 @@ export default function EmailPreparationPanel({
       <div className="mt-4 grid gap-2 rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700 sm:grid-cols-2 lg:grid-cols-4">
         <p><span className="font-semibold">Provider:</span> SendGrid</p>
         <p><span className="font-semibold">Mode:</span> Sandbox Validation Only</p>
-        <p><span className="font-semibold">Real emails will be sent:</span> No</p>
-        <p><span className="font-semibold">Next release action:</span> Validate Sandbox Send</p>
+        <p><span className="font-semibold">Customer row emails:</span> No real delivery</p>
+        <p><span className="font-semibold">Owner test:</span> Gated after sandbox success</p>
       </div>
 
       <div className="mt-5 grid gap-4 lg:grid-cols-[1.1fr_1fr]">
@@ -539,6 +583,17 @@ export default function EmailPreparationPanel({
             {validatingSandbox ? 'Validating...' : 'Validate Sandbox Send'}
           </button>
         ) : null}
+        {ownerTestAvailable ? (
+          <button
+            type="button"
+            onClick={handleSendOwnerTestEmail}
+            disabled={sendingOwnerTest}
+            className="focus-ring inline-flex min-h-10 items-center justify-center gap-2 rounded-md bg-emerald-700 px-4 text-sm font-semibold text-white transition hover:bg-emerald-800 disabled:opacity-60"
+          >
+            <Mail size={16} aria-hidden="true" />
+            {sendingOwnerTest ? 'Sending...' : 'Send Owner Test Email'}
+          </button>
+        ) : null}
         <button
           type="button"
           disabled
@@ -575,6 +630,11 @@ export default function EmailPreparationPanel({
           Sandbox validation only. No real emails will be delivered.
         </p>
       ) : null}
+      {ownerTestAvailable ? (
+        <p className="mt-3 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800">
+          This sends one real email only to the configured owner/test email. It will not send to row recipients.
+        </p>
+      ) : null}
       {sandboxSummary ? (
         <div className="mt-3 rounded-lg border border-blue-100 bg-blue-50 p-4">
           <p className="text-xs font-semibold uppercase tracking-[0.12em] text-blue-700">SendGrid Sandbox Result</p>
@@ -606,6 +666,22 @@ export default function EmailPreparationPanel({
             </div>
           ) : null}
           <p className="mt-2 text-sm font-semibold text-blue-800">Real emails delivered: {sandboxSummary.realEmailsDelivered ?? 0}</p>
+        </div>
+      ) : null}
+      {ownerTestSummary ? (
+        <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 p-4">
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-emerald-700">Owner Test Email Result</p>
+          <div className="mt-3 grid gap-2 text-sm text-slate-700 sm:grid-cols-2">
+            <p><span className="font-semibold">Owner test email target:</span> {ownerTestSummary.ownerTestEmailTarget || 'Not available'}</p>
+            <p><span className="font-semibold">Original row recipient preview:</span> {ownerTestSummary.originalRowRecipientPreview || 'Not available'}</p>
+            <p><span className="font-semibold">Attachment filename:</span> {ownerTestSummary.attachmentFileName || 'Not available'}</p>
+            <p><span className="font-semibold">Status:</span> {String(ownerTestSummary.status || '').replace('owner_test_', '') || 'unknown'}</p>
+          </div>
+          {ownerTestSummary.errorMessage ? (
+            <p className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-800">
+              {ownerTestSummary.errorMessage}
+            </p>
+          ) : null}
         </div>
       ) : null}
 
