@@ -159,6 +159,15 @@ export async function parseExcelColumns(file) {
     }, {}),
   )
 
+  if (import.meta.env.DEV) {
+    console.debug('[Project Atlas] parsed Excel data', {
+      sheetName: firstSheetName,
+      detectedColumns: dedupedHeaders,
+      firstParsedRowKeys: Object.keys(excelRows[0] || {}),
+      firstParsedRowEmail: excelRows[0]?.Email || excelRows[0]?.email || '',
+    })
+  }
+
   return {
     detectedColumns: dedupedHeaders,
     rowCount: dataRows.length,

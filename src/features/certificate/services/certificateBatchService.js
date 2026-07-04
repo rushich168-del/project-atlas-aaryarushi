@@ -9,6 +9,23 @@ function shortError(error) {
   return String(error?.message || error || 'Unknown error').slice(0, 500)
 }
 
+function normalizeRowDataForStorage(rowData) {
+  if (!rowData || typeof rowData !== 'object' || Array.isArray(rowData)) {
+    return rowData ?? null
+  }
+
+  return Object.entries(rowData).reduce((normalized, [key, value]) => {
+    const cleanKey = String(key || '').trim()
+
+    if (!cleanKey || value === undefined) {
+      return normalized
+    }
+
+    normalized[cleanKey] = value == null ? '' : String(value).trim()
+    return normalized
+  }, {})
+}
+
 export function safeBatchFileName(value) {
   const baseName = String(value || 'certificate')
     .replace(/\.[^/.]+$/, '')
@@ -103,6 +120,16 @@ export async function saveGenerationOutput({
   errorMessage,
   rowData,
 }) {
+  const normalizedRowData = normalizeRowDataForStorage(rowData)
+
+  if (import.meta.env.DEV) {
+    console.debug('[Project Atlas] generation output row_data before insert', {
+      rowIndex,
+      keys: normalizedRowData && typeof normalizedRowData === 'object' ? Object.keys(normalizedRowData) : [],
+      email: normalizedRowData?.Email || normalizedRowData?.email || '',
+    })
+  }
+
   const { data, error } = await supabase
     .from('generation_outputs')
     .insert({
@@ -117,7 +144,7 @@ export async function saveGenerationOutput({
       storage_path: storagePath || null,
       status,
       error_message: errorMessage ? shortError(errorMessage) : null,
-      row_data: rowData != null ? rowData : null,
+      row_data: normalizedRowData,
     })
     .select()
     .single()
