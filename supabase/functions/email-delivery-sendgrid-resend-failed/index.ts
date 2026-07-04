@@ -347,6 +347,10 @@ serve(async (req) => {
     const fromName = Deno.env.get('SENDGRID_FROM_NAME')
     const maxResendRows = parsePositiveInt(Deno.env.get('EMAIL_MAX_FAILED_ROW_RESEND_ROWS'), DEFAULT_MAX_RESEND_ROWS)
     const maxAttachmentBytes = parsePositiveInt(Deno.env.get('EMAIL_MAX_ATTACHMENT_MB'), DEFAULT_MAX_ATTACHMENT_MB) * 1024 * 1024
+    // v2.42: prerequisite-flag parity with controlled batch. Both must be exactly
+    // 'true' server-side, or resend is blocked (missing / false / any other value).
+    const dryRunRequired = Deno.env.get('EMAIL_BATCH_SEND_DRY_RUN_REQUIRED') === 'true'
+    const ownerTestRequired = Deno.env.get('EMAIL_OWNER_TEST_REQUIRED') === 'true'
     // H3: the required phrase must come only from a securely configured, non-default
     // server env value. DEFAULT_CONFIRMATION_PHRASE is kept only as a value to reject.
     const configuredConfirmationPhrase = String(Deno.env.get('EMAIL_FAILED_ROW_RESEND_CONFIRMATION_PHRASE') || '').trim()
@@ -358,6 +362,8 @@ serve(async (req) => {
       !fromEmail ? 'SENDGRID_FROM_EMAIL' : '',
       !fromName ? 'SENDGRID_FROM_NAME' : '',
       provider !== 'sendgrid' ? 'EMAIL_PROVIDER=sendgrid' : '',
+      !dryRunRequired ? 'EMAIL_BATCH_SEND_DRY_RUN_REQUIRED=true' : '',
+      !ownerTestRequired ? 'EMAIL_OWNER_TEST_REQUIRED=true' : '',
     ].filter(Boolean)
 
     if (missingOrUnsafeSecrets.length > 0) {
