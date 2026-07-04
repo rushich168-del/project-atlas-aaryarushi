@@ -76,6 +76,63 @@ function parsePositiveInt(value: string | undefined, fallback: number) {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback
 }
 
+// H5: parse a rate-cap env var. Unset/empty -> safe default. Set-but-invalid
+// (non-numeric or <= 0) -> null so the caller fails closed.
+function parseRateCap(value: string | undefined, fallback: number) {
+  if (value === undefined || value === null || String(value).trim() === '') {
+    return fallback
+  }
+  const parsed = Number.parseInt(String(value), 10)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null
+}
+
+// H5: shared rolling-window real-send count, scoped to the job owner's user_id.
+// Counts existing real-send timestamps (batch_send_sent_at + resend_sent_at) so
+// controlled batch and resend share one ceiling. Returns null on any uncertainty
+// (query error or null count) so callers fail closed.
+async function getSharedRealSendWindowCount(
+  supabase: EdgeSupabaseClient,
+  userId: string,
+  windowStartIso: string,
+): Promise<number | null> {
+  const { data: jobs, error: jobsError } = await supabase
+    .from('email_delivery_jobs')
+    .select('id')
+    .eq('user_id', userId)
+
+  if (jobsError) {
+    return null
+  }
+
+  const jobIds = (jobs || []).map((entry) => entry.id).filter(Boolean)
+
+  if (jobIds.length === 0) {
+    return 0
+  }
+
+  const { count: batchCount, error: batchError } = await supabase
+    .from('email_delivery_outputs')
+    .select('id', { count: 'exact', head: true })
+    .in('email_delivery_job_id', jobIds)
+    .gte('batch_send_sent_at', windowStartIso)
+
+  if (batchError || batchCount === null || batchCount === undefined) {
+    return null
+  }
+
+  const { count: resendCount, error: resendError } = await supabase
+    .from('email_delivery_outputs')
+    .select('id', { count: 'exact', head: true })
+    .in('email_delivery_job_id', jobIds)
+    .gte('resend_sent_at', windowStartIso)
+
+  if (resendError || resendCount === null || resendCount === undefined) {
+    return null
+  }
+
+  return batchCount + resendCount
+}
+
 function bytesToBase64(bytes: Uint8Array) {
   let binary = ''
   const chunkSize = 0x8000
@@ -423,6 +480,35 @@ serve(async (req) => {
       return await blockedResponse(
         'recipient_not_allowlisted',
         `Recipient on failed row ${nonAllowlistedRow.row_number || '-'} is not on the approved allowlist. No email was sent.`,
+      )
+    }
+
+    // H5: shared rolling-window real-send rate cap. Controlled batch and resend
+    // count toward the same ceiling. Fail closed on invalid caps or unknown counts.
+    const maxRealSendsPerHour = parseRateCap(Deno.env.get('EMAIL_MAX_REAL_SENDS_PER_HOUR'), 20)
+    const maxRealSendsPerDay = parseRateCap(Deno.env.get('EMAIL_MAX_REAL_SENDS_PER_DAY'), 50)
+
+    if (maxRealSendsPerHour === null || maxRealSendsPerDay === null) {
+      return await blockedResponse(
+        'rate_limit_exceeded',
+        'Sending limit reached — no email sent. Please try later.',
+      )
+    }
+
+    const hourWindowStartIso = new Date(Date.now() - 60 * 60 * 1000).toISOString()
+    const dayWindowStartIso = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+    const hourSendCount = await getSharedRealSendWindowCount(supabase, job.user_id, hourWindowStartIso)
+    const daySendCount = await getSharedRealSendWindowCount(supabase, job.user_id, dayWindowStartIso)
+
+    if (
+      hourSendCount === null
+      || daySendCount === null
+      || hourSendCount + plannedRows > maxRealSendsPerHour
+      || daySendCount + plannedRows > maxRealSendsPerDay
+    ) {
+      return await blockedResponse(
+        'rate_limit_exceeded',
+        'Sending limit reached — no email sent. Please try later.',
       )
     }
 
