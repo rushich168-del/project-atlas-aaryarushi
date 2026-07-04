@@ -4,7 +4,7 @@ Use these files to run a repeatable Project Atlas AR-CERT-PRO demo.
 
 ## Files
 
-- `sample-certificate-data.csv` - five sample certificate rows for Excel upload.
+- `sample-certificate-data.csv` - five sample certificate rows for Excel upload, aligned to the current AR-CERT-PRO fields.
 - `certificate-template-placeholders.md` - placeholder reference for creating a DOCX certificate template.
 
 ## How To Use

@@ -1,6 +1,6 @@
-Name,Course,Date,Grade,Certificate_ID,Email
-Aarya Rushi,Office Automation Foundations,05 Jul 2026,A,CERT-001,demo.owner@example.com
-Priya Sharma,Excel Workflow Basics,05 Jul 2026,A,CERT-002,demo.owner@example.com
-Rahul Mehta,DOCX Template Automation,05 Jul 2026,B+,CERT-003,demo.owner@example.com
-Neha Iyer,Productivity Systems,05 Jul 2026,A-,CERT-004,demo.owner@example.com
-Arjun Patel,Document Automation Essentials,05 Jul 2026,A,CERT-005,demo.owner@example.com
+Name,Course,Date,Trainer,Certificate_ID,Email
+Aarya Rushi,Office Automation Foundations,05 Jul 2026,Automation Labs,CERT-001,demo.owner@example.com
+Priya Sharma,Excel Workflow Basics,05 Jul 2026,Automation Labs,CERT-002,demo.owner@example.com
+Rahul Mehta,DOCX Template Automation,05 Jul 2026,Automation Labs,CERT-003,demo.owner@example.com
+Neha Iyer,Productivity Systems,05 Jul 2026,Automation Labs,CERT-004,demo.owner@example.com
+Arjun Patel,Document Automation Essentials,05 Jul 2026,Automation Labs,CERT-005,demo.owner@example.com

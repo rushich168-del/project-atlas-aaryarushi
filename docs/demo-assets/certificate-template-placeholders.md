@@ -9,7 +9,7 @@ Create a Word `.docx` certificate template and include these placeholders exactl
 {{course}}
 {{date}}
 {{certificate_id}}
-{{grade}}
+{{trainer}}
 ```
 
 ## Suggested Certificate Text
@@ -21,7 +21,7 @@ This certificate is awarded to {{name}}
 for successfully completing {{course}}
 on {{date}}.
 
-Grade: {{grade}}
+Trainer: {{trainer}}
 Certificate ID: {{certificate_id}}
 ```
 
@@ -33,7 +33,7 @@ The sample CSV uses these columns:
 Name
 Course
 Date
-Grade
+Trainer
 Certificate_ID
 Email
 ```
@@ -44,7 +44,7 @@ When using Auto-map:
 - `{{course}}` should map to `Course`.
 - `{{date}}` should map to `Date`.
 - `{{certificate_id}}` should map to `Certificate_ID`.
-- `{{grade}}` can be mapped manually if needed.
+- `{{trainer}}` should map to `Trainer`.
 
 ## Demo Boundary
 
