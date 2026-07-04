@@ -347,7 +347,12 @@ serve(async (req) => {
     const fromName = Deno.env.get('SENDGRID_FROM_NAME')
     const maxResendRows = parsePositiveInt(Deno.env.get('EMAIL_MAX_FAILED_ROW_RESEND_ROWS'), DEFAULT_MAX_RESEND_ROWS)
     const maxAttachmentBytes = parsePositiveInt(Deno.env.get('EMAIL_MAX_ATTACHMENT_MB'), DEFAULT_MAX_ATTACHMENT_MB) * 1024 * 1024
-    const requiredConfirmationPhrase = Deno.env.get('EMAIL_FAILED_ROW_RESEND_CONFIRMATION_PHRASE') || DEFAULT_CONFIRMATION_PHRASE
+    // H3: the required phrase must come only from a securely configured, non-default
+    // server env value. DEFAULT_CONFIRMATION_PHRASE is kept only as a value to reject.
+    const configuredConfirmationPhrase = String(Deno.env.get('EMAIL_FAILED_ROW_RESEND_CONFIRMATION_PHRASE') || '').trim()
+    const confirmationPhraseConfigured = configuredConfirmationPhrase.length > 0
+      && configuredConfirmationPhrase !== DEFAULT_CONFIRMATION_PHRASE
+    const requiredConfirmationPhrase = configuredConfirmationPhrase
     const missingOrUnsafeSecrets = [
       !sendGridApiKey ? 'SENDGRID_API_KEY' : '',
       !fromEmail ? 'SENDGRID_FROM_EMAIL' : '',
@@ -359,6 +364,15 @@ serve(async (req) => {
       return await blockedResponse(
         'failed_row_resend_configuration_blocked',
         `Failed-row resend configuration is incomplete or unsafe: ${missingOrUnsafeSecrets.join(', ')}`,
+      )
+    }
+
+    // H3: reject resend unless a secure, non-default confirmation phrase is
+    // configured server-side. Never log or return the configured phrase itself.
+    if (!confirmationPhraseConfigured) {
+      return await blockedResponse(
+        'confirmation_phrase_configuration_blocked',
+        'Failed-row resend requires a securely configured confirmation phrase. Set EMAIL_FAILED_ROW_RESEND_CONFIRMATION_PHRASE to a non-default value.',
       )
     }
 

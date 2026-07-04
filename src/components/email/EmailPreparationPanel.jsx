@@ -588,7 +588,10 @@ export default function EmailPreparationPanel({
 
     const normalizedPhrase = controlledBatchPhrase.trim()
 
-    if (normalizedPhrase === 'SEND 5 TEST EMAILS') {
+    // Generic pre-send confirmation. The backend is the authority for the actual
+    // (securely configured, non-default) phrase; the UI never checks against or
+    // reveals any expected/default phrase value.
+    if (normalizedPhrase) {
       const confirmed = window.confirm(`This will send real emails to ${preparedRecipientCount} row recipients. Continue?`)
 
       if (!confirmed) {
@@ -921,7 +924,7 @@ export default function EmailPreparationPanel({
                 <input
                   value={controlledBatchPhrase}
                   onChange={(event) => setControlledBatchPhrase(event.target.value)}
-                  placeholder="SEND 5 TEST EMAILS"
+                  placeholder="Enter secure confirmation phrase"
                   className="min-h-9 rounded-md border border-slate-200 bg-white px-2.5 text-xs font-semibold text-primary outline-none transition focus:border-accentBlue focus:ring-2 focus:ring-blue-100"
                 />
               </label>
@@ -987,7 +990,7 @@ export default function EmailPreparationPanel({
                 <input
                   value={resendFailedPhrase}
                   onChange={(event) => setResendFailedPhrase(event.target.value)}
-                  placeholder="RESEND FAILED ROWS"
+                  placeholder="Enter secure confirmation phrase"
                   className="min-h-9 rounded-md border border-slate-200 bg-white px-2.5 text-xs font-semibold text-primary outline-none transition focus:border-accentBlue focus:ring-2 focus:ring-blue-100"
                 />
               </label>

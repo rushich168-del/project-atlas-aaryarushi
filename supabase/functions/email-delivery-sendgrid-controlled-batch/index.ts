@@ -340,7 +340,12 @@ serve(async (req) => {
     const fromName = Deno.env.get('SENDGRID_FROM_NAME')
     const maxRecipientsSecret = Deno.env.get('EMAIL_MAX_CONTROLLED_BATCH_RECIPIENTS')
     const maxAttachmentMbSecret = Deno.env.get('EMAIL_MAX_ATTACHMENT_MB')
-    const requiredConfirmationPhrase = Deno.env.get('EMAIL_BATCH_SEND_CONFIRMATION_PHRASE') || DEFAULT_CONFIRMATION_PHRASE
+    // H3: the required phrase must come only from a securely configured, non-default
+    // server env value. DEFAULT_CONFIRMATION_PHRASE is kept only as a value to reject.
+    const configuredConfirmationPhrase = String(Deno.env.get('EMAIL_BATCH_SEND_CONFIRMATION_PHRASE') || '').trim()
+    const confirmationPhraseConfigured = configuredConfirmationPhrase.length > 0
+      && configuredConfirmationPhrase !== DEFAULT_CONFIRMATION_PHRASE
+    const requiredConfirmationPhrase = configuredConfirmationPhrase
     const dryRunRequired = Deno.env.get('EMAIL_BATCH_SEND_DRY_RUN_REQUIRED') === 'true'
     const ownerTestRequired = Deno.env.get('EMAIL_OWNER_TEST_REQUIRED') === 'true'
     const maxRecipients = parsePositiveInt(maxRecipientsSecret, DEFAULT_MAX_RECIPIENTS)
@@ -352,7 +357,6 @@ serve(async (req) => {
       provider !== 'sendgrid' ? 'EMAIL_PROVIDER=sendgrid' : '',
       !maxRecipientsSecret ? 'EMAIL_MAX_CONTROLLED_BATCH_RECIPIENTS=5' : '',
       !maxAttachmentMbSecret ? 'EMAIL_MAX_ATTACHMENT_MB=10' : '',
-      !Deno.env.get('EMAIL_BATCH_SEND_CONFIRMATION_PHRASE') ? 'EMAIL_BATCH_SEND_CONFIRMATION_PHRASE' : '',
       !dryRunRequired ? 'EMAIL_BATCH_SEND_DRY_RUN_REQUIRED=true' : '',
       !ownerTestRequired ? 'EMAIL_OWNER_TEST_REQUIRED=true' : '',
     ].filter(Boolean)
@@ -361,6 +365,15 @@ serve(async (req) => {
       return await blockedResponse(
         'controlled_batch_configuration_blocked',
         `Controlled batch configuration is incomplete or unsafe: ${missingOrUnsafeSecrets.join(', ')}`,
+      )
+    }
+
+    // H3: reject sending unless a secure, non-default confirmation phrase is
+    // configured server-side. Never log or return the configured phrase itself.
+    if (!confirmationPhraseConfigured) {
+      return await blockedResponse(
+        'confirmation_phrase_configuration_blocked',
+        'Controlled batch send requires a securely configured confirmation phrase. Set EMAIL_BATCH_SEND_CONFIRMATION_PHRASE to a non-default value.',
       )
     }
 
