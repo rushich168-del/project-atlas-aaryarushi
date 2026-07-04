@@ -685,6 +685,32 @@ export default function EmailPreparationPanel({
         </div>
       ) : null}
 
+      <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Controlled Batch Send</p>
+            <p className="mt-2 text-sm font-semibold text-slate-700">
+              Real batch sending is not enabled yet. This release only prepares the safety design.
+            </p>
+            <div className="mt-3 grid gap-2 text-sm text-slate-600 sm:grid-cols-2 lg:grid-cols-4">
+              <p><span className="font-semibold">Provider:</span> SendGrid</p>
+              <p><span className="font-semibold">Mode:</span> Controlled real batch</p>
+              <p><span className="font-semibold">Limit:</span> Planned max 5 recipients</p>
+              <p><span className="font-semibold">Attachment:</span> DOCX only</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            disabled
+            className="focus-ring inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-slate-200 bg-slate-100 px-4 text-sm font-semibold text-slate-500"
+            title="Planned for a later controlled rollout."
+          >
+            <ShieldCheck size={16} aria-hidden="true" />
+            Confirm Controlled Batch Send
+          </button>
+        </div>
+      </div>
+
       <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4">
         <p className="text-xs font-semibold uppercase tracking-[0.12em] text-amber-700">Future Auto Send Architecture Ready</p>
         <p className="mt-2 text-sm text-amber-800">

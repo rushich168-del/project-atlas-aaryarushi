@@ -265,6 +265,70 @@ Planned future statuses:
 - sandbox_failed
 - blocked
 
+## v2.12 owner/test real email milestone
+
+Project Atlas v2.12 adds one controlled real email path for owner/test validation only.
+
+- Edge Function: `email-delivery-sendgrid-owner-test`
+- Real delivery target: configured owner/test email only
+- Row recipient usage: preview context only
+- Attachment: one DOCX only
+- ZIP/PDF attachments: blocked
+- Customer row recipient delivery: still blocked
+- Production batch sending: still blocked
+
+Owner/test delivery logs must remain separate from normal production delivery counts.
+
+## v2.13 controlled batch send design
+
+Project Atlas v2.13 is documentation and UI design only for future controlled real batch sending.
+
+The planned future Edge Function name is:
+
+```text
+email-delivery-sendgrid-controlled-batch
+```
+
+The detailed safety design is documented in:
+
+```text
+docs/controlled-real-batch-send-v213.md
+```
+
+Future controlled batch sending must remain disabled by default and require:
+
+1. Sandbox validation success.
+2. Owner/test email success.
+3. Explicit final confirmation.
+4. Typed confirmation phrase.
+5. Maximum 5 recipients for the first controlled batch.
+6. DOCX-only attachments under 10 MB each.
+7. No ZIP/PDF attachments.
+8. No CC/BCC.
+9. A stop switch before and during sending.
+
+Required future Edge Function secrets:
+
+```text
+EMAIL_ALLOW_CONTROLLED_BATCH_SEND=false
+EMAIL_MAX_CONTROLLED_BATCH_RECIPIENTS=5
+EMAIL_BATCH_SEND_CONFIRMATION_PHRASE=SEND 5 TEST EMAILS
+EMAIL_BATCH_SEND_DRY_RUN_REQUIRED=true
+EMAIL_OWNER_TEST_REQUIRED=true
+```
+
+These values must not be placed in frontend code or browser-exposed environment variables.
+
+Planned future statuses:
+
+- batch_blocked
+- batch_confirmation_required
+- batch_queued
+- batch_sent
+- batch_failed
+- batch_skipped
+- batch_stopped
+
 ## Recommended rollout phases
 
 1. Architecture and documentation only
