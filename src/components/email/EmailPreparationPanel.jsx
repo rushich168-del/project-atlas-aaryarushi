@@ -140,6 +140,26 @@ function copyText(text, setFeedback) {
   }
 }
 
+function getEmailPanelStorageKey(generationJobId, panelName) {
+  return `project-atlas:history-email:${generationJobId || 'unsaved'}:${panelName}`
+}
+
+function getStoredEmailPanelOpen(generationJobId, panelName) {
+  try {
+    return window.sessionStorage.getItem(getEmailPanelStorageKey(generationJobId, panelName)) === 'open'
+  } catch {
+    return false
+  }
+}
+
+function setStoredEmailPanelOpen(generationJobId, panelName, open) {
+  try {
+    window.sessionStorage.setItem(getEmailPanelStorageKey(generationJobId, panelName), open ? 'open' : 'closed')
+  } catch {
+    // UI-only session state is best effort.
+  }
+}
+
 function getSandboxErrorSummary(summary) {
   const firstError = summary?.firstError || (summary?.rowResults || []).find((result) => result?.errorMessage)
 
@@ -192,6 +212,8 @@ export default function EmailPreparationPanel({
   const [resendFailedPhrase, setResendFailedPhrase] = useState('')
   const [checkingResendFailed, setCheckingResendFailed] = useState(false)
   const [resendFailedSummary, setResendFailedSummary] = useState(null)
+  const [emailPreviewOpen, setEmailPreviewOpen] = useState(() => getStoredEmailPanelOpen(generationJobId, 'preview'))
+  const [preparedRowsOpen, setPreparedRowsOpen] = useState(() => getStoredEmailPanelOpen(generationJobId, 'prepared-rows'))
   const { session } = useAuth()
 
   const availableColumns = useMemo(() => {
@@ -489,6 +511,27 @@ export default function EmailPreparationPanel({
     && !ownerTestSent,
   )
 
+  function openEmailPreview() {
+    setEmailPreviewOpen(true)
+    setPreparedRowsOpen(false)
+    setStoredEmailPanelOpen(generationJobId, 'preview', true)
+    setStoredEmailPanelOpen(generationJobId, 'prepared-rows', false)
+  }
+
+  function openPreparedRows() {
+    setPreparedRowsOpen(true)
+    setEmailPreviewOpen(false)
+    setStoredEmailPanelOpen(generationJobId, 'prepared-rows', true)
+    setStoredEmailPanelOpen(generationJobId, 'preview', false)
+  }
+
+  function closeEmailOverlay() {
+    setEmailPreviewOpen(false)
+    setPreparedRowsOpen(false)
+    setStoredEmailPanelOpen(generationJobId, 'preview', false)
+    setStoredEmailPanelOpen(generationJobId, 'prepared-rows', false)
+  }
+
   async function handleSendOwnerTestEmail() {
     if (!ownerTestAvailable) {
       setFeedback('Validate Sandbox Send first. No owner test email was sent.')
@@ -595,92 +638,95 @@ export default function EmailPreparationPanel({
   }
 
   return (
-    <section className="mt-5 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+    <section className="mt-3 rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
+      <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <h4 className="text-sm font-semibold text-primary">{title}</h4>
-          <p className="mt-1 text-xs font-medium text-slate-500">{helperText}</p>
-          <p className="mt-1 text-xs font-semibold text-amber-700">Status: {statusText}</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-400">Email delivery</p>
+          <h4 className="mt-0.5 text-base font-semibold text-primary">{title}</h4>
+          <p className="mt-0.5 text-xs leading-5 text-slate-600">{helperText}</p>
         </div>
-        <div className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">Manual prep only</div>
+        <div className="flex flex-wrap gap-2">
+          <span className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-800">{statusText}</span>
+          <span className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-semibold uppercase tracking-[0.08em] text-slate-600">Manual prep</span>
+        </div>
       </div>
 
-      <div className="mt-4 grid gap-2 rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700 sm:grid-cols-2 lg:grid-cols-4">
-        <p><span className="font-semibold">Provider:</span> SendGrid</p>
-        <p><span className="font-semibold">Mode:</span> Sandbox Validation Only</p>
-        <p><span className="font-semibold">Customer row emails:</span> No real delivery</p>
-        <p><span className="font-semibold">Owner test:</span> Gated after sandbox success</p>
+      <div className="mt-3 grid gap-2 text-xs text-slate-700 sm:grid-cols-2 lg:grid-cols-4">
+        <p className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5"><span className="font-semibold">Provider:</span> SendGrid</p>
+        <p className="rounded-md border border-blue-100 bg-blue-50 px-2 py-1.5"><span className="font-semibold">Sandbox:</span> Safe test</p>
+        <p className="rounded-md border border-emerald-100 bg-emerald-50 px-2 py-1.5"><span className="font-semibold">Owner test:</span> Available after checks</p>
+        <p className="rounded-md border border-amber-100 bg-amber-50 px-2 py-1.5"><span className="font-semibold">Real batch:</span> Locked</p>
       </div>
 
-      <div className="mt-4 rounded-lg border border-slate-200 bg-white p-4">
-        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Email Delivery Safety Status</p>
-        <div className="mt-3 grid gap-2 text-sm text-slate-700 sm:grid-cols-2 lg:grid-cols-4">
+      <details className="mt-2 rounded-lg border border-slate-200 bg-white p-2.5">
+        <summary className="cursor-pointer text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">Safety lock status</summary>
+        <div className="mt-2 grid gap-1.5 text-xs text-slate-700 sm:grid-cols-2 lg:grid-cols-4">
           <p><span className="font-semibold">Provider:</span> SendGrid</p>
           <p><span className="font-semibold">Sandbox validation:</span> Available</p>
           <p><span className="font-semibold">Owner test send:</span> Available</p>
-          <p><span className="font-semibold">Controlled batch send:</span> Protected by backend safety flag</p>
-          <p><span className="font-semibold">Failed row resend:</span> Protected by backend safety flag</p>
+          <p><span className="font-semibold">Controlled batch send:</span> Locked by backend safety flag</p>
+          <p><span className="font-semibold">Failed row resend:</span> Locked by backend safety flag</p>
           <p><span className="font-semibold">ZIP email attachment:</span> Disabled</p>
           <p><span className="font-semibold">PDF email attachment:</span> Disabled</p>
           <p><span className="font-semibold">Gmail/Outlook OAuth:</span> Not enabled</p>
           <p className="sm:col-span-2 lg:col-span-4"><span className="font-semibold">Secrets:</span> Stored in Supabase Edge Function secrets</p>
         </div>
-      </div>
+      </details>
 
-      <div className="mt-5 grid gap-4 lg:grid-cols-[1.1fr_1fr]">
-        <label className="grid gap-2">
+      <div className="mt-3 grid gap-3 lg:grid-cols-[1.1fr_1fr]">
+        <label className="grid gap-1.5">
           <span className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Recipient email column</span>
           <select
             value={recipientColumn}
             onChange={(event) => setRecipientColumn(event.target.value)}
-            className="min-h-11 rounded-md border border-slate-200 bg-white px-3 text-sm font-semibold text-primary outline-none transition focus:border-accentBlue focus:ring-2 focus:ring-blue-100"
+            className="min-h-9 rounded-md border border-slate-200 bg-white px-2.5 text-sm font-semibold text-primary outline-none transition focus:border-accentBlue focus:ring-2 focus:ring-blue-100"
           >
             {availableColumns.map((column) => (
               <option key={column} value={column}>{column}</option>
             ))}
           </select>
         </label>
-        <label className="grid gap-2">
+        <label className="grid gap-1.5">
           <span className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Preview row</span>
           <select
             value={selectedRow?.output.id || ''}
             onChange={(event) => setSelectedOutputId(event.target.value)}
-            className="min-h-11 rounded-md border border-slate-200 bg-white px-3 text-sm font-semibold text-primary outline-none transition focus:border-accentBlue focus:ring-2 focus:ring-blue-100"
+            className="min-h-9 rounded-md border border-slate-200 bg-white px-2.5 text-sm font-semibold text-primary outline-none transition focus:border-accentBlue focus:ring-2 focus:ring-blue-100"
           >
             {emailRows.map((item) => (
               <option key={item.output.id} value={item.output.id}>
-                Row {item.output.row_index} • {item.output.display_name}
+                Row {item.output.row_index} - {item.output.display_name}
               </option>
             ))}
           </select>
         </label>
       </div>
 
-      <div className="mt-4 grid gap-4">
-        <label className="grid gap-2">
+      <div className="mt-3 grid gap-3">
+        <label className="grid gap-1.5">
           <span className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Subject template</span>
           <input
             value={subjectTemplate}
             onChange={(event) => setSubjectTemplate(event.target.value)}
-            className="min-h-11 rounded-md border border-slate-200 bg-white px-3 text-sm font-semibold text-primary outline-none transition focus:border-accentBlue focus:ring-2 focus:ring-blue-100"
+            className="min-h-9 rounded-md border border-slate-200 bg-white px-2.5 text-sm font-semibold text-primary outline-none transition focus:border-accentBlue focus:ring-2 focus:ring-blue-100"
           />
         </label>
-        <label className="grid gap-2">
+        <label className="grid gap-1.5">
           <span className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Message template</span>
           <textarea
             value={messageTemplate}
             onChange={(event) => setMessageTemplate(event.target.value)}
-            rows={6}
-            className="min-h-[160px] rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-primary outline-none transition focus:border-accentBlue focus:ring-2 focus:ring-blue-100"
+            rows={3}
+            className="min-h-[96px] rounded-md border border-slate-200 bg-white px-2.5 py-2 text-sm font-semibold text-primary outline-none transition focus:border-accentBlue focus:ring-2 focus:ring-blue-100"
           />
         </label>
       </div>
 
-      <div className="mt-4 flex flex-wrap items-center gap-3">
+      <div className="mt-3 flex flex-wrap items-center gap-2">
         <button
           type="button"
           onClick={() => setFeedback(selectedRow ? `Preview generated for row ${selectedRow.output.row_index}.` : 'No row selected.')}
-          className="focus-ring inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-4 text-sm font-semibold text-primary transition hover:border-accentBlue hover:text-accentBlue"
+          className="focus-ring inline-flex min-h-9 items-center justify-center gap-1.5 rounded-md border border-slate-200 bg-white px-3 text-xs font-semibold text-primary transition hover:border-accentBlue hover:text-accentBlue"
         >
           <Mail size={16} aria-hidden="true" />
           Preview Email
@@ -689,7 +735,7 @@ export default function EmailPreparationPanel({
           type="button"
           onClick={() => copyText(previewRecipient, setFeedback)}
           disabled={!previewRecipient}
-          className="focus-ring inline-flex min-h-10 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60"
+          className="focus-ring inline-flex min-h-9 items-center justify-center gap-1.5 rounded-md bg-accentTeal px-3 text-xs font-semibold text-white transition hover:bg-teal-800 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 disabled:opacity-60"
         >
           <Copy size={16} aria-hidden="true" />
           Copy Recipient
@@ -698,7 +744,7 @@ export default function EmailPreparationPanel({
           type="button"
           onClick={() => copyText(previewMessage, setFeedback)}
           disabled={!previewMessage}
-          className="focus-ring inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-4 text-sm font-semibold text-primary transition hover:border-accentBlue hover:text-accentBlue disabled:opacity-60"
+          className="focus-ring inline-flex min-h-9 items-center justify-center gap-1.5 rounded-md border border-slate-200 bg-white px-3 text-xs font-semibold text-primary transition hover:border-accentBlue hover:text-accentBlue disabled:opacity-60"
         >
           <Copy size={16} aria-hidden="true" />
           Copy Message
@@ -707,7 +753,7 @@ export default function EmailPreparationPanel({
           type="button"
           onClick={handleSaveDryRun}
           disabled={savingDryRun}
-          className="focus-ring inline-flex min-h-10 items-center justify-center gap-2 rounded-md bg-emerald-700 px-4 text-sm font-semibold text-white transition hover:bg-emerald-800 disabled:opacity-60"
+          className="focus-ring inline-flex min-h-9 items-center justify-center gap-1.5 rounded-md bg-accentTeal px-3 text-xs font-semibold text-white transition hover:bg-teal-800 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 disabled:opacity-60"
         >
           <Save size={16} aria-hidden="true" />
           {savingDryRun ? 'Saving...' : 'Save Email Prep'}
@@ -717,7 +763,7 @@ export default function EmailPreparationPanel({
             type="button"
             onClick={handleCheckSendReadiness}
             disabled={checkingReadiness}
-            className="focus-ring inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-4 text-sm font-semibold text-primary transition hover:border-accentBlue hover:text-accentBlue disabled:opacity-60"
+            className="focus-ring inline-flex min-h-9 items-center justify-center gap-1.5 rounded-md bg-accentTeal px-3 text-xs font-semibold text-white transition hover:bg-teal-800 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 disabled:opacity-60"
           >
             <ShieldCheck size={16} aria-hidden="true" />
             {checkingReadiness ? 'Checking...' : 'Check Send Readiness'}
@@ -728,7 +774,7 @@ export default function EmailPreparationPanel({
             type="button"
             onClick={handleValidateSandboxSend}
             disabled={validatingSandbox}
-            className="focus-ring inline-flex min-h-10 items-center justify-center gap-2 rounded-md bg-accentBlue px-4 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
+            className="focus-ring inline-flex min-h-9 items-center justify-center gap-1.5 rounded-md bg-accentTeal px-3 text-xs font-semibold text-white transition hover:bg-teal-800 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 disabled:opacity-60"
           >
             <ShieldCheck size={16} aria-hidden="true" />
             {validatingSandbox ? 'Validating...' : 'Validate Sandbox Send'}
@@ -739,7 +785,7 @@ export default function EmailPreparationPanel({
             type="button"
             onClick={handleSendOwnerTestEmail}
             disabled={sendingOwnerTest}
-            className="focus-ring inline-flex min-h-10 items-center justify-center gap-2 rounded-md bg-emerald-700 px-4 text-sm font-semibold text-white transition hover:bg-emerald-800 disabled:opacity-60"
+            className="focus-ring inline-flex min-h-9 items-center justify-center gap-1.5 rounded-md bg-accentTeal px-3 text-xs font-semibold text-white transition hover:bg-teal-800 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 disabled:opacity-60"
           >
             <Mail size={16} aria-hidden="true" />
             {sendingOwnerTest ? 'Sending...' : 'Send Owner Test Email'}
@@ -748,62 +794,65 @@ export default function EmailPreparationPanel({
         <button
           type="button"
           disabled
-          className="focus-ring inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-slate-200 bg-slate-100 px-4 text-sm font-semibold text-slate-500"
+          className="focus-ring inline-flex min-h-9 items-center justify-center gap-1.5 rounded-md border border-slate-200 bg-slate-100 px-3 text-xs font-semibold text-slate-500"
           title="Real sending will be enabled later through a secure server-side email function."
         >
           Auto Send Coming Soon
         </button>
       </div>
 
-      {feedback ? <p className="mt-3 text-sm font-medium text-slate-600">{feedback}</p> : null}
+      {feedback ? <p className="mt-2 text-xs font-medium text-slate-600">{feedback}</p> : null}
       {savedDryRunSummary ? (
-        <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 p-4">
+        <div className="mt-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-full bg-emerald-700 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-white">Dry Run</span>
-            <span className="text-sm font-semibold text-emerald-800">Prepared recipients: {savedDryRunSummary.preparedCount}</span>
+            <span className="rounded-full bg-emerald-700 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-white">Dry Run</span>
+            <span className="text-xs font-semibold text-emerald-800">Prepared recipients: {savedDryRunSummary.preparedCount}</span>
+            <span className="text-xs text-emerald-800">Saved {savedDryRunSummary.createdAt ? new Date(savedDryRunSummary.createdAt).toLocaleString() : 'recently'}.</span>
           </div>
-          <p className="mt-2 text-sm text-emerald-800">Saved {savedDryRunSummary.createdAt ? new Date(savedDryRunSummary.createdAt).toLocaleString() : 'recently'}.</p>
         </div>
       ) : null}
-      {savedDryRunError ? <p className="mt-3 text-sm font-semibold text-amber-700">{savedDryRunError}</p> : null}
+      {savedDryRunError ? <p className="mt-2 text-xs font-semibold text-amber-700">{savedDryRunError}</p> : null}
       {edgeFunctionSummary ? (
-        <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-4">
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Edge Function Dry Run</p>
-          <p className="mt-2 text-sm font-semibold text-slate-700">{edgeFunctionSummary.message || 'Dry-run checked successfully. No emails were sent.'}</p>
-          <p className="mt-1 text-sm text-slate-600">Mode: {edgeFunctionSummary.mode || 'dry_run'}</p>
-          <p className="mt-1 text-sm text-slate-600">Recipients: {edgeFunctionSummary.totalRecipients ?? 0} · Prepared: {edgeFunctionSummary.preparedCount ?? 0}</p>
-          <p className="mt-1 text-sm text-slate-600">Send ready: {edgeFunctionSummary.sendReady ? 'yes' : 'no'}</p>
-          <p className="mt-1 text-sm text-slate-600">No emails were sent</p>
+        <div className="mt-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
+          <p className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-400">Readiness check result</p>
+          <p className="mt-1 text-xs font-semibold text-slate-700">{edgeFunctionSummary.message || 'This batch is ready for safe email checks. No emails were sent.'}</p>
+          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-600">
+            <span>Mode: {edgeFunctionSummary.mode || 'dry_run'}</span>
+            <span>Recipients: {edgeFunctionSummary.totalRecipients ?? 0}</span>
+            <span>Prepared: {edgeFunctionSummary.preparedCount ?? 0}</span>
+            <span>Ready: {edgeFunctionSummary.sendReady ? 'yes' : 'no'}</span>
+            <span>No emails were sent</span>
+          </div>
         </div>
       ) : null}
       {sandboxValidationAvailable ? (
-        <p className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-800">
-          Sandbox validation only. No real emails will be delivered.
+        <p className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-xs font-semibold text-amber-800">
+          Sandbox validation checks SendGrid safely. No real emails will be delivered.
         </p>
       ) : null}
       {ownerTestAvailable ? (
-        <p className="mt-3 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800">
+        <p className="mt-2 rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-xs font-semibold text-emerald-800">
           This sends one real email only to the configured owner/test email. It will not send to row recipients.
         </p>
       ) : null}
       {sandboxSummary ? (
-        <div className="mt-3 rounded-lg border border-blue-100 bg-blue-50 p-4">
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-blue-700">SendGrid Sandbox Result</p>
-          <p className="mt-2 text-sm font-semibold text-slate-700">{sandboxSummary.message || 'Sandbox validation finished. No real emails were delivered.'}</p>
+        <div className="mt-2 rounded-md border border-blue-100 bg-blue-50 p-3">
+          <p className="text-xs font-semibold uppercase tracking-[0.08em] text-blue-700">Sandbox validation result</p>
+          <p className="mt-1 text-xs font-semibold text-slate-700">{sandboxSummary.message || 'Sandbox validation finished. No real emails were delivered.'}</p>
           {getSandboxErrorSummary(sandboxSummary) ? (
-            <p className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-800">
+            <p className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-xs font-semibold text-amber-800">
               {getSandboxErrorSummary(sandboxSummary)}
             </p>
           ) : null}
-          <div className="mt-3 grid gap-2 text-sm text-slate-700 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-700">
             <p><span className="font-semibold">Prepared recipients:</span> {sandboxSummary.preparedRecipients ?? 0}</p>
             <p><span className="font-semibold">Sandbox validated:</span> {sandboxSummary.sandboxValidated ?? 0}</p>
             <p><span className="font-semibold">Sandbox failed:</span> {sandboxSummary.sandboxFailed ?? 0}</p>
             <p><span className="font-semibold">Blocked:</span> {sandboxSummary.blocked ?? 0}</p>
           </div>
           {Array.isArray(sandboxSummary.rowResults) && sandboxSummary.rowResults.some((result) => result?.errorMessage) ? (
-            <div className="mt-3 rounded-md border border-blue-100 bg-white p-3">
-              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Row error details</p>
+            <details className="mt-2 rounded-md border border-blue-100 bg-white p-2">
+              <summary className="cursor-pointer text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Row error details</summary>
               <div className="mt-2 grid gap-2 text-xs text-slate-600">
                 {sandboxSummary.rowResults
                   .filter((result) => result?.errorMessage)
@@ -814,22 +863,22 @@ export default function EmailPreparationPanel({
                     </p>
                   ))}
               </div>
-            </div>
+            </details>
           ) : null}
-          <p className="mt-2 text-sm font-semibold text-blue-800">Real emails delivered: {sandboxSummary.realEmailsDelivered ?? 0}</p>
+          <p className="mt-1 text-xs font-semibold text-blue-800">Real emails delivered: {sandboxSummary.realEmailsDelivered ?? 0}</p>
         </div>
       ) : null}
       {ownerTestSummary ? (
-        <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 p-4">
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-emerald-700">Owner Test Email Result</p>
-          <div className="mt-3 grid gap-2 text-sm text-slate-700 sm:grid-cols-2">
+        <div className="mt-2 rounded-md border border-emerald-200 bg-emerald-50 p-3">
+          <p className="text-xs font-semibold uppercase tracking-[0.08em] text-emerald-700">Owner/test email result</p>
+          <div className="mt-2 grid gap-1.5 text-xs text-slate-700 sm:grid-cols-2">
             <p><span className="font-semibold">Owner test email target:</span> {ownerTestSummary.ownerTestEmailTarget || 'Not available'}</p>
             <p><span className="font-semibold">Original row recipient preview:</span> {ownerTestSummary.originalRowRecipientPreview || 'Not available'}</p>
             <p><span className="font-semibold">Attachment filename:</span> {ownerTestSummary.attachmentFileName || 'Not available'}</p>
             <p><span className="font-semibold">Status:</span> {String(ownerTestSummary.status || '').replace('owner_test_', '') || 'unknown'}</p>
           </div>
           {ownerTestSummary.errorMessage ? (
-            <p className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-800">
+            <p className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-xs font-semibold text-amber-800">
               {ownerTestSummary.errorMessage}
             </p>
           ) : null}
@@ -837,38 +886,38 @@ export default function EmailPreparationPanel({
       ) : null}
 
       {controlledBatchGateAvailable ? (
-        <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
+        <div className="mt-3 rounded-md border border-slate-200 bg-slate-50 p-3">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Controlled Batch Send</p>
-              <p className="mt-2 text-sm font-semibold text-slate-700">
-                Real batch sending is disabled by default. This gate check is blocked unless the backend safety flag is enabled.
+              <p className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">Controlled Batch Send</p>
+              <p className="mt-1 text-xs font-semibold text-slate-700">
+                Real batch sending is locked for safety. This gate check is blocked unless the backend safety flag is enabled.
               </p>
-              <p className="mt-2 text-sm font-semibold text-red-700">
-                This will send real emails to row recipients.
+              <p className="mt-1 text-xs font-semibold text-red-700">
+                If unlocked by the backend flag, this can deliver to row recipients.
               </p>
-              <div className="mt-3 grid gap-2 text-sm text-slate-600 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-600">
                 <p><span className="font-semibold">Provider:</span> SendGrid</p>
                 <p><span className="font-semibold">Mode:</span> Controlled real batch</p>
                 <p><span className="font-semibold">Limit:</span> Max 5 recipients</p>
                 <p><span className="font-semibold">Attachment:</span> DOCX only</p>
               </div>
             </div>
-            <div className="grid w-full gap-2 sm:w-auto sm:min-w-[280px]">
-              <label className="grid gap-2">
+            <div className="grid w-full gap-2 sm:w-auto sm:min-w-[260px]">
+              <label className="grid gap-1.5">
                 <span className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Confirmation phrase</span>
                 <input
                   value={controlledBatchPhrase}
                   onChange={(event) => setControlledBatchPhrase(event.target.value)}
                   placeholder="SEND 5 TEST EMAILS"
-                  className="min-h-10 rounded-md border border-slate-200 bg-white px-3 text-sm font-semibold text-primary outline-none transition focus:border-accentBlue focus:ring-2 focus:ring-blue-100"
+                  className="min-h-9 rounded-md border border-slate-200 bg-white px-2.5 text-xs font-semibold text-primary outline-none transition focus:border-accentBlue focus:ring-2 focus:ring-blue-100"
                 />
               </label>
               <button
                 type="button"
                 onClick={handleCheckControlledBatchGate}
                 disabled={checkingControlledBatch}
-                className="focus-ring inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-4 text-sm font-semibold text-primary transition hover:border-accentBlue hover:text-accentBlue disabled:opacity-60"
+                className="focus-ring inline-flex min-h-9 items-center justify-center gap-1.5 rounded-md border border-slate-200 bg-white px-3 text-xs font-semibold text-primary transition hover:border-accentBlue hover:text-accentBlue disabled:opacity-60"
                 title="Checks the backend safety gate. Default configuration blocks row-recipient delivery."
               >
                 <ShieldCheck size={16} aria-hidden="true" />
@@ -876,18 +925,18 @@ export default function EmailPreparationPanel({
               </button>
             </div>
           </div>
-          <p className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-800">
-            Controlled batch send is expected to be blocked by safety flag. Row recipients should receive 0 real emails.
+          <p className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-xs font-semibold text-amber-800">
+            Real batch sending is expected to be blocked by safety flag. Row recipients should receive 0 real emails.
           </p>
           {controlledBatchSummary ? (
-            <div className="mt-3 rounded-lg border border-slate-200 bg-white p-4">
+            <div className="mt-2 rounded-md border border-slate-200 bg-white p-2.5">
               <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Controlled Batch Gate Result</p>
               {controlledBatchSummary.firstErrorMessage ? (
-                <p className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-800">
+                <p className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-xs font-semibold text-amber-800">
                   {controlledBatchSummary.firstErrorMessage}
                 </p>
               ) : null}
-              <div className="mt-3 grid gap-2 text-sm text-slate-700 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-700">
                 <p><span className="font-semibold">Planned recipients:</span> {controlledBatchSummary.plannedRecipients ?? 0}</p>
                 <p><span className="font-semibold">Sent:</span> {controlledBatchSummary.sent ?? 0}</p>
                 <p><span className="font-semibold">Failed:</span> {controlledBatchSummary.failed ?? 0}</p>
@@ -901,40 +950,40 @@ export default function EmailPreparationPanel({
       ) : null}
 
       {failedRowResendGateAvailable ? (
-        <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
+        <div className="mt-3 rounded-md border border-slate-200 bg-slate-50 p-3">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Failed Row Resend</p>
-              <p className="mt-2 text-sm font-semibold text-slate-700">
+              <p className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">Failed Row Resend</p>
+              <p className="mt-1 text-xs font-semibold text-slate-700">
                 Failed row resend is blocked by default. Only rows marked as failed in controlled batch logs can be checked.
               </p>
               {failedBatchRowsCount === 0 ? (
-                <p className="mt-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700">
+                <p className="mt-2 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700">
                   No failed rows available for resend.
                 </p>
               ) : null}
-              <div className="mt-3 grid gap-2 text-sm text-slate-600 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-600">
                 <p><span className="font-semibold">Failed rows:</span> {failedBatchRowsCount}</p>
                 <p><span className="font-semibold">Limit:</span> Max 5 rows</p>
                 <p><span className="font-semibold">Attachment:</span> DOCX only</p>
                 <p><span className="font-semibold">Successful rows:</span> Never resent</p>
               </div>
             </div>
-            <div className="grid w-full gap-2 sm:w-auto sm:min-w-[280px]">
-              <label className="grid gap-2">
+            <div className="grid w-full gap-2 sm:w-auto sm:min-w-[260px]">
+              <label className="grid gap-1.5">
                 <span className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Confirmation phrase</span>
                 <input
                   value={resendFailedPhrase}
                   onChange={(event) => setResendFailedPhrase(event.target.value)}
                   placeholder="RESEND FAILED ROWS"
-                  className="min-h-10 rounded-md border border-slate-200 bg-white px-3 text-sm font-semibold text-primary outline-none transition focus:border-accentBlue focus:ring-2 focus:ring-blue-100"
+                  className="min-h-9 rounded-md border border-slate-200 bg-white px-2.5 text-xs font-semibold text-primary outline-none transition focus:border-accentBlue focus:ring-2 focus:ring-blue-100"
                 />
               </label>
               <button
                 type="button"
                 onClick={handleCheckResendFailedGate}
                 disabled={checkingResendFailed}
-                className="focus-ring inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-4 text-sm font-semibold text-primary transition hover:border-accentBlue hover:text-accentBlue disabled:opacity-60"
+                className="focus-ring inline-flex min-h-9 items-center justify-center gap-1.5 rounded-md border border-slate-200 bg-white px-3 text-xs font-semibold text-primary transition hover:border-accentBlue hover:text-accentBlue disabled:opacity-60"
                 title="Checks the failed-row resend backend gate. Default configuration blocks resend delivery."
               >
                 <ShieldCheck size={16} aria-hidden="true" />
@@ -942,18 +991,18 @@ export default function EmailPreparationPanel({
               </button>
             </div>
           </div>
-          <p className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-800">
+          <p className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-xs font-semibold text-amber-800">
             Failed row resend is expected to be blocked by safety flag. No row-recipient emails should be sent.
           </p>
           {resendFailedSummary ? (
-            <div className="mt-3 rounded-lg border border-slate-200 bg-white p-4">
+            <div className="mt-2 rounded-md border border-slate-200 bg-white p-2.5">
               <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Failed Row Resend Gate Result</p>
               {resendFailedSummary.firstErrorMessage ? (
-                <p className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-800">
+                <p className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-xs font-semibold text-amber-800">
                   {resendFailedSummary.firstErrorMessage}
                 </p>
               ) : null}
-              <div className="mt-3 grid gap-2 text-sm text-slate-700 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-700">
                 <p><span className="font-semibold">Planned rows:</span> {resendFailedSummary.plannedRows ?? 0}</p>
                 <p><span className="font-semibold">Sent:</span> {resendFailedSummary.sent ?? 0}</p>
                 <p><span className="font-semibold">Failed:</span> {resendFailedSummary.failed ?? 0}</p>
@@ -966,96 +1015,133 @@ export default function EmailPreparationPanel({
         </div>
       ) : null}
 
-      <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4">
-        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-amber-700">Future Auto Send Architecture Ready</p>
-        <p className="mt-2 text-sm text-amber-800">
-          Automatic sending will use a secure server-side email function. Manual prep is available now.
+      <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2">
+        <p className="text-xs font-semibold uppercase tracking-[0.08em] text-amber-700">Email delivery roadmap</p>
+        <p className="mt-1 text-xs text-amber-800">
+          Test email sending is available. Real batch sending and failed-row resend remain locked by backend safety flags.
         </p>
       </div>
 
-      <div className="mt-5 rounded-lg border border-slate-200 bg-slate-50 p-4">
-        <p className="text-xs uppercase tracking-[0.12em] text-slate-400">Email preview</p>
-        <div className="mt-2 text-sm text-slate-700">
-          <p className="font-semibold">Recipient</p>
-          <p className="mt-1 whitespace-pre-wrap">{previewRecipient || 'Recipient email not available'}</p>
-          <p className="mt-3 font-semibold">Subject</p>
-          <p className="mt-1 whitespace-pre-wrap">{previewSubject || 'Subject preview will appear here.'}</p>
-          <p className="mt-3 font-semibold">Message</p>
-          <p className="mt-1 whitespace-pre-wrap">{previewMessage || 'Message preview will appear here.'}</p>
-          <p className="mt-3 font-semibold">Safe preview payload</p>
-          <p className="mt-1 whitespace-pre-wrap text-xs text-slate-500">
-            Recipient valid: {recipientIsValid ? 'Yes' : 'No'}
-          </p>
-          <pre className="mt-2 overflow-x-auto rounded-md bg-slate-900 p-3 text-xs text-slate-100">
-            {JSON.stringify(previewPayload, null, 2)}
-          </pre>
-        </div>
+      <div className="mt-3 flex flex-wrap items-center gap-2 rounded-md border border-slate-200 bg-slate-50 p-2">
+        <button
+          type="button"
+          onClick={openEmailPreview}
+          className="focus-ring inline-flex min-h-8 items-center justify-center rounded-md border border-slate-200 bg-white px-2.5 text-xs font-semibold text-primary transition hover:border-accentBlue hover:text-accentBlue"
+        >
+          Email Preview
+        </button>
+        {showBatchTable && emailRows.length > 0 ? (
+          <button
+            type="button"
+            onClick={openPreparedRows}
+            className="focus-ring inline-flex min-h-8 items-center justify-center rounded-md border border-slate-200 bg-white px-2.5 text-xs font-semibold text-primary transition hover:border-accentBlue hover:text-accentBlue"
+          >
+            Prepared Rows ({emailRows.length})
+          </button>
+        ) : null}
       </div>
 
-      {showBatchTable && emailRows.length > 0 ? (
-        <div className="mt-5 overflow-x-auto rounded-3xl border border-slate-200 bg-white p-3">
-          <table className="min-w-full text-left text-sm text-slate-600">
-            <thead className="border-b border-slate-200 bg-lightBg text-xs uppercase tracking-[0.12em] text-slate-500">
-              <tr>
-                <th className="px-3 py-3">Row</th>
-                <th className="px-3 py-3">Recipient</th>
-                <th className="px-3 py-3">Subject</th>
-                <th className="px-3 py-3">Message</th>
-                <th className="px-3 py-3 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {emailRows.map((item) => {
-                const recipient = resolveRecipient(item.row, recipientColumn)
-                const subject = renderTemplate(subjectTemplate, item.row)
-                const message = renderTemplate(messageTemplate, item.row)
+      {emailPreviewOpen || preparedRowsOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 px-4 py-6">
+          <div className="flex max-h-[82vh] w-full max-w-4xl min-w-0 flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xl">
+            <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
+              <p className="min-w-0 truncate text-sm font-bold text-primary">
+                {emailPreviewOpen ? 'Email Preview' : `Prepared Rows (${emailRows.length})`}
+              </p>
+              <button
+                type="button"
+                onClick={closeEmailOverlay}
+                className="focus-ring inline-flex min-h-8 items-center justify-center rounded-md border border-slate-200 bg-white px-2.5 text-xs font-semibold text-primary transition hover:border-accentBlue hover:text-accentBlue"
+              >
+                Close
+              </button>
+            </div>
 
-                return (
-                  <tr key={item.output.id} className="border-b border-slate-100 align-top">
-                    <td className="px-3 py-3 font-semibold text-primary">{item.output.row_index}</td>
-                    <td className="px-3 py-3 break-all">{recipient || 'Missing email'}</td>
-                    <td className="px-3 py-3 break-all">{subject}</td>
-                    <td className="px-3 py-3 break-all text-xs leading-6">{message}</td>
-                    <td className="px-3 py-3 text-right">
-                      <div className="grid gap-2 sm:grid-cols-2">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setSelectedOutputId(item.output.id)
-                            copyText(recipient, setFeedback)
-                          }}
-                          disabled={!recipient}
-                          className="focus-ring inline-flex min-h-9 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-xs font-semibold text-primary transition hover:border-accentBlue hover:text-accentBlue disabled:opacity-60"
-                        >
-                          Copy recipient
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setSelectedOutputId(item.output.id)
-                            copyText(message, setFeedback)
-                          }}
-                          className="focus-ring inline-flex min-h-9 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-xs font-semibold text-primary transition hover:border-accentBlue hover:text-accentBlue"
-                        >
-                          Copy message
-                        </button>
-                        {onDownload ? (
-                          <button
-                            type="button"
-                            onClick={() => onDownload(item.output)}
-                            className="focus-ring inline-flex min-h-9 items-center justify-center gap-2 rounded-md bg-emerald-700 px-3 text-xs font-semibold text-white transition hover:bg-emerald-800"
-                          >
-                            <Download size={14} aria-hidden="true" />
-                            Download
-                          </button>
-                        ) : null}
-                      </div>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+            {emailPreviewOpen ? (
+              <div className="max-h-[68vh] min-w-0 overflow-y-auto overflow-x-hidden p-3 text-xs text-slate-700">
+                <p className="font-semibold">Recipient</p>
+                <p className="mt-1 max-w-full break-words">{previewRecipient || 'Recipient email not available'}</p>
+                <p className="mt-2 font-semibold">Subject</p>
+                <p className="mt-1 max-w-full whitespace-pre-wrap break-words">{previewSubject || 'Subject preview will appear here.'}</p>
+                <p className="mt-2 font-semibold">Message</p>
+                <p className="mt-1 max-w-full whitespace-pre-wrap break-words leading-5">{previewMessage || 'Message preview will appear here.'}</p>
+                <p className="mt-2 font-semibold">Safe preview payload</p>
+                <p className="mt-1 whitespace-pre-wrap text-xs text-slate-500">
+                  Recipient valid: {recipientIsValid ? 'Yes' : 'No'}
+                </p>
+                <pre className="mt-2 max-h-48 max-w-full overflow-auto whitespace-pre-wrap break-words rounded-md bg-slate-900 p-2 text-xs text-slate-100">
+                  {JSON.stringify(previewPayload, null, 2)}
+                </pre>
+              </div>
+            ) : null}
+
+            {preparedRowsOpen ? (
+              <div className="max-h-[68vh] min-w-0 overflow-auto p-3">
+                <table className="min-w-[760px] text-left text-xs text-slate-600">
+                  <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-[0.08em] text-slate-500">
+                    <tr>
+                      <th className="px-2 py-2">Row</th>
+                      <th className="px-2 py-2">Recipient</th>
+                      <th className="px-2 py-2">Subject</th>
+                      <th className="px-2 py-2">Message</th>
+                      <th className="px-2 py-2 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {emailRows.map((item) => {
+                      const recipient = resolveRecipient(item.row, recipientColumn)
+                      const subject = renderTemplate(subjectTemplate, item.row)
+                      const message = renderTemplate(messageTemplate, item.row)
+
+                      return (
+                        <tr key={item.output.id} className="border-b border-slate-100 align-top transition hover:bg-slate-50">
+                          <td className="px-2 py-2 font-semibold text-primary">{item.output.row_index}</td>
+                          <td className="px-2 py-2 break-all">{recipient || 'Missing email'}</td>
+                          <td className="px-2 py-2 break-all">{subject}</td>
+                          <td className="px-2 py-2 break-all leading-5">{message}</td>
+                          <td className="px-2 py-2 text-right">
+                            <div className="flex flex-wrap items-center justify-end gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedOutputId(item.output.id)
+                                  copyText(recipient, setFeedback)
+                                }}
+                                disabled={!recipient}
+                                className="focus-ring inline-flex min-h-8 items-center justify-center gap-1 rounded-md border border-slate-200 bg-white px-2 text-[11px] font-semibold text-primary transition hover:border-accentBlue hover:text-accentBlue disabled:opacity-60"
+                              >
+                                Copy recipient
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedOutputId(item.output.id)
+                                  copyText(message, setFeedback)
+                                }}
+                                className="focus-ring inline-flex min-h-8 items-center justify-center gap-1 rounded-md border border-slate-200 bg-white px-2 text-[11px] font-semibold text-primary transition hover:border-accentBlue hover:text-accentBlue"
+                              >
+                                Copy message
+                              </button>
+                              {onDownload ? (
+                                <button
+                                  type="button"
+                                  onClick={() => onDownload(item.output)}
+                                  className="focus-ring inline-flex min-h-8 items-center justify-center gap-1 rounded-md bg-emerald-700 px-2 text-[11px] font-semibold text-white transition hover:bg-emerald-800"
+                                >
+                                  <Download size={14} aria-hidden="true" />
+                                  Download
+                                </button>
+                              ) : null}
+                            </div>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            ) : null}
+          </div>
         </div>
       ) : null}
     </section>
