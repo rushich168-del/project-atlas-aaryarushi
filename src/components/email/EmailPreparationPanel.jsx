@@ -735,7 +735,7 @@ export default function EmailPreparationPanel({
           type="button"
           onClick={() => copyText(previewRecipient, setFeedback)}
           disabled={!previewRecipient}
-          className="focus-ring inline-flex min-h-9 items-center justify-center gap-1.5 rounded-md bg-accentTeal px-3 text-xs font-semibold text-white transition hover:bg-teal-800 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 disabled:opacity-60"
+          className="focus-ring inline-flex min-h-8 items-center justify-center gap-1.5 rounded-md bg-accentTeal px-2.5 text-xs font-semibold text-white transition hover:bg-teal-800 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 disabled:opacity-60"
         >
           <Copy size={16} aria-hidden="true" />
           Copy Recipient
@@ -753,7 +753,7 @@ export default function EmailPreparationPanel({
           type="button"
           onClick={handleSaveDryRun}
           disabled={savingDryRun}
-          className="focus-ring inline-flex min-h-9 items-center justify-center gap-1.5 rounded-md bg-accentTeal px-3 text-xs font-semibold text-white transition hover:bg-teal-800 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 disabled:opacity-60"
+          className="focus-ring inline-flex min-h-8 items-center justify-center gap-1.5 rounded-md bg-accentTeal px-2.5 text-xs font-semibold text-white transition hover:bg-teal-800 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 disabled:opacity-60"
         >
           <Save size={16} aria-hidden="true" />
           {savingDryRun ? 'Saving...' : 'Save Email Prep'}
@@ -763,7 +763,7 @@ export default function EmailPreparationPanel({
             type="button"
             onClick={handleCheckSendReadiness}
             disabled={checkingReadiness}
-            className="focus-ring inline-flex min-h-9 items-center justify-center gap-1.5 rounded-md bg-accentTeal px-3 text-xs font-semibold text-white transition hover:bg-teal-800 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 disabled:opacity-60"
+            className="focus-ring inline-flex min-h-8 items-center justify-center gap-1.5 rounded-md bg-accentTeal px-2.5 text-xs font-semibold text-white transition hover:bg-teal-800 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 disabled:opacity-60"
           >
             <ShieldCheck size={16} aria-hidden="true" />
             {checkingReadiness ? 'Checking...' : 'Check Send Readiness'}
@@ -774,7 +774,7 @@ export default function EmailPreparationPanel({
             type="button"
             onClick={handleValidateSandboxSend}
             disabled={validatingSandbox}
-            className="focus-ring inline-flex min-h-9 items-center justify-center gap-1.5 rounded-md bg-accentTeal px-3 text-xs font-semibold text-white transition hover:bg-teal-800 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 disabled:opacity-60"
+            className="focus-ring inline-flex min-h-8 items-center justify-center gap-1.5 rounded-md bg-accentTeal px-2.5 text-xs font-semibold text-white transition hover:bg-teal-800 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 disabled:opacity-60"
           >
             <ShieldCheck size={16} aria-hidden="true" />
             {validatingSandbox ? 'Validating...' : 'Validate Sandbox Send'}
@@ -785,7 +785,7 @@ export default function EmailPreparationPanel({
             type="button"
             onClick={handleSendOwnerTestEmail}
             disabled={sendingOwnerTest}
-            className="focus-ring inline-flex min-h-9 items-center justify-center gap-1.5 rounded-md bg-accentTeal px-3 text-xs font-semibold text-white transition hover:bg-teal-800 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 disabled:opacity-60"
+            className="focus-ring inline-flex min-h-8 items-center justify-center gap-1.5 rounded-md bg-accentTeal px-2.5 text-xs font-semibold text-white transition hover:bg-teal-800 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 disabled:opacity-60"
           >
             <Mail size={16} aria-hidden="true" />
             {sendingOwnerTest ? 'Sending...' : 'Send Owner Test Email'}

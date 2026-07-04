@@ -1,6 +1,5 @@
-import { ArrowUpRight, Boxes, CheckCircle2 } from 'lucide-react'
+import { ArrowUpRight, Boxes } from 'lucide-react'
 import { navigateTo } from '../../utils/routes.js'
-import ProductBadges from './ProductBadges.jsx'
 
 function getSuiteLabel(product) {
   if (product.categoryId === 'education') return 'Education Suite'
@@ -13,37 +12,32 @@ export default function ProductCard({ product }) {
   const isActive = product.slug === 'ar-cert-pro'
   const buttonLabel = isActive ? 'Open workspace' : 'Coming soon'
   const suiteLabel = getSuiteLabel(product)
+  const statusLabel = isActive ? 'Active' : product.desktopAvailable ? 'Desktop Ready' : 'Coming Soon'
+  const statusClass = isActive
+    ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+    : product.desktopAvailable
+      ? 'border-sky-200 bg-sky-50 text-sky-700'
+      : 'border-amber-200 bg-amber-50 text-amber-700'
 
   return (
-    <article className="flex min-h-[280px] flex-col rounded-lg border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-soft">
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex h-11 w-11 items-center justify-center rounded-md bg-primary text-white">
-          <Boxes size={20} aria-hidden="true" />
-        </div>
-        {isActive ? (
-          <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-emerald-700">
-            Live
+    <article className="flex min-h-[190px] flex-col rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex min-w-0 items-start gap-3">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-slate-100 text-primary">
+            <Boxes size={18} aria-hidden="true" />
           </span>
-        ) : null}
-      </div>
-
-      <div className="mt-5 flex-1">
-        <div className="inline-flex rounded-full border border-slate-200 bg-lightBg px-3 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
-          {suiteLabel}
-        </div>
-        <h3 className="mt-4 text-lg font-semibold text-primary">{product.name}</h3>
-        <p className="mt-1 text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">{product.productCode || product.name}</p>
-        <p className="mt-3 text-sm leading-6 text-slate-600">{product.summary}</p>
-      </div>
-
-      <div className="mt-5 grid gap-2">
-        {product.metrics.map((metric) => (
-          <div key={metric} className="flex items-center gap-2 text-xs font-medium text-slate-500">
-            <CheckCircle2 size={15} className="text-accentTeal" aria-hidden="true" />
-            {metric}
+          <div className="min-w-0">
+            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-400">{suiteLabel}</p>
+            <h3 className="mt-1 truncate text-base font-semibold text-primary">{product.name}</h3>
+            <p className="mt-1 text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">{product.productCode || product.name}</p>
           </div>
-        ))}
+        </div>
+        <span className={`shrink-0 rounded-md border px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.08em] ${statusClass}`}>
+          {statusLabel}
+        </span>
       </div>
+
+      <p className="mt-3 line-clamp-2 flex-1 text-sm leading-5 text-slate-600">{product.summary}</p>
 
       <button
         type="button"
@@ -53,9 +47,9 @@ export default function ProductCard({ product }) {
           }
         }}
         disabled={!isActive}
-        className={`focus-ring mt-5 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-md px-4 text-sm font-semibold transition ${
+        className={`focus-ring mt-4 inline-flex min-h-9 w-full items-center justify-center gap-2 rounded-md px-2.5 text-sm font-semibold transition ${
           isActive
-            ? 'bg-primary text-white hover:bg-slate-800'
+            ? 'bg-accentTeal text-white hover:bg-teal-800'
             : 'cursor-not-allowed border border-slate-200 bg-slate-100 text-slate-400'
         }`}
       >

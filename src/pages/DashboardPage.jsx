@@ -268,7 +268,7 @@ export default function DashboardPage() {
             <button
               type="button"
               onClick={() => navigateTo('/dashboard/products/ar-cert-pro/workspace')}
-              className="focus-ring mt-4 inline-flex min-h-11 items-center justify-center rounded-md bg-accentTeal px-4 text-sm font-semibold text-white transition hover:bg-teal-800"
+              className="focus-ring mt-4 inline-flex min-h-10 items-center justify-center rounded-md bg-accentTeal px-3.5 text-sm font-semibold text-white transition hover:bg-teal-800"
             >
               Open AR-CERT-PRO
             </button>
@@ -298,7 +298,7 @@ export default function DashboardPage() {
             <button
               type="button"
               onClick={() => navigateTo('/dashboard/products/ar-cert-pro/workspace')}
-              className="focus-ring mt-4 inline-flex min-h-11 items-center justify-center rounded-md bg-accentTeal px-4 text-sm font-semibold text-white transition hover:bg-teal-800"
+              className="focus-ring mt-4 inline-flex min-h-10 items-center justify-center rounded-md bg-accentTeal px-3.5 text-sm font-semibold text-white transition hover:bg-teal-800"
             >
               Upload Template
             </button>
@@ -314,7 +314,7 @@ export default function DashboardPage() {
               <button
                 type="button"
                 onClick={() => navigateTo('/dashboard/products/ar-cert-pro/workspace')}
-                className="focus-ring mt-4 inline-flex min-h-11 items-center justify-center rounded-md bg-accentTeal px-4 text-sm font-semibold text-white transition hover:bg-teal-800"
+                className="focus-ring mt-4 inline-flex min-h-10 items-center justify-center rounded-md bg-accentTeal px-3.5 text-sm font-semibold text-white transition hover:bg-teal-800"
               >
                 Continue work
               </button>

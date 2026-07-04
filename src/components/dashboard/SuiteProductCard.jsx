@@ -27,19 +27,19 @@ export default function SuiteProductCard({ card }) {
   const badgeClass = badgeStyles[badgeKey] || badgeStyles.inactive
 
   return (
-    <article className="group rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">{suiteLabel}</p>
-          <h3 className="mt-3 text-xl font-semibold text-primary">{label}</h3>
-          {productCode ? <p className="mt-1 text-sm font-semibold text-slate-500">{productCode}</p> : null}
+    <article className="group flex min-h-[178px] flex-col rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-400">{suiteLabel}</p>
+          <h3 className="mt-2 text-base font-semibold text-primary">{label}</h3>
+          {productCode ? <p className="mt-1 text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">{productCode}</p> : null}
         </div>
-        <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.12em] ${badgeClass}`}>
+        <span className={`inline-flex shrink-0 rounded-md border px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.08em] ${badgeClass}`}>
           {displayBadge}
         </span>
       </div>
-      <p className="mt-5 text-sm leading-6 text-slate-600">{summary}</p>
-      <div className="mt-6">
+      <p className="mt-3 line-clamp-2 flex-1 text-sm leading-5 text-slate-600">{summary}</p>
+      <div className="mt-4">
         <button
           type="button"
           onClick={() => {
@@ -48,9 +48,9 @@ export default function SuiteProductCard({ card }) {
             }
           }}
           disabled={!active}
-          className={`focus-ring inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-md px-4 text-sm font-semibold transition ${
+          className={`focus-ring inline-flex min-h-9 w-full items-center justify-center gap-2 rounded-md px-2.5 text-sm font-semibold transition ${
             active
-              ? 'bg-primary text-white shadow-sm hover:bg-slate-800'
+              ? 'bg-accentTeal text-white shadow-sm hover:bg-teal-800'
               : 'cursor-not-allowed border border-slate-200 bg-slate-100 text-slate-400'
           }`}
         >

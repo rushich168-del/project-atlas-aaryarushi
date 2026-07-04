@@ -20,7 +20,7 @@ export default function WorkspaceFooter({ activeStep, totalSteps, canSave, savin
           type="button"
           onClick={onSave}
           disabled={!canSave || saving}
-          className="focus-ring inline-flex min-h-10 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+          className="focus-ring inline-flex min-h-9 items-center justify-center gap-2 rounded-md bg-accentTeal px-3 text-sm font-semibold text-white transition hover:bg-teal-800 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 disabled:opacity-60"
         >
           <Save size={16} aria-hidden="true" />
           {saving ? 'Saving' : saveLabel}
