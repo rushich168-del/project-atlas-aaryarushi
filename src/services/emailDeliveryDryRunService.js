@@ -4,6 +4,7 @@ import { validateEmailRecipient } from './emailDeliveryService.js'
 const EDGE_FUNCTION_NAME = 'email-delivery-dry-run'
 const SENDGRID_SANDBOX_FUNCTION_NAME = 'email-delivery-sendgrid-sandbox'
 const SENDGRID_OWNER_TEST_FUNCTION_NAME = 'email-delivery-sendgrid-owner-test'
+const SENDGRID_CONTROLLED_BATCH_FUNCTION_NAME = 'email-delivery-sendgrid-controlled-batch'
 
 function normalizeEmailDeliveryError(error) {
   if (!error) {
@@ -219,6 +220,29 @@ export async function sendEmailDeliverySendGridOwnerTest(emailDeliveryJobId) {
   return data
 }
 
+export async function checkEmailDeliverySendGridControlledBatchGate({ emailDeliveryJobId, confirmationPhrase } = {}) {
+  if (!isSupabaseConfigured) {
+    throw new Error('Controlled batch gate check requires Supabase to be configured.')
+  }
+
+  if (!emailDeliveryJobId) {
+    throw new Error('An email delivery job is required for the controlled batch gate check.')
+  }
+
+  const { data, error } = await supabase.functions.invoke(SENDGRID_CONTROLLED_BATCH_FUNCTION_NAME, {
+    body: {
+      emailDeliveryJobId,
+      confirmationPhrase,
+    },
+  })
+
+  if (error) {
+    throw error
+  }
+
+  return data
+}
+
 export function getEmailDeliveryDryRunErrorMessage(error) {
   const message = normalizeEmailDeliveryError(error)
 
@@ -256,6 +280,20 @@ export function getEmailDeliveryOwnerTestErrorMessage(error) {
 
   if (/network|failed to fetch|fetch/i.test(message)) {
     return 'Owner test email function is not deployed yet. No owner test email was sent.'
+  }
+
+  return message
+}
+
+export function getEmailDeliveryControlledBatchErrorMessage(error) {
+  const message = normalizeEmailDeliveryError(error)
+
+  if (/not found|404|function|failed to send/i.test(message)) {
+    return 'Controlled batch gate function is not deployed yet. No row-recipient emails were sent.'
+  }
+
+  if (/network|failed to fetch|fetch/i.test(message)) {
+    return 'Controlled batch gate function is not deployed yet. No row-recipient emails were sent.'
   }
 
   return message

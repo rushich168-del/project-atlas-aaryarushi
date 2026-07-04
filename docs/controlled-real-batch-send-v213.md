@@ -224,6 +224,42 @@ Future retries must be bounded:
 - v2.16 - Failed-row resend.
 - v3.0 - Production email delivery.
 
+## v2.14 Implementation Behind Disabled Flag
+
+Project Atlas v2.14 adds the controlled batch Edge Function and frontend gate integration, but keeps real row-recipient sending blocked by default.
+
+Function name:
+
+```text
+email-delivery-sendgrid-controlled-batch
+```
+
+Default safety behavior:
+
+- `EMAIL_ALLOW_CONTROLLED_BATCH_SEND` must be exactly `true` before any row-recipient email can be sent.
+- If the flag is absent, empty, or any value other than `true`, the function returns `batch_blocked`.
+- The blocked result reports planned recipients, sent, failed, blocked, skipped, safety flag status, and first error message.
+- The blocked result must not update `batch_send_sent_at`.
+- The blocked result must not increment normal `sent_count`.
+- Row recipients receive 0 real emails while the flag remains disabled.
+
+v2.14 adds nullable row-level fields to `email_delivery_outputs`:
+
+- `batch_send_status`
+- `batch_send_error_code`
+- `batch_send_error_message`
+- `batch_send_sent_at`
+- `batch_send_provider_message_id`
+- `batch_send_attempt_count`
+
+The frontend gate label is:
+
+```text
+Check Controlled Batch Send Gate
+```
+
+This is a safety gate check, not an active production sending control.
+
 ## Acceptance Summary
 
 v2.13 is complete when the docs and UI clearly define the future controlled batch send plan while leaving real batch recipient sending unavailable.

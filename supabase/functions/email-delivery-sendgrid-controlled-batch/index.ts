@@ -1,0 +1,662 @@
+import { serve } from 'https://deno.land/std@0.224.0/http/server.ts'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
+
+const SENDGRID_MAIL_SEND_URL = 'https://api.sendgrid.com/v3/mail/send'
+const DOCX_MIME_TYPE = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+const DEFAULT_MAX_RECIPIENTS = 5
+const DEFAULT_MAX_ATTACHMENT_MB = 10
+const DEFAULT_CONFIRMATION_PHRASE = 'SEND 5 TEST EMAILS'
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+}
+
+function jsonResponse(body: Record<string, unknown>, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: {
+      ...corsHeaders,
+      'Content-Type': 'application/json',
+    },
+  })
+}
+
+function normalizeEmail(value: unknown) {
+  return String(value || '').trim().toLowerCase()
+}
+
+function isValidEmail(value: unknown) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || '').trim())
+}
+
+function parsePositiveInt(value: string | undefined, fallback: number) {
+  const parsed = Number.parseInt(String(value || ''), 10)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback
+}
+
+function bytesToBase64(bytes: Uint8Array) {
+  let binary = ''
+  const chunkSize = 0x8000
+
+  for (let index = 0; index < bytes.length; index += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(index, index + chunkSize))
+  }
+
+  return btoa(binary)
+}
+
+function parseJsonOrNull(value: string) {
+  if (!value) {
+    return null
+  }
+
+  try {
+    return JSON.parse(value)
+  } catch {
+    return null
+  }
+}
+
+function getSendGridErrorCode(body: unknown, fallback: string) {
+  if (!body || typeof body !== 'object') {
+    return fallback
+  }
+
+  const errors = (body as { errors?: Array<{ field?: string; id?: string }> }).errors
+  const firstError = Array.isArray(errors) ? errors[0] : null
+
+  return firstError?.field || firstError?.id || fallback
+}
+
+function getSendGridErrorMessage(body: unknown, fallback: string) {
+  if (!body || typeof body !== 'object') {
+    return fallback
+  }
+
+  const errors = (body as { errors?: Array<{ message?: string }> }).errors
+  const firstError = Array.isArray(errors) ? errors[0] : null
+
+  return firstError?.message || fallback
+}
+
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback
+}
+
+function buildSummary({
+  emailDeliveryJobId,
+  status,
+  plannedRecipients,
+  sent = 0,
+  failed = 0,
+  blocked = 0,
+  skipped = 0,
+  safetyFlagStatus,
+  firstErrorCode = null,
+  firstErrorMessage = null,
+  rowResults = [],
+}: {
+  emailDeliveryJobId: string | null
+  status: string
+  plannedRecipients: number
+  sent?: number
+  failed?: number
+  blocked?: number
+  skipped?: number
+  safetyFlagStatus: string
+  firstErrorCode?: string | null
+  firstErrorMessage?: string | null
+  rowResults?: Array<Record<string, unknown>>
+}) {
+  return {
+    ok: sent > 0 && failed === 0 && blocked === 0,
+    mode: 'controlled_batch',
+    status,
+    emailDeliveryJobId,
+    plannedRecipients,
+    sent,
+    failed,
+    blocked,
+    skipped,
+    safetyFlagStatus,
+    firstError: firstErrorMessage
+      ? {
+          errorCode: firstErrorCode,
+          errorMessage: firstErrorMessage,
+        }
+      : null,
+    firstErrorMessage,
+    rowResults,
+    realRowRecipientEmailsSent: sent,
+  }
+}
+
+serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders })
+  }
+
+  if (req.method !== 'POST') {
+    return jsonResponse({ error: 'Method not allowed.' }, 405)
+  }
+
+  try {
+    const authHeader = req.headers.get('Authorization') || ''
+
+    if (!authHeader.startsWith('Bearer ')) {
+      return jsonResponse({ error: 'Unauthorized' }, 401)
+    }
+
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')
+    const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+
+    if (!supabaseUrl || !supabaseServiceRoleKey) {
+      return jsonResponse({ error: 'Edge function is not configured.' }, 500)
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseServiceRoleKey, {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+      },
+    })
+
+    const token = authHeader.replace('Bearer ', '')
+    const { data: { user }, error: userError } = await supabase.auth.getUser(token)
+
+    if (userError || !user) {
+      return jsonResponse({ error: 'Unauthorized' }, 401)
+    }
+
+    const body = await req.json().catch(() => ({}))
+    const emailDeliveryJobId = body.emailDeliveryJobId
+    const confirmationPhrase = String(body.confirmationPhrase || '').trim()
+
+    if (!emailDeliveryJobId) {
+      return jsonResponse({ error: 'emailDeliveryJobId is required.' }, 400)
+    }
+
+    const { data: job, error: jobError } = await supabase
+      .from('email_delivery_jobs')
+      .select('*')
+      .eq('id', emailDeliveryJobId)
+      .single()
+
+    if (jobError || !job) {
+      return jsonResponse({ error: 'Email delivery job not found.' }, 404)
+    }
+
+    let allowed = job.user_id === user.id
+
+    if (!allowed && job.organization_id) {
+      const { data: membership } = await supabase
+        .from('organization_members')
+        .select('id')
+        .eq('organization_id', job.organization_id)
+        .eq('user_id', user.id)
+        .maybeSingle()
+
+      allowed = Boolean(membership)
+    }
+
+    if (!allowed) {
+      return jsonResponse({ error: 'Forbidden' }, 403)
+    }
+
+    const { data: outputs, error: outputsError } = await supabase
+      .from('email_delivery_outputs')
+      .select('*')
+      .eq('email_delivery_job_id', emailDeliveryJobId)
+      .order('row_number', { ascending: true })
+
+    if (outputsError) {
+      return jsonResponse({ error: 'Unable to load email delivery outputs.' }, 500)
+    }
+
+    const deliveryOutputs = outputs || []
+    const plannedRecipients = deliveryOutputs.length
+    const allowControlledBatchSend = Deno.env.get('EMAIL_ALLOW_CONTROLLED_BATCH_SEND') === 'true'
+    const safetyFlagStatus = allowControlledBatchSend ? 'enabled' : 'blocked'
+
+    if (body.cc || body.bcc) {
+      return jsonResponse(buildSummary({
+        emailDeliveryJobId,
+        status: 'batch_blocked',
+        plannedRecipients,
+        blocked: plannedRecipients,
+        safetyFlagStatus,
+        firstErrorCode: 'blocked_by_safety_limit',
+        firstErrorMessage: 'CC and BCC are blocked for controlled batch sending.',
+      }))
+    }
+
+    if (['zip', 'pdf'].includes(String(body.attachmentType || '').trim().toLowerCase())) {
+      return jsonResponse(buildSummary({
+        emailDeliveryJobId,
+        status: 'batch_blocked',
+        plannedRecipients,
+        blocked: plannedRecipients,
+        safetyFlagStatus,
+        firstErrorCode: 'attachment_not_docx',
+        firstErrorMessage: 'ZIP and PDF attachments are blocked for controlled batch sending.',
+      }))
+    }
+
+    if (!allowControlledBatchSend) {
+      console.warn('Controlled batch send blocked by safety flag', {
+        emailDeliveryJobId,
+        plannedRecipients,
+        safetyFlagStatus,
+      })
+
+      return jsonResponse(buildSummary({
+        emailDeliveryJobId,
+        status: 'batch_blocked',
+        plannedRecipients,
+        blocked: plannedRecipients,
+        safetyFlagStatus,
+        firstErrorCode: 'controlled_batch_safety_flag_disabled',
+        firstErrorMessage: 'Controlled batch send is blocked by safety flag. No row-recipient emails were sent.',
+      }))
+    }
+
+    const provider = Deno.env.get('EMAIL_PROVIDER')
+    const sendGridApiKey = Deno.env.get('SENDGRID_API_KEY')
+    const fromEmail = Deno.env.get('SENDGRID_FROM_EMAIL')
+    const fromName = Deno.env.get('SENDGRID_FROM_NAME')
+    const maxRecipientsSecret = Deno.env.get('EMAIL_MAX_CONTROLLED_BATCH_RECIPIENTS')
+    const maxAttachmentMbSecret = Deno.env.get('EMAIL_MAX_ATTACHMENT_MB')
+    const requiredConfirmationPhrase = Deno.env.get('EMAIL_BATCH_SEND_CONFIRMATION_PHRASE') || DEFAULT_CONFIRMATION_PHRASE
+    const dryRunRequired = Deno.env.get('EMAIL_BATCH_SEND_DRY_RUN_REQUIRED') === 'true'
+    const ownerTestRequired = Deno.env.get('EMAIL_OWNER_TEST_REQUIRED') === 'true'
+    const maxRecipients = parsePositiveInt(maxRecipientsSecret, DEFAULT_MAX_RECIPIENTS)
+    const maxAttachmentBytes = parsePositiveInt(maxAttachmentMbSecret, DEFAULT_MAX_ATTACHMENT_MB) * 1024 * 1024
+    const missingOrUnsafeSecrets = [
+      !sendGridApiKey ? 'SENDGRID_API_KEY' : '',
+      !fromEmail ? 'SENDGRID_FROM_EMAIL' : '',
+      !fromName ? 'SENDGRID_FROM_NAME' : '',
+      provider !== 'sendgrid' ? 'EMAIL_PROVIDER=sendgrid' : '',
+      !maxRecipientsSecret ? 'EMAIL_MAX_CONTROLLED_BATCH_RECIPIENTS=5' : '',
+      !maxAttachmentMbSecret ? 'EMAIL_MAX_ATTACHMENT_MB=10' : '',
+      !Deno.env.get('EMAIL_BATCH_SEND_CONFIRMATION_PHRASE') ? 'EMAIL_BATCH_SEND_CONFIRMATION_PHRASE' : '',
+      !dryRunRequired ? 'EMAIL_BATCH_SEND_DRY_RUN_REQUIRED=true' : '',
+      !ownerTestRequired ? 'EMAIL_OWNER_TEST_REQUIRED=true' : '',
+    ].filter(Boolean)
+
+    if (missingOrUnsafeSecrets.length > 0) {
+      return jsonResponse(buildSummary({
+        emailDeliveryJobId,
+        status: 'batch_blocked',
+        plannedRecipients,
+        blocked: plannedRecipients,
+        safetyFlagStatus,
+        firstErrorCode: 'controlled_batch_configuration_blocked',
+        firstErrorMessage: `Controlled batch configuration is incomplete or unsafe: ${missingOrUnsafeSecrets.join(', ')}`,
+      }))
+    }
+
+    if (job.status !== 'sandbox_validated') {
+      return jsonResponse(buildSummary({
+        emailDeliveryJobId,
+        status: 'batch_blocked',
+        plannedRecipients,
+        blocked: plannedRecipients,
+        safetyFlagStatus,
+        firstErrorCode: 'sandbox_validation_required',
+        firstErrorMessage: 'Controlled batch send requires successful sandbox validation for all prepared rows.',
+      }))
+    }
+
+    if (job.owner_test_status !== 'owner_test_sent' || (job.owner_test_sent_count || 0) < 1) {
+      return jsonResponse(buildSummary({
+        emailDeliveryJobId,
+        status: 'batch_blocked',
+        plannedRecipients,
+        blocked: plannedRecipients,
+        safetyFlagStatus,
+        firstErrorCode: 'owner_test_required',
+        firstErrorMessage: 'Controlled batch send requires a successful owner/test email first.',
+      }))
+    }
+
+    if (confirmationPhrase !== requiredConfirmationPhrase) {
+      return jsonResponse(buildSummary({
+        emailDeliveryJobId,
+        status: 'batch_confirmation_required',
+        plannedRecipients,
+        blocked: plannedRecipients,
+        safetyFlagStatus,
+        firstErrorCode: 'confirmation_phrase_required',
+        firstErrorMessage: 'Controlled batch send requires the exact confirmation phrase.',
+      }))
+    }
+
+    if (plannedRecipients === 0) {
+      return jsonResponse(buildSummary({
+        emailDeliveryJobId,
+        status: 'batch_blocked',
+        plannedRecipients,
+        safetyFlagStatus,
+        firstErrorCode: 'recipient_count_zero',
+        firstErrorMessage: 'Controlled batch send requires at least one prepared recipient.',
+      }))
+    }
+
+    if (plannedRecipients > maxRecipients) {
+      return jsonResponse(buildSummary({
+        emailDeliveryJobId,
+        status: 'batch_blocked',
+        plannedRecipients,
+        blocked: plannedRecipients,
+        safetyFlagStatus,
+        firstErrorCode: 'blocked_by_safety_limit',
+        firstErrorMessage: `Controlled batch send is limited to ${maxRecipients} recipients.`,
+      }))
+    }
+
+    const invalidRecipient = deliveryOutputs.find((output) => !isValidEmail(output.recipient_email))
+
+    if (invalidRecipient) {
+      return jsonResponse(buildSummary({
+        emailDeliveryJobId,
+        status: 'batch_blocked',
+        plannedRecipients,
+        blocked: plannedRecipients,
+        safetyFlagStatus,
+        firstErrorCode: 'invalid_recipient',
+        firstErrorMessage: `Invalid recipient on row ${invalidRecipient.row_number || '-'}.`,
+      }))
+    }
+
+    const unsandboxedOutput = deliveryOutputs.find((output) => output.status !== 'sandbox_validated')
+
+    if (unsandboxedOutput) {
+      return jsonResponse(buildSummary({
+        emailDeliveryJobId,
+        status: 'batch_blocked',
+        plannedRecipients,
+        blocked: plannedRecipients,
+        safetyFlagStatus,
+        firstErrorCode: 'sandbox_validation_required',
+        firstErrorMessage: `Row ${unsandboxedOutput.row_number || '-'} has not passed sandbox validation.`,
+      }))
+    }
+
+    const generationOutputIds = deliveryOutputs
+      .map((output) => output.generation_output_id)
+      .filter(Boolean)
+
+    const { data: generationOutputs, error: generationOutputsError } = generationOutputIds.length > 0
+      ? await supabase
+        .from('generation_outputs')
+        .select('id, row_index, storage_bucket, storage_path, status, file_name')
+        .in('id', generationOutputIds)
+      : { data: [], error: null }
+
+    if (generationOutputsError) {
+      return jsonResponse({ error: 'Unable to load generated DOCX outputs.' }, 500)
+    }
+
+    const generationOutputById = new Map((generationOutputs || []).map((output) => [output.id, output]))
+    const preparedAttachments: Array<{
+      output: Record<string, unknown>
+      attachmentFileName: string
+      attachmentBytes: Uint8Array
+    }> = []
+
+    for (const output of deliveryOutputs) {
+      const generationOutput = output.generation_output_id ? generationOutputById.get(output.generation_output_id) : null
+
+      if (!generationOutput || generationOutput.status !== 'generated') {
+        return jsonResponse(buildSummary({
+          emailDeliveryJobId,
+          status: 'batch_blocked',
+          plannedRecipients,
+          blocked: plannedRecipients,
+          safetyFlagStatus,
+          firstErrorCode: 'attachment_missing',
+          firstErrorMessage: `Generated DOCX is missing for row ${output.row_number || '-'}.`,
+        }))
+      }
+
+      if (!generationOutput.storage_bucket || !generationOutput.storage_path) {
+        return jsonResponse(buildSummary({
+          emailDeliveryJobId,
+          status: 'batch_blocked',
+          plannedRecipients,
+          blocked: plannedRecipients,
+          safetyFlagStatus,
+          firstErrorCode: 'attachment_missing',
+          firstErrorMessage: `Generated DOCX storage path is missing for row ${output.row_number || '-'}.`,
+        }))
+      }
+
+      const fileName = String(generationOutput.file_name || '')
+      const storagePath = String(generationOutput.storage_path || '')
+      const attachmentFileName = fileName || `row-${output.row_number || generationOutput.row_index || 'document'}.docx`
+      const lowerAttachmentName = attachmentFileName.toLowerCase()
+
+      if (![fileName, storagePath, attachmentFileName].some((value) => String(value || '').toLowerCase().endsWith('.docx'))) {
+        return jsonResponse(buildSummary({
+          emailDeliveryJobId,
+          status: 'batch_blocked',
+          plannedRecipients,
+          blocked: plannedRecipients,
+          safetyFlagStatus,
+          firstErrorCode: 'attachment_not_docx',
+          firstErrorMessage: `Only DOCX attachments are allowed. Row ${output.row_number || '-'} is not DOCX.`,
+        }))
+      }
+
+      if (lowerAttachmentName.endsWith('.zip') || lowerAttachmentName.endsWith('.pdf')) {
+        return jsonResponse(buildSummary({
+          emailDeliveryJobId,
+          status: 'batch_blocked',
+          plannedRecipients,
+          blocked: plannedRecipients,
+          safetyFlagStatus,
+          firstErrorCode: 'attachment_not_docx',
+          firstErrorMessage: 'ZIP and PDF attachments are blocked for controlled batch sending.',
+        }))
+      }
+
+      const { data: fileData, error: downloadError } = await supabase.storage
+        .from(generationOutput.storage_bucket)
+        .download(generationOutput.storage_path)
+
+      if (downloadError || !fileData) {
+        return jsonResponse(buildSummary({
+          emailDeliveryJobId,
+          status: 'batch_blocked',
+          plannedRecipients,
+          blocked: plannedRecipients,
+          safetyFlagStatus,
+          firstErrorCode: 'attachment_missing',
+          firstErrorMessage: `Generated DOCX could not be downloaded for row ${output.row_number || '-'}.`,
+        }))
+      }
+
+      const attachmentBytes = new Uint8Array(await fileData.arrayBuffer())
+
+      if (attachmentBytes.byteLength === 0) {
+        return jsonResponse(buildSummary({
+          emailDeliveryJobId,
+          status: 'batch_blocked',
+          plannedRecipients,
+          blocked: plannedRecipients,
+          safetyFlagStatus,
+          firstErrorCode: 'attachment_missing',
+          firstErrorMessage: `Generated DOCX is empty for row ${output.row_number || '-'}.`,
+        }))
+      }
+
+      if (attachmentBytes.byteLength > maxAttachmentBytes) {
+        return jsonResponse(buildSummary({
+          emailDeliveryJobId,
+          status: 'batch_blocked',
+          plannedRecipients,
+          blocked: plannedRecipients,
+          safetyFlagStatus,
+          firstErrorCode: 'attachment_too_large',
+          firstErrorMessage: `Generated DOCX exceeds the 10 MB safety limit for row ${output.row_number || '-'}.`,
+        }))
+      }
+
+      preparedAttachments.push({
+        output,
+        attachmentFileName,
+        attachmentBytes,
+      })
+    }
+
+    await supabase
+      .from('email_delivery_outputs')
+      .update({
+        batch_send_status: 'batch_queued',
+        batch_send_error_code: null,
+        batch_send_error_message: null,
+        batch_send_sent_at: null,
+        batch_send_provider_message_id: null,
+      })
+      .eq('email_delivery_job_id', emailDeliveryJobId)
+
+    const rowResults: Array<Record<string, unknown>> = []
+    let sent = 0
+    let failed = 0
+
+    for (const item of preparedAttachments) {
+      const output = item.output
+      const recipient = normalizeEmail(output.recipient_email)
+
+      const sendGridPayload = {
+        personalizations: [
+          {
+            to: [{ email: recipient }],
+            subject: output.subject || 'Your document is ready',
+          },
+        ],
+        from: {
+          email: fromEmail,
+          name: fromName,
+        },
+        content: [
+          {
+            type: 'text/plain',
+            value: output.message || 'Your generated document is attached.',
+          },
+        ],
+        attachments: [
+          {
+            content: bytesToBase64(item.attachmentBytes),
+            type: DOCX_MIME_TYPE,
+            filename: item.attachmentFileName,
+            disposition: 'attachment',
+          },
+        ],
+      }
+
+      const sendGridResponse = await fetch(SENDGRID_MAIL_SEND_URL, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${sendGridApiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(sendGridPayload),
+      })
+
+      const responseText = await sendGridResponse.text()
+      const responseBody = parseJsonOrNull(responseText)
+      const providerMessageId = sendGridResponse.headers.get('x-message-id')
+
+      if (!sendGridResponse.ok) {
+        const fallbackCode = sendGridResponse.status === 401
+          ? 'provider_401'
+          : sendGridResponse.status === 403
+            ? 'provider_403'
+            : sendGridResponse.status === 429
+              ? 'rate_limited'
+              : 'provider_temp_error'
+        const errorCode = getSendGridErrorCode(responseBody, fallbackCode)
+        const errorMessage = getSendGridErrorMessage(responseBody, responseText || 'SendGrid controlled batch email failed.')
+
+        await supabase
+          .from('email_delivery_outputs')
+          .update({
+            batch_send_status: 'batch_failed',
+            batch_send_error_code: errorCode,
+            batch_send_error_message: errorMessage,
+            batch_send_provider_message_id: providerMessageId,
+            batch_send_attempt_count: Number(output.batch_send_attempt_count || 0) + 1,
+          })
+          .eq('id', output.id)
+
+        rowResults.push({
+          rowId: output.id,
+          rowNumber: output.row_number ?? null,
+          status: 'batch_failed',
+          errorCode,
+          errorMessage,
+          providerMessageId,
+        })
+        failed += 1
+        continue
+      }
+
+      const sentAt = new Date().toISOString()
+
+      await supabase
+        .from('email_delivery_outputs')
+        .update({
+          batch_send_status: 'batch_sent',
+          batch_send_error_code: null,
+          batch_send_error_message: null,
+          batch_send_sent_at: sentAt,
+          batch_send_provider_message_id: providerMessageId,
+          batch_send_attempt_count: Number(output.batch_send_attempt_count || 0) + 1,
+        })
+        .eq('id', output.id)
+
+      rowResults.push({
+        rowId: output.id,
+        rowNumber: output.row_number ?? null,
+        status: 'batch_sent',
+        providerMessageId,
+      })
+      sent += 1
+    }
+
+    return jsonResponse(buildSummary({
+      emailDeliveryJobId,
+      status: failed > 0 ? 'batch_failed' : 'batch_sent',
+      plannedRecipients,
+      sent,
+      failed,
+      blocked: 0,
+      skipped: 0,
+      safetyFlagStatus,
+      firstErrorCode: rowResults.find((result) => result.errorCode)?.errorCode as string | null || null,
+      firstErrorMessage: rowResults.find((result) => result.errorMessage)?.errorMessage as string | null || null,
+      rowResults,
+    }))
+  } catch (error) {
+    return jsonResponse({
+      ok: false,
+      mode: 'controlled_batch',
+      status: 'batch_failed',
+      plannedRecipients: 0,
+      sent: 0,
+      failed: 0,
+      blocked: 0,
+      skipped: 0,
+      safetyFlagStatus: 'unknown',
+      firstError: {
+        errorCode: 'controlled_batch_error',
+        errorMessage: getErrorMessage(error, 'Controlled batch gate failed.'),
+      },
+      firstErrorMessage: getErrorMessage(error, 'Controlled batch gate failed.'),
+      realRowRecipientEmailsSent: 0,
+    }, 500)
+  }
+})

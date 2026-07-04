@@ -329,6 +329,27 @@ Planned future statuses:
 - batch_skipped
 - batch_stopped
 
+## v2.14 controlled batch implementation behind disabled flag
+
+Project Atlas v2.14 adds the planned `email-delivery-sendgrid-controlled-batch` Edge Function and frontend gate integration, but real row-recipient delivery remains blocked unless the Supabase Edge Function secret `EMAIL_ALLOW_CONTROLLED_BATCH_SEND` is exactly `true`.
+
+Default behavior:
+
+- `EMAIL_ALLOW_CONTROLLED_BATCH_SEND=false` blocks before any SendGrid call.
+- The frontend action is labeled "Check Controlled Batch Send Gate".
+- The default blocked response reports planned recipients, sent, failed, blocked, skipped, safety flag status, and first error message.
+- No normal production `sent_count` is incremented by a blocked gate check.
+- No row-recipient emails are sent while the flag is disabled.
+
+v2.14 adds nullable row-level batch log fields to `email_delivery_outputs`:
+
+- batch_send_status
+- batch_send_error_code
+- batch_send_error_message
+- batch_send_sent_at
+- batch_send_provider_message_id
+- batch_send_attempt_count
+
 ## Recommended rollout phases
 
 1. Architecture and documentation only

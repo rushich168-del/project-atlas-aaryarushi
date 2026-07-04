@@ -3,6 +3,8 @@ import { Copy, Download, Mail, Save, ShieldCheck } from 'lucide-react'
 import { prepareEmailPayloadPreview, validateEmailRecipient } from '../../services/emailDeliveryService'
 import {
   checkEmailDeliveryDryRunWithEdgeFunction,
+  checkEmailDeliverySendGridControlledBatchGate,
+  getEmailDeliveryControlledBatchErrorMessage,
   getEmailDeliveryDryRunErrorMessage,
   getEmailDeliveryOwnerTestErrorMessage,
   getEmailDeliverySandboxErrorMessage,
@@ -176,11 +178,15 @@ export default function EmailPreparationPanel({
   const [checkingReadiness, setCheckingReadiness] = useState(false)
   const [savedDryRunSummary, setSavedDryRunSummary] = useState(null)
   const [savedDryRunError, setSavedDryRunError] = useState('')
+  const [savedEmailDeliveryOutputs, setSavedEmailDeliveryOutputs] = useState([])
   const [edgeFunctionSummary, setEdgeFunctionSummary] = useState(null)
   const [validatingSandbox, setValidatingSandbox] = useState(false)
   const [sandboxSummary, setSandboxSummary] = useState(null)
   const [sendingOwnerTest, setSendingOwnerTest] = useState(false)
   const [ownerTestSummary, setOwnerTestSummary] = useState(null)
+  const [controlledBatchPhrase, setControlledBatchPhrase] = useState('')
+  const [checkingControlledBatch, setCheckingControlledBatch] = useState(false)
+  const [controlledBatchSummary, setControlledBatchSummary] = useState(null)
   const { session } = useAuth()
 
   const availableColumns = useMemo(() => {
@@ -257,15 +263,23 @@ export default function EmailPreparationPanel({
         const latestJob = jobs.find((job) => job.mode === 'dry_run') || jobs[0] || null
 
         if (latestJob) {
+          const latestOutputs = await listEmailDeliveryOutputs(latestJob.id).catch(() => [])
+
+          if (!active) {
+            return
+          }
+
           setSavedDryRunSummary({
             jobId: latestJob.id || null,
             preparedCount: latestJob.prepared_count ?? latestJob.total_recipients ?? 0,
             mode: latestJob.mode || 'dry_run',
             createdAt: latestJob.created_at,
           })
+          setSavedEmailDeliveryOutputs(latestOutputs)
           setSavedDryRunError('')
         } else {
           setSavedDryRunSummary(null)
+          setSavedEmailDeliveryOutputs([])
           setSavedDryRunError('')
         }
       } catch (error) {
@@ -278,6 +292,7 @@ export default function EmailPreparationPanel({
           ? 'Email prep saving requires email delivery tables to be enabled.'
           : message
         setSavedDryRunSummary(null)
+        setSavedEmailDeliveryOutputs([])
         setSavedDryRunError(fallback)
       }
     }
@@ -332,6 +347,7 @@ export default function EmailPreparationPanel({
         mode: 'dry_run',
         createdAt: new Date().toISOString(),
       })
+      setSavedEmailDeliveryOutputs(result?.job?.id ? await listEmailDeliveryOutputs(result.job.id).catch(() => []) : [])
       setFeedback('Email preparation saved. No emails were sent.')
     } catch (error) {
       const message = getEmailDeliveryDryRunErrorMessage(error)
@@ -357,9 +373,12 @@ export default function EmailPreparationPanel({
 
     try {
       const result = await checkEmailDeliveryDryRunWithEdgeFunction(savedDryRunSummary.jobId)
+      const latestOutputs = await listEmailDeliveryOutputs(savedDryRunSummary.jobId).catch(() => [])
       setEdgeFunctionSummary(result)
+      setSavedEmailDeliveryOutputs(latestOutputs)
       setSandboxSummary(null)
       setOwnerTestSummary(null)
+      setControlledBatchSummary(null)
       setFeedback(result?.message || 'Dry-run checked successfully. No emails were sent.')
     } catch (error) {
       const message = getEmailDeliveryDryRunErrorMessage(error)
@@ -380,8 +399,10 @@ export default function EmailPreparationPanel({
         }
 
         setEdgeFunctionSummary(fallbackSummary)
+        setSavedEmailDeliveryOutputs(savedOutputs)
         setSandboxSummary(null)
         setOwnerTestSummary(null)
+        setControlledBatchSummary(null)
         setFeedback(fallbackSummary.message)
         return
       }
@@ -392,6 +413,7 @@ export default function EmailPreparationPanel({
       setEdgeFunctionSummary(null)
       setSandboxSummary(null)
       setOwnerTestSummary(null)
+      setControlledBatchSummary(null)
       setFeedback(fallback)
     } finally {
       setCheckingReadiness(false)
@@ -409,8 +431,11 @@ export default function EmailPreparationPanel({
 
     try {
       const result = await validateEmailDeliverySendGridSandbox(savedDryRunSummary.jobId)
+      const latestOutputs = await listEmailDeliveryOutputs(savedDryRunSummary.jobId).catch(() => [])
       setSandboxSummary(result)
+      setSavedEmailDeliveryOutputs(latestOutputs)
       setOwnerTestSummary(null)
+      setControlledBatchSummary(null)
       setFeedback(result?.message || 'SendGrid sandbox validation finished. No real emails were delivered.')
     } catch (error) {
       setSandboxSummary(null)
@@ -421,13 +446,38 @@ export default function EmailPreparationPanel({
   }
 
   const sandboxValidationAvailable = Boolean(edgeFunctionSummary?.sendReady && generationJobId)
+  const preparedRecipientCount = Number(
+    sandboxSummary?.preparedRecipients
+    ?? edgeFunctionSummary?.preparedCount
+    ?? savedDryRunSummary?.preparedCount
+    ?? savedEmailDeliveryOutputs.length
+    ?? 0,
+  )
+  const sandboxValidatedCount = Number(
+    sandboxSummary?.sandboxValidated
+    ?? savedEmailDeliveryOutputs.filter((output) => output.status === 'sandbox_validated').length
+    ?? 0,
+  )
+  const sandboxFailedCount = Number(
+    sandboxSummary?.sandboxFailed
+    ?? savedEmailDeliveryOutputs.filter((output) => output.status === 'sandbox_failed').length
+    ?? 0,
+  )
+  const sandboxBlockedCount = Number(
+    sandboxSummary?.blocked
+    ?? savedEmailDeliveryOutputs.filter((output) => output.status === 'blocked').length
+    ?? 0,
+  )
+  const sandboxAllPreparedRowsValidated = preparedRecipientCount > 0
+    && sandboxValidatedCount === preparedRecipientCount
+    && sandboxFailedCount === 0
+    && sandboxBlockedCount === 0
+  const ownerTestSent = ownerTestSummary?.status === 'owner_test_sent'
+    || savedEmailDeliveryOutputs.some((output) => output.owner_test_status === 'owner_test_sent')
   const ownerTestAvailable = Boolean(
     savedDryRunSummary?.jobId
-    && sandboxSummary?.ok
-    && (sandboxSummary?.sandboxValidated ?? 0) > 0
-    && (sandboxSummary?.sandboxFailed ?? 0) === 0
-    && (sandboxSummary?.blocked ?? 0) === 0
-    && ownerTestSummary?.status !== 'owner_test_sent',
+    && sandboxAllPreparedRowsValidated
+    && !ownerTestSent,
   )
 
   async function handleSendOwnerTestEmail() {
@@ -448,13 +498,46 @@ export default function EmailPreparationPanel({
 
     try {
       const result = await sendEmailDeliverySendGridOwnerTest(savedDryRunSummary.jobId)
+      const latestOutputs = await listEmailDeliveryOutputs(savedDryRunSummary.jobId).catch(() => [])
       setOwnerTestSummary(result)
+      setSavedEmailDeliveryOutputs(latestOutputs)
+      setControlledBatchSummary(null)
       setFeedback(result?.message || result?.errorMessage || 'Owner test email finished.')
     } catch (error) {
       setOwnerTestSummary(null)
       setFeedback(getEmailDeliveryOwnerTestErrorMessage(error))
     } finally {
       setSendingOwnerTest(false)
+    }
+  }
+
+  const controlledBatchGateAvailable = Boolean(
+    edgeFunctionSummary?.sendReady
+    && sandboxAllPreparedRowsValidated
+    && ownerTestSent,
+  )
+
+  async function handleCheckControlledBatchGate() {
+    if (!controlledBatchGateAvailable || !savedDryRunSummary?.jobId) {
+      setFeedback('Complete readiness, sandbox validation, and owner test first. No row-recipient emails were sent.')
+      return
+    }
+
+    setCheckingControlledBatch(true)
+    setFeedback('')
+
+    try {
+      const result = await checkEmailDeliverySendGridControlledBatchGate({
+        emailDeliveryJobId: savedDryRunSummary.jobId,
+        confirmationPhrase: controlledBatchPhrase,
+      })
+      setControlledBatchSummary(result)
+      setFeedback(result?.firstErrorMessage || result?.message || 'Controlled batch gate checked. No row-recipient emails were sent.')
+    } catch (error) {
+      setControlledBatchSummary(null)
+      setFeedback(getEmailDeliveryControlledBatchErrorMessage(error))
+    } finally {
+      setCheckingControlledBatch(false)
     }
   }
 
@@ -685,31 +768,66 @@ export default function EmailPreparationPanel({
         </div>
       ) : null}
 
-      <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Controlled Batch Send</p>
-            <p className="mt-2 text-sm font-semibold text-slate-700">
-              Real batch sending is not enabled yet. This release only prepares the safety design.
-            </p>
-            <div className="mt-3 grid gap-2 text-sm text-slate-600 sm:grid-cols-2 lg:grid-cols-4">
-              <p><span className="font-semibold">Provider:</span> SendGrid</p>
-              <p><span className="font-semibold">Mode:</span> Controlled real batch</p>
-              <p><span className="font-semibold">Limit:</span> Planned max 5 recipients</p>
-              <p><span className="font-semibold">Attachment:</span> DOCX only</p>
+      {controlledBatchGateAvailable ? (
+        <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Controlled Batch Send</p>
+              <p className="mt-2 text-sm font-semibold text-slate-700">
+                Real batch sending is disabled by default. This gate check is blocked unless the backend safety flag is enabled.
+              </p>
+              <div className="mt-3 grid gap-2 text-sm text-slate-600 sm:grid-cols-2 lg:grid-cols-4">
+                <p><span className="font-semibold">Provider:</span> SendGrid</p>
+                <p><span className="font-semibold">Mode:</span> Controlled real batch</p>
+                <p><span className="font-semibold">Limit:</span> Max 5 recipients</p>
+                <p><span className="font-semibold">Attachment:</span> DOCX only</p>
+              </div>
+            </div>
+            <div className="grid w-full gap-2 sm:w-auto sm:min-w-[280px]">
+              <label className="grid gap-2">
+                <span className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Confirmation phrase</span>
+                <input
+                  value={controlledBatchPhrase}
+                  onChange={(event) => setControlledBatchPhrase(event.target.value)}
+                  placeholder="SEND 5 TEST EMAILS"
+                  className="min-h-10 rounded-md border border-slate-200 bg-white px-3 text-sm font-semibold text-primary outline-none transition focus:border-accentBlue focus:ring-2 focus:ring-blue-100"
+                />
+              </label>
+              <button
+                type="button"
+                onClick={handleCheckControlledBatchGate}
+                disabled={checkingControlledBatch}
+                className="focus-ring inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-4 text-sm font-semibold text-primary transition hover:border-accentBlue hover:text-accentBlue disabled:opacity-60"
+                title="Checks the backend safety gate. Default configuration blocks row-recipient delivery."
+              >
+                <ShieldCheck size={16} aria-hidden="true" />
+                {checkingControlledBatch ? 'Checking...' : 'Check Controlled Batch Send Gate'}
+              </button>
             </div>
           </div>
-          <button
-            type="button"
-            disabled
-            className="focus-ring inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-slate-200 bg-slate-100 px-4 text-sm font-semibold text-slate-500"
-            title="Planned for a later controlled rollout."
-          >
-            <ShieldCheck size={16} aria-hidden="true" />
-            Confirm Controlled Batch Send
-          </button>
+          <p className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-800">
+            Controlled batch send is expected to be blocked by safety flag. Row recipients should receive 0 real emails.
+          </p>
+          {controlledBatchSummary ? (
+            <div className="mt-3 rounded-lg border border-slate-200 bg-white p-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Controlled Batch Gate Result</p>
+              {controlledBatchSummary.firstErrorMessage ? (
+                <p className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-800">
+                  {controlledBatchSummary.firstErrorMessage}
+                </p>
+              ) : null}
+              <div className="mt-3 grid gap-2 text-sm text-slate-700 sm:grid-cols-2 lg:grid-cols-3">
+                <p><span className="font-semibold">Planned recipients:</span> {controlledBatchSummary.plannedRecipients ?? 0}</p>
+                <p><span className="font-semibold">Sent:</span> {controlledBatchSummary.sent ?? 0}</p>
+                <p><span className="font-semibold">Failed:</span> {controlledBatchSummary.failed ?? 0}</p>
+                <p><span className="font-semibold">Blocked:</span> {controlledBatchSummary.blocked ?? 0}</p>
+                <p><span className="font-semibold">Skipped:</span> {controlledBatchSummary.skipped ?? 0}</p>
+                <p><span className="font-semibold">Safety flag:</span> {controlledBatchSummary.safetyFlagStatus || 'unknown'}</p>
+              </div>
+            </div>
+          ) : null}
         </div>
-      </div>
+      ) : null}
 
       <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4">
         <p className="text-xs font-semibold uppercase tracking-[0.12em] text-amber-700">Future Auto Send Architecture Ready</p>
