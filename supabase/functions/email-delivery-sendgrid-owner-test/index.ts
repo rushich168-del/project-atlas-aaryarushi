@@ -29,6 +29,43 @@ function isValidEmail(value: unknown) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || '').trim())
 }
 
+function parseAllowlistEntries(value: string | undefined) {
+  return String(value || '')
+    .split(',')
+    .map((entry) => entry.trim().toLowerCase())
+    .filter(Boolean)
+}
+
+// Server-side recipient allowlist (v2.33 / H1). Deny-by-default: when enforced and
+// the mode is active, an empty allowlist blocks every recipient. Returns true (no
+// gating) only when enforcement is off or mode is 'off'. For owner test, the target
+// is the configured owner/test address, which must itself be allowlisted when
+// enforcement is on.
+function isRecipientAllowlisted(recipient: unknown) {
+  const enforced = Deno.env.get('EMAIL_ALLOWLIST_ENFORCED') === 'true'
+  const mode = String(Deno.env.get('EMAIL_RECIPIENT_ALLOWLIST_MODE') || 'off').trim().toLowerCase()
+
+  if (!enforced || mode === 'off') {
+    return true
+  }
+
+  const normalized = normalizeEmail(recipient)
+
+  if (!normalized) {
+    return false
+  }
+
+  const exactList = parseAllowlistEntries(Deno.env.get('EMAIL_RECIPIENT_ALLOWLIST'))
+  const domainList = parseAllowlistEntries(Deno.env.get('EMAIL_RECIPIENT_ALLOWLIST_DOMAINS'))
+  const atIndex = normalized.lastIndexOf('@')
+  const domain = atIndex >= 0 ? normalized.slice(atIndex + 1) : ''
+
+  const exactAllowed = (mode === 'exact' || mode === 'exact_or_domain') && exactList.includes(normalized)
+  const domainAllowed = (mode === 'domain' || mode === 'exact_or_domain') && Boolean(domain) && domainList.includes(domain)
+
+  return exactAllowed || domainAllowed
+}
+
 function parsePositiveInt(value: string | undefined, fallback: number) {
   const parsed = Number.parseInt(String(value || ''), 10)
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback
@@ -198,6 +235,17 @@ serve(async (req) => {
         status: 'owner_test_blocked',
         errorCode: 'invalid_owner_test_email',
         errorMessage: 'Configured owner/test recipient email is invalid.',
+        realEmailsDelivered: 0,
+      })
+    }
+
+    if (!isRecipientAllowlisted(ownerTestEmail)) {
+      return jsonResponse({
+        ok: false,
+        mode: 'owner_test',
+        status: 'owner_test_blocked',
+        errorCode: 'recipient_not_allowlisted',
+        errorMessage: 'Owner/test recipient is not on the approved allowlist. No email was sent.',
         realEmailsDelivered: 0,
       })
     }
