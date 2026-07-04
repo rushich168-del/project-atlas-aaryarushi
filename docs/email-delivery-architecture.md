@@ -350,6 +350,33 @@ v2.14 adds nullable row-level batch log fields to `email_delivery_outputs`:
 - batch_send_provider_message_id
 - batch_send_attempt_count
 
+## v2.16 failed-row resend design
+
+Project Atlas v2.16 documents a future failed-row resend path only. It does not implement resend sending.
+
+The planned future Edge Function name is:
+
+```text
+email-delivery-sendgrid-resend-failed
+```
+
+Failed-row resend must:
+
+- Resend only rows where `batch_send_status = 'batch_failed'`.
+- Never resend rows where `batch_send_status = 'batch_sent'`.
+- Require a safety flag and typed confirmation phrase.
+- Limit resend rows to a maximum of 5.
+- Send DOCX only.
+- Block ZIP/PDF attachments.
+- Block CC/BCC.
+- Log resend-specific fields such as `resend_attempt_count`, `resend_status`, `resend_error_message`, and `resend_sent_at`.
+
+Detailed design:
+
+```text
+docs/failed-row-resend-v216.md
+```
+
 ## Recommended rollout phases
 
 1. Architecture and documentation only

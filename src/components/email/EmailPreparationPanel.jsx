@@ -845,6 +845,13 @@ export default function EmailPreparationPanel({
         </div>
       ) : null}
 
+      <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
+        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Failed Row Resend - Coming Soon</p>
+        <p className="mt-2 text-sm font-semibold text-slate-700">
+          Future resend will be limited to rows marked as failed in controlled batch logs. Successful rows will not be resent.
+        </p>
+      </div>
+
       <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4">
         <p className="text-xs font-semibold uppercase tracking-[0.12em] text-amber-700">Future Auto Send Architecture Ready</p>
         <p className="mt-2 text-sm text-amber-800">
