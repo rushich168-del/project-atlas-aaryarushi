@@ -612,6 +612,21 @@ export default function EmailPreparationPanel({
         <p><span className="font-semibold">Owner test:</span> Gated after sandbox success</p>
       </div>
 
+      <div className="mt-4 rounded-lg border border-slate-200 bg-white p-4">
+        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Email Delivery Safety Status</p>
+        <div className="mt-3 grid gap-2 text-sm text-slate-700 sm:grid-cols-2 lg:grid-cols-4">
+          <p><span className="font-semibold">Provider:</span> SendGrid</p>
+          <p><span className="font-semibold">Sandbox validation:</span> Available</p>
+          <p><span className="font-semibold">Owner test send:</span> Available</p>
+          <p><span className="font-semibold">Controlled batch send:</span> Protected by backend safety flag</p>
+          <p><span className="font-semibold">Failed row resend:</span> Protected by backend safety flag</p>
+          <p><span className="font-semibold">ZIP email attachment:</span> Disabled</p>
+          <p><span className="font-semibold">PDF email attachment:</span> Disabled</p>
+          <p><span className="font-semibold">Gmail/Outlook OAuth:</span> Not enabled</p>
+          <p className="sm:col-span-2 lg:col-span-4"><span className="font-semibold">Secrets:</span> Stored in Supabase Edge Function secrets</p>
+        </div>
+      </div>
+
       <div className="mt-5 grid gap-4 lg:grid-cols-[1.1fr_1fr]">
         <label className="grid gap-2">
           <span className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Recipient email column</span>
