@@ -4,11 +4,14 @@ import { isSupabaseConfigured, supabase } from '../lib/supabaseClient.js'
 const statusLabels = {
   demo_ready: 'Demo Ready',
   launch_prep: 'Launch Prep',
+  product_prep: 'Product Prep',
   ready: 'Ready',
   in_progress: 'In progress',
   planned: 'Planned',
   concept: 'Concept',
 }
+
+const staticCatalogOverlayStatuses = new Set(['Launch Prep', 'Product Prep'])
 
 function normalizeDbCategory(category) {
   return {
@@ -68,11 +71,11 @@ function findCategoryForStaticProduct(categories, staticProduct) {
   ))
 }
 
-function mergeStaticLaunchPrepProducts(categories, products) {
-  const launchPrepProducts = staticProducts.filter((product) => product.status === 'Launch Prep')
-  const launchPrepBySlug = new Map(launchPrepProducts.map((product) => [product.slug, product]))
+function mergeStaticProductPrepProducts(categories, products) {
+  const prepProducts = staticProducts.filter((product) => staticCatalogOverlayStatuses.has(product.status))
+  const prepProductBySlug = new Map(prepProducts.map((product) => [product.slug, product]))
   const mergedProducts = products.map((product) => {
-    const staticProduct = launchPrepBySlug.get(product.slug)
+    const staticProduct = prepProductBySlug.get(product.slug)
 
     if (!staticProduct) {
       return product
@@ -92,7 +95,7 @@ function mergeStaticLaunchPrepProducts(categories, products) {
   const categoryIds = new Set(categories.map((category) => category.id))
   const mergedCategories = [...categories]
 
-  launchPrepProducts
+  prepProducts
     .filter((product) => !productSlugs.has(product.slug))
     .forEach((product, index) => {
       const matchingCategory = findCategoryForStaticProduct(mergedCategories, product)
@@ -242,7 +245,7 @@ export async function getCatalogData(organizationId, organization = null) {
       return staticFallback('The live catalog is ready for setup. A sample catalog is shown until products are seeded.', 'empty_catalog', organization)
     }
 
-    const mergedCatalog = mergeStaticLaunchPrepProducts(categories, products)
+    const mergedCatalog = mergeStaticProductPrepProducts(categories, products)
 
     return {
       organization,

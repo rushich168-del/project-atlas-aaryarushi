@@ -118,6 +118,26 @@ export const products = [
     outputs: ['Planned DOCX ID cards', 'History review after workspace launch', 'No PDF export yet'],
   },
   {
+    id: 'ar-fee-receipt-pro',
+    productCode: 'AR-FEE-RECEIPT-PRO',
+    slug: 'ar-fee-receipt-pro',
+    name: 'AR-FEE-RECEIPT-PRO',
+    categoryId: 'education',
+    sector: 'education',
+    status: 'Product Prep',
+    summary: 'Plan fee receipt and payment acknowledgment documents from Excel data and Word templates.',
+    metrics: ['Product Prep', 'Planned DOCX', 'Coming Next'],
+    audience: 'Schools, colleges, coaching centers, training institutes, admin offices, accounts teams',
+    stage: 'Product-prep concept for future fee receipt generation; dedicated workspace and DOCX generation workflow are not live yet.',
+    currentVersion: '0.1',
+    desktopAvailable: false,
+    saasAvailable: false,
+    isBeta: true,
+    isEnabled: true,
+    inputs: ['Planned Word fee receipt template', 'Planned Excel payment/student data', 'Planned receipt field mapping'],
+    outputs: ['Planned DOCX fee receipts', 'History review after workspace launch', 'No PDF export yet', 'No payment gateway'],
+  },
+  {
     id: 'ar-resume-screen',
     productCode: 'AR-RESUME-SCREEN',
     slug: 'ar-resume-screen',
@@ -219,7 +239,7 @@ export const products = [
   },
 ]
 
-export const productStatuses = ['All', 'Demo Ready', 'Launch Prep', 'Ready', 'In progress', 'Planned', 'Concept']
+export const productStatuses = ['All', 'Demo Ready', 'Launch Prep', 'Product Prep', 'Ready', 'In progress', 'Planned', 'Concept']
 export const availabilityFilters = ['All', 'Desktop', 'SaaS', 'Beta']
 
 export function getProductsByCategory(categoryId) {
