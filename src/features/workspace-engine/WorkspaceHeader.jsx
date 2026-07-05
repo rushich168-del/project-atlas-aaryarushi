@@ -5,7 +5,7 @@ import { navigateTo } from '../../utils/routes.js'
 export default function WorkspaceHeader({ product, config, activeStep, readinessPercentage, statusLabel, totalSteps }) {
   return (
     <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
-      <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
+      <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
         <div>
           <button
             type="button"
@@ -18,9 +18,14 @@ export default function WorkspaceHeader({ product, config, activeStep, readiness
           <ProductBadges product={product} />
           <h2 className="mt-5 text-3xl font-semibold text-primary">{config.title}</h2>
           <p className="mt-3 max-w-3xl leading-7 text-slate-600">{config.description}</p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <span className="rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.08em] text-slate-600">Template</span>
+            <span className="rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.08em] text-slate-600">Excel data</span>
+            <span className="rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.08em] text-slate-600">DOCX output</span>
+          </div>
         </div>
 
-        <div className="rounded-md border border-slate-200 bg-lightBg p-4 xl:min-w-72">
+        <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 xl:min-w-72">
           <div className="flex items-center gap-3">
             <span className="flex h-10 w-10 items-center justify-center rounded-md bg-primary text-white">
               <Boxes size={18} aria-hidden="true" />
@@ -36,8 +41,8 @@ export default function WorkspaceHeader({ product, config, activeStep, readiness
               style={{ width: `${readinessPercentage}%` }}
             />
           </div>
-          <p className="mt-3 text-sm font-semibold text-slate-500">
-            Step {activeStep + 1} of {totalSteps} · {statusLabel}
+          <p className="mt-3 text-sm font-semibold text-slate-600">
+            Step {activeStep + 1} of {totalSteps} / {statusLabel}
           </p>
         </div>
       </div>
