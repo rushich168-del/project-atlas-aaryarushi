@@ -25,6 +25,19 @@ export default function WorkspaceLayout({ product, config, catalogState }) {
   const completedSteps = useMemo(() => getCompletedSteps(config, workspaceState), [config, workspaceState])
   const { readinessItems, readinessPercentage, canGenerate } = useWorkspaceStatus(config, workspaceState)
   const activeStepConfig = config.steps[activeStep]
+  const canClearFiles = Boolean(
+    workspaceState.templateFile
+    || workspaceState.templateRecord
+    || workspaceState.excelFile
+    || workspaceState.uploadRecord
+    || workspaceState.detectedColumns?.length
+    || workspaceState.previewRows?.length
+    || workspaceState.excelRows?.length
+    || workspaceState.generatedDocx
+    || workspaceState.generatedDocumentRecord
+    || workspaceState.batchJob
+    || workspaceState.batchOutputs?.length
+  )
 
   function updateState(update) {
     setWorkspaceState((current) => ({
@@ -141,6 +154,21 @@ export default function WorkspaceLayout({ product, config, catalogState }) {
     }
   }
 
+  function handleClearFiles() {
+    const confirmed = window.confirm('Clear uploaded files and local workspace output? This will not delete History or stored files.')
+
+    if (!confirmed) {
+      return
+    }
+
+    if (workspaceState.generatedDocx?.downloadUrl) {
+      URL.revokeObjectURL(workspaceState.generatedDocx.downloadUrl)
+    }
+
+    setWorkspaceState(config.createInitialState())
+    setActiveStep(0)
+  }
+
   const actions = {
     updateState,
     generate: handleGenerate,
@@ -180,6 +208,8 @@ export default function WorkspaceLayout({ product, config, catalogState }) {
             activeStep={activeStep}
             completedSteps={completedSteps}
             onStepChange={setActiveStep}
+            canClear={canClearFiles}
+            onClear={handleClearFiles}
           />
         </div>
 
