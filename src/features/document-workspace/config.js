@@ -228,6 +228,7 @@ export function createSharedDocumentWorkspaceConfig(options) {
         const generatedDocumentRecord = await uploadGeneratedCertificateDocx({
           organizationId: workspace.organization?.id,
           productId,
+          productSlug: workspace.product?.slug || options.productSlug,
           templateId: state.templateRecord?.id,
           uploadId: state.uploadRecord?.id,
           draftId: state.draftRecord?.id,
@@ -346,6 +347,7 @@ export function createSharedDocumentWorkspaceConfig(options) {
 
           const { fileName, storagePath } = buildBatchStoragePath({
             organizationId,
+            productSlug: workspace.product?.slug || options.productSlug,
             workspaceId,
             jobId: job.id,
             rowNumber: batchRow.rowNumber,

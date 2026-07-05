@@ -1,9 +1,14 @@
 import { supabase } from '../../../lib/supabaseClient.js'
+import { buildBatchStoragePath, safeBatchFileName } from './storagePaths.js'
 
 export const BATCH_ROW_LIMIT = 100
 export const OUTPUT_BUCKET = 'certificate-outputs'
 
 const DOCX_MIME_TYPE = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+
+// Product-aware storage path builders live in storagePaths.js (pure, offline
+// testable). Re-exported here so existing importers keep working unchanged.
+export { buildBatchStoragePath, safeBatchFileName }
 
 function shortError(error) {
   return String(error?.message || error || 'Unknown error').slice(0, 500)
@@ -24,28 +29,6 @@ function normalizeRowDataForStorage(rowData) {
     normalized[cleanKey] = value == null ? '' : String(value).trim()
     return normalized
   }, {})
-}
-
-export function safeBatchFileName(value) {
-  const baseName = String(value || 'certificate')
-    .replace(/\.[^/.]+$/, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 70)
-
-  return `${baseName || 'certificate'}.docx`
-}
-
-export function buildBatchStoragePath({ organizationId, workspaceId, jobId, rowNumber, fileName }) {
-  const paddedRow = String(rowNumber).padStart(3, '0')
-  const safeName = safeBatchFileName(fileName)
-  const withoutPrefix = safeName.replace(/^\d+-/, '')
-
-  return {
-    fileName: `${paddedRow}-${withoutPrefix}`,
-    storagePath: `${organizationId}/ar-cert-pro/${workspaceId}/${jobId}/${paddedRow}-${withoutPrefix}`,
-  }
 }
 
 export function ensureBatchContext({ organizationId, productId, workspaceId, templateId, uploadId, userId }) {

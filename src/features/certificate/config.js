@@ -241,6 +241,7 @@ export const certificateWorkspaceConfig = {
       const generatedDocumentRecord = await uploadGeneratedCertificateDocx({
         organizationId: workspace.organization?.id,
         productId,
+        productSlug: workspace.product?.slug || 'ar-cert-pro',
         templateId: state.templateRecord?.id,
         uploadId: state.uploadRecord?.id,
         draftId: state.draftRecord?.id,
@@ -360,6 +361,7 @@ export const certificateWorkspaceConfig = {
 
         const { fileName, storagePath } = buildBatchStoragePath({
           organizationId,
+          productSlug: workspace.product?.slug || 'ar-cert-pro',
           workspaceId,
           jobId: job.id,
           rowNumber: batchRow.rowNumber,

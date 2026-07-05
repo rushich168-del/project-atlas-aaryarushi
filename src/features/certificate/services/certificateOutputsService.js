@@ -1,5 +1,6 @@
 import JSZip from 'jszip'
 import { supabase } from '../../../lib/supabaseClient.js'
+import { buildOutputMetadata, buildOutputStoragePath } from './storagePaths.js'
 
 const OUTPUT_BUCKET = 'certificate-outputs'
 const DOCX_MIME_TYPE = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
@@ -50,6 +51,7 @@ function ensureOutputContext({ organizationId, productId, draftId, blob, fileNam
 export async function uploadGeneratedCertificateDocx({
   organizationId,
   productId,
+  productSlug,
   templateId,
   uploadId,
   draftId,
@@ -63,7 +65,7 @@ export async function uploadGeneratedCertificateDocx({
 
   const generatedDocumentId = crypto.randomUUID()
   const storedFileName = safeFileName(fileName)
-  const storagePath = `${organizationId}/ar-cert-pro/outputs/${generatedDocumentId}/${storedFileName}`
+  const storagePath = buildOutputStoragePath({ organizationId, productSlug, generatedDocumentId, fileName: storedFileName })
 
   const { error: storageError } = await supabase.storage
     .from(OUTPUT_BUCKET)
@@ -94,10 +96,7 @@ export async function uploadGeneratedCertificateDocx({
       status: 'ready',
       preview_row_index: previewRowIndex,
       merge_data: mergeData || {},
-      metadata: {
-        source: 'browser',
-        product: 'ar-cert-pro',
-      },
+      metadata: buildOutputMetadata({ productSlug }),
       created_by: userId,
     })
     .select()

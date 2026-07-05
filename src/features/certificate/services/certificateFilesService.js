@@ -1,5 +1,6 @@
 import * as XLSX from 'xlsx'
 import { supabase } from '../../../lib/supabaseClient.js'
+import { buildInputStoragePath, buildTemplateStoragePath } from './storagePaths.js'
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024
 const TEMPLATE_BUCKET = 'certificate-templates'
@@ -176,13 +177,13 @@ export async function parseExcelColumns(file) {
   }
 }
 
-export async function uploadCertificateTemplate({ organizationId, productId, file, userId }) {
+export async function uploadCertificateTemplate({ organizationId, productId, productSlug, file, userId }) {
   ensureBaseUploadContext({ organizationId, productId, file, userId })
   validateTemplateFile(file)
 
   const templateId = crypto.randomUUID()
   const fileName = safeFileName(file.name)
-  const storagePath = `${organizationId}/ar-cert-pro/templates/${templateId}/${fileName}`
+  const storagePath = buildTemplateStoragePath({ organizationId, productSlug, templateId, fileName })
 
   const { error: storageError } = await supabase.storage
     .from(TEMPLATE_BUCKET)
@@ -224,13 +225,13 @@ export async function uploadCertificateTemplate({ organizationId, productId, fil
   }
 }
 
-export async function uploadCertificateInput({ organizationId, productId, file, detectedColumns, rowCount, userId }) {
+export async function uploadCertificateInput({ organizationId, productId, productSlug, file, detectedColumns, rowCount, userId }) {
   ensureBaseUploadContext({ organizationId, productId, file, userId })
   validateExcelFile(file)
 
   const uploadId = crypto.randomUUID()
   const fileName = safeFileName(file.name)
-  const storagePath = `${organizationId}/ar-cert-pro/inputs/${uploadId}/${fileName}`
+  const storagePath = buildInputStoragePath({ organizationId, productSlug, uploadId, fileName })
 
   const { error: storageError } = await supabase.storage
     .from(INPUT_BUCKET)

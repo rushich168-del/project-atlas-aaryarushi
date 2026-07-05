@@ -367,7 +367,7 @@ function BatchJobCard({ job, expanded, selected, onSelect, onToggle, emailPrepOp
           />
           <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <h3 className="text-sm font-bold text-primary">{job.productName || 'AR-CERT-PRO'}</h3>
+            <h3 className="text-sm font-bold text-primary">{job.productName || 'Unknown product'}</h3>
             <BatchStatusBadge status={job.status} />
           </div>
           <p className="mt-0.5 text-xs font-semibold text-slate-600">{formatDate(job.created_at)}</p>
@@ -993,7 +993,8 @@ export default function HistoryPage() {
     }))
 
     try {
-      const fileName = `AR-CERT-PRO-batch-${job.id}.zip`
+      const productTag = String(job.productCode || '').replace(/[^A-Za-z0-9-]+/g, '-').replace(/^-+|-+$/g, '')
+      const fileName = productTag ? `${productTag}-batch-${job.id}.zip` : `batch-${job.id}.zip`
       const { zipBlob, warnings } = await createBatchDocxZip(generatedOutputs, fileName, ({ message }) => {
         setBatchZipProgress((current) => ({
           ...current,

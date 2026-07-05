@@ -109,6 +109,7 @@ export function TemplateStep({ state, actions, workspace, config }) {
       const templateRecord = await uploadCertificateTemplate({
         organizationId: workspace.organization?.id,
         productId: workspace.product?.organizationId ? workspace.product.id : null,
+        productSlug: workspace.product?.slug || config.productSlug,
         file,
         userId: workspace.user?.id,
       })
@@ -172,6 +173,7 @@ export function ExcelStep({ state, actions, workspace, config }) {
       const uploadRecord = await uploadCertificateInput({
         organizationId: workspace.organization?.id,
         productId: workspace.product?.organizationId ? workspace.product.id : null,
+        productSlug: workspace.product?.slug || config.productSlug,
         file,
         detectedColumns,
         rowCount,
