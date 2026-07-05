@@ -69,13 +69,31 @@ function findCategoryForStaticProduct(categories, staticProduct) {
 }
 
 function mergeStaticLaunchPrepProducts(categories, products) {
-  const productSlugs = new Set(products.map((product) => product.slug))
+  const launchPrepProducts = staticProducts.filter((product) => product.status === 'Launch Prep')
+  const launchPrepBySlug = new Map(launchPrepProducts.map((product) => [product.slug, product]))
+  const mergedProducts = products.map((product) => {
+    const staticProduct = launchPrepBySlug.get(product.slug)
+
+    if (!staticProduct) {
+      return product
+    }
+
+    return {
+      ...staticProduct,
+      id: product.id,
+      organizationId: product.organizationId,
+      categoryId: product.categoryId,
+      sortOrder: product.sortOrder,
+      createdAt: product.createdAt,
+      updatedAt: product.updatedAt,
+    }
+  })
+  const productSlugs = new Set(mergedProducts.map((product) => product.slug))
   const categoryIds = new Set(categories.map((category) => category.id))
   const mergedCategories = [...categories]
-  const mergedProducts = [...products]
 
-  staticProducts
-    .filter((product) => product.status === 'Launch Prep' && !productSlugs.has(product.slug))
+  launchPrepProducts
+    .filter((product) => !productSlugs.has(product.slug))
     .forEach((product, index) => {
       const matchingCategory = findCategoryForStaticProduct(mergedCategories, product)
       const staticCategory = staticCategories.find((category) => category.id === product.categoryId)
