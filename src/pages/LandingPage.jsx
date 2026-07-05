@@ -38,22 +38,42 @@ const fadeUp = {
   visible: { opacity: 1, y: 0 },
 }
 
-const trustTags = ['DOCX Automation', 'Excel-Based Generation', 'Supabase Secure Storage', 'Batch Ready', 'Built for Education, HR, and Business']
-
-const productSuite = [
-  { name: 'AR-CERT-PRO', status: 'Released', description: 'Certificate generation from Excel data and Word templates.' },
-  { name: 'AR-MARKSHEET-PRO', status: 'Coming Soon', description: 'Automated marksheet and score report generation.' },
-  { name: 'AR-QUESTION-PRO', status: 'Planned', description: 'Question paper assembly with reusable banks and layouts.' },
-  { name: 'AR-IDCARD-PRO', status: 'Desktop Ready', description: 'ID card creation from Excel datasets with template mapping.' },
-  { name: 'AR-INVOICE-PRO', status: 'Planned', description: 'Invoice generation from spreadsheet line items and client data.' },
+const productSuiteGroups = [
+  {
+    title: 'Education',
+    description: 'Document automation workflows for academic teams and institute operations.',
+    products: [
+      { name: 'AR-CERT-PRO', status: 'Demo Ready', description: 'Working demo for certificate DOCX generation from Excel data and Word templates.' },
+      { name: 'AR-MARKSHEET-PRO', status: 'Launch Prep', description: 'Launch-prep plan for structured marksheet documents.' },
+      { name: 'AR-REPORT-PRO', status: 'Launch Prep', description: 'Launch-prep plan for student reports and progress documents.' },
+      { name: 'AR-WORKSHEET-PRO', status: 'Launch Prep', description: 'Launch-prep plan for classroom worksheets and practice documents.' },
+      { name: 'AR-QUESTION-PRO', status: 'Launch Prep', description: 'Launch-prep plan for question papers, question sheets, and practice sets.' },
+      { name: 'AR-IDCARD-PRO', status: 'Launch Prep', description: 'Launch-prep plan for student and employee ID card documents.' },
+    ],
+  },
+  {
+    title: 'Office / Business',
+    description: 'Repeatable document preparation for small businesses and admin teams.',
+    products: [
+      { name: 'AR-INVOICE-PRO', status: 'Launch Prep', description: 'Launch-prep plan for invoice documents from spreadsheet data.' },
+      { name: 'AR-FEE-RECEIPT-PRO', status: 'Product Prep', description: 'Coming-next product plan for fee receipts and payment acknowledgments.' },
+    ],
+  },
+  {
+    title: 'Communication',
+    description: 'Safe email preparation and validation, without live bulk sending.',
+    products: [
+      { name: 'AR-MAIL-PRO', status: 'Safe Demo', description: 'Email preparation with dry-run validation only. No real row-recipient emails are sent.' },
+    ],
+  },
 ]
 
 const trustBadges = [
   'DOCX Automation',
   'Excel-Based Generation',
-  'Supabase Secure Storage',
-  'Batch Ready',
-  'Built for Education, HR, and Business',
+  'Safe Email Dry-run',
+  'Product Suite Catalog',
+  'Built for Education and Business',
 ]
 
 const painCards = [
@@ -61,7 +81,7 @@ const painCards = [
   ['Paste', FileText],
   ['Rename', RefreshCw],
   ['Save', FileCheck2],
-  ['Export PDF', FileCog],
+  ['Recheck', FileCog],
   ['Repeat', Workflow],
   ['Manual Errors', ShieldCheck],
 ]
@@ -96,11 +116,11 @@ const solutions = [
     benefit: 'Clearer execution and easier handover between team members.',
   },
   {
-    title: 'PDF Automation',
+    title: 'Safe Email Preparation',
     icon: FileCog,
-    problem: 'PDF exports are handled manually after each document is prepared.',
-    solution: 'Automate PDF creation from approved Word or Office outputs.',
-    benefit: 'Standardized files ready for sharing and storage.',
+    problem: 'Teams need to review recipient lists and messages before sending anything.',
+    solution: 'Prepare email content and run dry-run validation without sending real row-recipient emails.',
+    benefit: 'Safer communication prep with clear recipient counts and safety checks.',
   },
   {
     title: 'Custom Business Automation',
@@ -125,14 +145,40 @@ const industries = [
 ]
 
 const processSteps = [
-  'Free Consultation',
-  'Requirement Analysis',
-  'Proposal',
-  'Development',
-  'Testing',
-  'Delivery',
-  'Support',
+  'Upload Word Template',
+  'Upload Excel Data',
+  'Map Fields',
+  'Preview',
+  'Generate DOCX',
+  'Review History',
+  'Email Prep Dry-run',
 ]
+
+const workflowCards = [
+  { label: 'Upload Word template', description: 'Start with the approved DOCX layout for the product workflow.' },
+  { label: 'Upload Excel data', description: 'Load rows from the spreadsheet used by the school, office, or business team.' },
+  { label: 'Map fields', description: 'Connect template placeholders to spreadsheet columns before generation.' },
+  { label: 'Preview', description: 'Review one prepared row or output path before moving forward.' },
+  { label: 'Generate DOCX', description: 'Create editable DOCX output where the workflow is available.' },
+  { label: 'Review History', description: 'Use History to review prepared or generated outputs inside the dashboard.' },
+  { label: 'Safe Email Prep dry-run', description: 'Optional email preparation uses dry-run validation only; no real row-recipient emails are sent.' },
+]
+
+const safetyStatements = [
+  'Email Prep is dry-run only in Project Atlas.',
+  'No real row-recipient emails are sent.',
+  'Controlled batch sending remains disabled.',
+  'Failed-row resend remains disabled.',
+  'Gmail/Outlook OAuth is not connected.',
+  'PDF export and payment gateway features are not claimed as available.',
+]
+
+function getStatusClass(status) {
+  if (status === 'Demo Ready') return 'bg-emerald-50 text-emerald-700'
+  if (status === 'Safe Demo') return 'bg-teal-50 text-teal-700'
+  if (status === 'Launch Prep') return 'bg-blue-50 text-blue-700'
+  return 'bg-amber-50 text-amber-700'
+}
 
 function Section({ id, eyebrow, title, children, className = '', tone = 'light' }) {
   const eyebrowClass = tone === 'dark' ? 'text-accentTeal' : 'text-accentBlue'
@@ -389,8 +435,9 @@ function LandingPage() {
             AaryaRushi Automation Labs
           </a>
           <div className="hidden items-center gap-6 text-sm font-medium text-slate-600 md:flex">
-            <a href="#solutions" className="hover:text-primary">Solutions</a>
-            <a href="#ar-cert-pro" className="hover:text-primary">AR-CERT-PRO</a>
+            <a href="#product-suite" className="hover:text-primary">Product Suite</a>
+            <a href="#workflow" className="hover:text-primary">Workflow</a>
+            <a href="#safe-demo" className="hover:text-primary">Safe Demo</a>
             <a href="#process" className="hover:text-primary">Process</a>
             <a href="/dashboard" className="hover:text-primary">Dashboard</a>
             <a href="#contact" className="hover:text-primary">Contact</a>
@@ -416,20 +463,20 @@ function LandingPage() {
             transition={{ duration: 0.55 }}
           >
             <p className="mb-5 inline-flex rounded-full border border-accentTeal/20 bg-accentTeal/10 px-3 py-2 text-sm font-semibold uppercase tracking-[0.18em] text-accentTeal">
-              AR-CERT-PRO SaaS
+              AaryaRushi Automation Labs
             </p>
             <h1 className="text-4xl font-semibold leading-tight text-primary sm:text-5xl lg:text-6xl">
-              Upload template. Upload Excel. Generate professional documents.
+              Document automation for schools, colleges, training institutes, and small businesses.
             </h1>
             <p className="mt-6 max-w-2xl text-lg leading-8 text-slateText sm:text-xl">
-              Upload a Word template, upload Excel data, review the field mapping, and generate DOCX files instantly in the browser.
+              Project Atlas presents a focused product suite for turning Word templates and Excel data into repeatable document workflows, with safe email preparation kept dry-run only.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <ButtonLink href="/dashboard">
-                Start Generating
+                Login / Open Dashboard
               </ButtonLink>
-              <ButtonLink href="/dashboard/products/ar-cert-pro/workspace" variant="secondary">
-                View Demo Workflow
+              <ButtonLink href="#product-suite" variant="secondary">
+                See Product Suite
               </ButtonLink>
             </div>
             <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -444,15 +491,10 @@ function LandingPage() {
         </div>
       </section>
 
-      <Section id="workflow" eyebrow="Workflow" title="Four steps to generate DOCX from Excel">
+      <Section id="workflow" eyebrow="Workflow" title="How Project Atlas product workflows are staged">
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          {[
-            { label: 'Upload Word Template', description: 'Choose a DOCX certificate template.' },
-            { label: 'Upload Excel Data', description: 'Load participant rows from Excel.' },
-            { label: 'Auto-map Fields', description: 'Map placeholders to spreadsheet columns.' },
-            { label: 'Generate DOCX Files', description: 'Create certificates in the browser.' },
-          ].map((step, index) => (
-            <div key={step.label} className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+          {workflowCards.map((step, index) => (
+            <div key={step.label} className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-accentBlue text-sm font-bold text-white">
                 {index + 1}
               </div>
@@ -463,17 +505,27 @@ function LandingPage() {
         </div>
       </Section>
 
-      <Section id="product-suite" eyebrow="Product suite" title="AR Automation product lineup">
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-          {productSuite.map((product) => (
-            <article key={product.name} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-              <div className="flex items-center justify-between gap-3">
-                <p className="text-base font-semibold text-primary">{product.name}</p>
-                <span className={`rounded-full px-3 py-1 text-xs font-bold ${product.status === 'Released' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
-                  {product.status}
-                </span>
+      <Section id="product-suite" eyebrow="Product suite" title="AaryaRushi Automation Labs product lineup">
+        <div className="grid gap-5 lg:grid-cols-3">
+          {productSuiteGroups.map((group) => (
+            <article key={group.title} className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+              <div>
+                <h3 className="text-xl font-semibold text-primary">{group.title}</h3>
+                <p className="mt-2 text-sm leading-6 text-slate-600">{group.description}</p>
               </div>
-              <p className="mt-3 text-sm leading-6 text-slate-600">{product.description}</p>
+              <div className="mt-5 grid gap-3">
+                {group.products.map((product) => (
+                  <div key={product.name} className="rounded-md border border-slate-200 bg-lightBg p-4">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                      <p className="text-sm font-semibold text-primary">{product.name}</p>
+                      <span className={`w-fit shrink-0 rounded-md px-2.5 py-1 text-xs font-bold ${getStatusClass(product.status)}`}>
+                        {product.status}
+                      </span>
+                    </div>
+                    <p className="mt-2 text-sm leading-6 text-slate-600">{product.description}</p>
+                  </div>
+                ))}
+              </div>
             </article>
           ))}
         </div>
@@ -487,7 +539,7 @@ function LandingPage() {
         </div>
       </Section>
 
-      <Section id="solutions" eyebrow="Solutions" title="Automation Built Around Real Office Work" className="bg-lightBg">
+      <Section id="solutions" eyebrow="Solutions" title="Automation built around real office work" className="bg-lightBg">
         <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
           {solutions.map((solution) => (
             <SolutionCard key={solution.title} {...solution} />
@@ -545,6 +597,50 @@ function LandingPage() {
         </div>
       </Section>
 
+      <Section id="safe-demo" eyebrow="Safe demo" title="Demo-ready where it is real, honest where it is staged">
+        <div className="grid gap-5 lg:grid-cols-[0.9fr_1.1fr]">
+          <motion.article
+            className="rounded-lg border border-emerald-200 bg-emerald-50 p-6"
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, amount: 0.3 }}
+            variants={fadeUp}
+            transition={{ duration: 0.45 }}
+          >
+            <BadgeCheck className="text-emerald-700" size={28} aria-hidden="true" />
+            <h3 className="mt-5 text-xl font-semibold text-primary">AR-CERT-PRO is the main working demo</h3>
+            <p className="mt-3 leading-7 text-slate-700">
+              The certificate workflow is the primary demo-ready product in Project Atlas. Other catalog products are presented as Launch Prep or Product Prep when their dedicated workspace is not live yet.
+            </p>
+            <div className="mt-5">
+              <ButtonLink href="/dashboard/products/ar-cert-pro/workspace">
+                Open AR-CERT-PRO Workspace
+              </ButtonLink>
+            </div>
+          </motion.article>
+
+          <motion.article
+            className="rounded-lg border border-teal-200 bg-teal-50 p-6"
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, amount: 0.3 }}
+            variants={fadeUp}
+            transition={{ duration: 0.45, delay: 0.1 }}
+          >
+            <ShieldCheck className="text-teal-700" size={28} aria-hidden="true" />
+            <h3 className="mt-5 text-xl font-semibold text-primary">Email safety stays locked down</h3>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              {safetyStatements.map((statement) => (
+                <div key={statement} className="flex items-start gap-3 rounded-md border border-teal-100 bg-white/80 p-3">
+                  <CheckCircle2 className="mt-0.5 shrink-0 text-teal-700" size={17} aria-hidden="true" />
+                  <p className="text-sm font-semibold leading-6 text-slate-700">{statement}</p>
+                </div>
+              ))}
+            </div>
+          </motion.article>
+        </div>
+      </Section>
+
       <Section id="industries" eyebrow="Industries" title="Where Office Automation Creates Immediate Clarity">
         <IconGrid items={industries} />
       </Section>
@@ -598,13 +694,12 @@ function LandingPage() {
           <div>
             <p className="text-lg font-bold text-primary">AaryaRushi Automation Labs</p>
             <p className="mt-3 max-w-xl leading-7">
-              Office automation solutions for Word, Excel, PDF, and business
-              workflows. Website: Coming soon / current deployment link placeholder.
+              Product-suite automation for Word templates, Excel data, DOCX outputs, and safe email preparation workflows.
             </p>
           </div>
           <div className="text-sm text-slate-500 lg:text-right">
-            <p>Project Atlas v1.0</p>
-            <p className="mt-2">Built for fast deployment and first-client conversion.</p>
+            <p>Project Atlas public product suite</p>
+            <p className="mt-2">Built for demo-ready catalog review with honest feature status.</p>
           </div>
         </div>
       </footer>
