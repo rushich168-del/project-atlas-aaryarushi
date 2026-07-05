@@ -52,7 +52,7 @@ export default function DashboardPage() {
   const stats = useMemo(
     () => [
       { label: 'Total products', value: products.length, detail: 'Across education, HR, and office automation.', icon: Boxes },
-      { label: 'Ready to demo', value: products.filter((product) => product.status === 'Ready').length, detail: 'Products marked ready for client conversations.', icon: CheckCircle2, tone: 'teal' },
+      { label: 'Ready to demo', value: products.filter((product) => product.status === 'Ready' || product.status === 'Demo Ready').length, detail: 'Products marked ready for client conversations.', icon: CheckCircle2, tone: 'teal' },
       { label: 'In progress', value: products.filter((product) => product.status === 'In progress').length, detail: 'Products with defined direction but active polish pending.', icon: Clock3, tone: 'amber' },
       { label: 'Categories', value: categories.length, detail: 'Primary business segments for catalog planning.', icon: Activity },
     ],
@@ -61,15 +61,15 @@ export default function DashboardPage() {
 
   const suiteProducts = [
     {
-      label: 'Certificate Engine',
+      label: 'AR-CERT-PRO',
       productCode: 'AR-CERT-PRO',
-      summary: 'Generate personalized certificates from DOCX templates and Excel data.',
-      suiteLabel: 'Education Suite',
-      status: 'Active',
-      badge: 'Live',
+      summary: 'Generate personalized certificates from Excel and Word templates. DOCX output with safe Email Prep dry-run.',
+      suiteLabel: 'Education / Certificates',
+      status: 'Demo Ready',
+      badge: 'Demo Ready',
       active: true,
       href: '/dashboard/products/ar-cert-pro/workspace',
-      buttonLabel: 'Open Workspace',
+      buttonLabel: 'Start Demo',
     },
     {
       label: 'Worksheet Engine',

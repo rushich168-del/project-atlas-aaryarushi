@@ -3,6 +3,7 @@ import { navigateTo } from '../../utils/routes.js'
 
 const badgeStyles = {
   live: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+  demo_ready: 'border-emerald-200 bg-emerald-50 text-emerald-700',
   'desktop-ready': 'border-sky-200 bg-sky-50 text-sky-700',
   coming_soon: 'border-amber-200 bg-amber-50 text-amber-700',
   planned: 'border-amber-200 bg-amber-50 text-amber-700',

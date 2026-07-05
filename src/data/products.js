@@ -24,18 +24,18 @@ export const products = [
     name: 'AR-CERT-PRO',
     categoryId: 'education',
     sector: 'education',
-    status: 'Ready',
-    summary: 'Single DOCX certificate generation from Excel data and Word templates for the MVP demo.',
-    metrics: ['One DOCX at a time', 'Stored History', 'Browser workflow'],
-    audience: 'Schools, colleges, training institutes, event teams',
-    stage: 'MVP-ready SaaS workflow for single DOCX generation and History.',
+    status: 'Demo Ready',
+    summary: 'Generate personalized certificates from Excel and Word templates.',
+    metrics: ['DOCX Output', 'Excel to Word', 'Safe Email Dry-run'],
+    audience: 'Schools, colleges, coaching centers, training institutes',
+    stage: 'Launch-ready demo workflow for certificate DOCX generation, History, and safe Email Prep dry-run.',
     currentVersion: '1.5',
     desktopAvailable: true,
     saasAvailable: false,
     isBeta: false,
     isEnabled: true,
-    inputs: ['Excel participant list', 'Word certificate template', 'Selected preview row'],
-    outputs: ['Generated DOCX', 'Stored DOCX history', 'Local fallback download'],
+    inputs: ['Word certificate template', 'Excel student data', 'Field mapping', 'Selected preview row'],
+    outputs: ['Generated DOCX', 'Batch DOCX files', 'Stored DOCX history', 'Email Prep dry-run'],
   },
   {
     id: 'ar-marksheet-pro',
@@ -199,7 +199,7 @@ export const products = [
   },
 ]
 
-export const productStatuses = ['All', 'Ready', 'In progress', 'Planned', 'Concept']
+export const productStatuses = ['All', 'Demo Ready', 'Ready', 'In progress', 'Planned', 'Concept']
 export const availabilityFilters = ['All', 'Desktop', 'SaaS', 'Beta']
 
 export function getProductsByCategory(categoryId) {
