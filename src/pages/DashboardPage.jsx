@@ -164,13 +164,15 @@ export default function DashboardPage() {
       active: false,
     },
     {
-      label: 'Invoice Engine',
+      label: 'AR-INVOICE-PRO',
       productCode: 'AR-INVOICE-PRO',
-      summary: 'Invoice generation from spreadsheet line items for small business.',
-      suiteLabel: 'Office / Business Suite',
-      status: 'Coming Soon',
-      badge: 'Coming Soon',
-      active: false,
+      summary: 'Generate professional invoices from Excel data and Word templates. Launch-prep detail is ready; workspace is coming next.',
+      suiteLabel: 'Office / Business / Invoices',
+      status: 'Launch Prep',
+      badge: 'Launch Prep',
+      active: true,
+      href: '/dashboard/products/ar-invoice-pro',
+      buttonLabel: 'View Details',
     },
     {
       label: 'Quotation Engine',
@@ -226,7 +228,7 @@ export default function DashboardPage() {
       title: 'Office / Business Suite',
       description: 'Invoices, quotations, purchase orders, receipts, and business mail.',
       tone: 'business',
-      products: suiteProducts.filter((card) => card.suiteLabel === 'Office / Business Suite'),
+      products: suiteProducts.filter((card) => card.suiteLabel === 'Office / Business Suite' || card.suiteLabel.startsWith('Office / Business /')),
     },
   ]
   const selectedSuiteSection = suiteSections.find((section) => section.title === selectedSuite) || suiteSections[0]
