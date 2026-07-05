@@ -105,6 +105,17 @@ export default function DashboardPage() {
       buttonLabel: 'View Details',
     },
     {
+      label: 'AR-FEE-RECEIPT-PRO',
+      productCode: 'AR-FEE-RECEIPT-PRO',
+      summary: 'Plan fee receipts and payment acknowledgment documents from Excel data and Word templates. Product prep only; workspace is coming next.',
+      suiteLabel: 'Education / Office / Fee Receipts',
+      status: 'Product Prep',
+      badge: 'Product Prep',
+      active: true,
+      href: '/dashboard/products/ar-fee-receipt-pro',
+      buttonLabel: 'View Plan',
+    },
+    {
       label: 'AR-MARKSHEET-PRO',
       productCode: 'AR-MARKSHEET-PRO',
       summary: 'Generate structured marksheets from Excel data and Word templates. Launch-prep detail is ready; workspace is coming next.',

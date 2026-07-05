@@ -71,6 +71,41 @@ const arQuestionProReadiness = [
 
 const arQuestionProLabels = ['Launch Prep', 'DOCX Output', 'Excel to Questions', 'Coming Next']
 
+const arFeeReceiptProWorkflow = [
+  'Upload fee receipt Word template',
+  'Upload Excel payment/student data',
+  'Map receipt fields',
+  'Preview one receipt',
+  'Generate DOCX fee receipts',
+  'Review outputs in History',
+]
+
+const arFeeReceiptProReadiness = [
+  'Product concept prepared',
+  'Dashboard plan card ready',
+  'Detail plan page ready',
+  'DOCX generation workflow planned',
+  'Dedicated fee receipt workspace not available',
+  'PDF export not available',
+  'Payment gateway not available',
+  'Real email sending disabled',
+]
+
+const arFeeReceiptProPlaceholders = [
+  'ReceiptNumber',
+  'StudentName',
+  'Class',
+  'Course',
+  'Amount',
+  'PaymentDate',
+  'PaymentMode',
+  'AcademicYear',
+  'BalanceAmount',
+  'AuthorizedBy',
+]
+
+const arFeeReceiptProLabels = ['Product Prep', 'Planned DOCX', 'Fee Receipts', 'Coming Next']
+
 const arMarksheetProWorkflow = [
   'Upload marksheet Word template',
   'Upload Excel marks data',
@@ -200,6 +235,7 @@ export default function ProductDetailPage({ slug }) {
   const isArReportPro = product.slug === 'ar-report-pro'
   const isArWorksheetPro = product.slug === 'ar-worksheet-pro'
   const isArQuestionPro = product.slug === 'ar-question-pro'
+  const isArFeeReceiptPro = product.slug === 'ar-fee-receipt-pro'
 
   return (
     <DashboardLayout title={product.name} eyebrow={category?.name || 'Product'} showBack currentView="products" workspaceStatus={status}>
@@ -247,8 +283,13 @@ export default function ProductDetailPage({ slug }) {
                   Prepared for schools, colleges, coaching centers, training institutes, teachers, academic coordinators, and exam teams that need repeatable question documents from spreadsheet data.
                 </p>
               ) : null}
+              {isArFeeReceiptPro ? (
+                <p className="mt-3 max-w-3xl leading-7 text-slate-600">
+                  Prepared as a future product concept for schools, colleges, coaching centers, training institutes, admin offices, and accounts teams that need fee receipt and payment acknowledgment documents.
+                </p>
+              ) : null}
               <div className="mt-6 flex flex-wrap gap-2">
-                {(isArCertPro ? arCertProLabels : isArMarksheetPro ? arMarksheetProLabels : isArInvoicePro ? arInvoiceProLabels : isArIdcardPro ? arIdcardProLabels : isArReportPro ? arReportProLabels : isArWorksheetPro ? arWorksheetProLabels : isArQuestionPro ? arQuestionProLabels : product.metrics).map((metric) => (
+                {(isArCertPro ? arCertProLabels : isArMarksheetPro ? arMarksheetProLabels : isArInvoicePro ? arInvoiceProLabels : isArIdcardPro ? arIdcardProLabels : isArReportPro ? arReportProLabels : isArWorksheetPro ? arWorksheetProLabels : isArQuestionPro ? arQuestionProLabels : isArFeeReceiptPro ? arFeeReceiptProLabels : product.metrics).map((metric) => (
                   <span key={metric} className="inline-flex min-h-9 items-center rounded-md border border-slate-200 bg-lightBg px-3 text-sm font-semibold text-slate-600">
                     {metric}
                   </span>
@@ -383,6 +424,45 @@ export default function ProductDetailPage({ slug }) {
               <div className="mt-4 rounded-md border border-amber-200 bg-amber-50 p-3">
                 <p className="text-sm font-semibold text-amber-800">Current honesty note</p>
                 <p className="mt-1 text-sm leading-6 text-amber-800">AR-QUESTION-PRO does not yet have a separate live workspace. PDF export, question randomization, and real email sending are not available.</p>
+              </div>
+            </article>
+          </section>
+        ) : null}
+
+        {isArFeeReceiptPro ? (
+          <section className="mt-6 grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
+            <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+              <h3 className="text-lg font-semibold text-primary">Product-prep plan</h3>
+              <p className="mt-2 text-sm leading-6 text-slate-600">
+                AR-FEE-RECEIPT-PRO is a future product concept for fee receipts and payment acknowledgments. The plan is documented here, but the dedicated workspace and generation workflow are not live yet.
+              </p>
+              <div className="mt-4 grid gap-2">
+                {arFeeReceiptProWorkflow.map((step, index) => (
+                  <div key={step} className="flex items-center gap-3 rounded-md border border-slate-200 bg-slate-50 p-3">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-accentTeal text-xs font-bold text-white">{index + 1}</span>
+                    <p className="text-sm font-semibold text-primary">Planned: {step}</p>
+                  </div>
+                ))}
+              </div>
+            </article>
+
+            <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+              <h3 className="text-lg font-semibold text-primary">Preparation notes</h3>
+              <div className="mt-4 grid gap-2">
+                {arFeeReceiptProReadiness.map((item) => (
+                  <div key={item} className="flex items-center gap-3 rounded-md border border-amber-200 bg-amber-50 p-3">
+                    <CheckCircle2 size={17} className="shrink-0 text-amber-700" aria-hidden="true" />
+                    <p className="text-sm font-semibold text-amber-800">{item}</p>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-4 rounded-md border border-slate-200 bg-slate-50 p-3">
+                <p className="text-sm font-semibold text-primary">Suggested future placeholders</p>
+                <p className="mt-1 text-sm leading-6 text-slate-600">{arFeeReceiptProPlaceholders.join(', ')}</p>
+              </div>
+              <div className="mt-4 rounded-md border border-amber-200 bg-amber-50 p-3">
+                <p className="text-sm font-semibold text-amber-800">Current honesty note</p>
+                <p className="mt-1 text-sm leading-6 text-amber-800">AR-FEE-RECEIPT-PRO is not live yet. A dedicated workspace, DOCX generation workflow, PDF export, payment gateway, and real email sending are not available.</p>
               </div>
             </article>
           </section>
