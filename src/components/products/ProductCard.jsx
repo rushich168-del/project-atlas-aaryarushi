@@ -10,9 +10,9 @@ function getSuiteLabel(product) {
 
 export default function ProductCard({ product }) {
   const isActive = product.slug === 'ar-cert-pro'
-  const buttonLabel = isActive ? 'Open workspace' : 'Coming soon'
+  const buttonLabel = isActive ? 'Start Demo' : 'Coming soon'
   const suiteLabel = getSuiteLabel(product)
-  const statusLabel = isActive ? 'Active' : product.desktopAvailable ? 'Desktop Ready' : 'Coming Soon'
+  const statusLabel = isActive ? 'Demo Ready' : product.desktopAvailable ? 'Desktop Ready' : 'Coming Soon'
   const statusClass = isActive
     ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
     : product.desktopAvailable
