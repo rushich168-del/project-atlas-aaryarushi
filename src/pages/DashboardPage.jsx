@@ -52,7 +52,7 @@ export default function DashboardPage() {
   const stats = useMemo(
     () => [
       { label: 'Total products', value: products.length, detail: 'Across education, HR, and office automation.', icon: Boxes },
-      { label: 'Ready to demo', value: products.filter((product) => product.status === 'Ready' || product.status === 'Demo Ready').length, detail: 'Products marked ready for client conversations.', icon: CheckCircle2, tone: 'teal' },
+      { label: 'Ready to demo', value: products.filter((product) => product.status === 'Ready' || product.status === 'Demo Ready' || product.status === 'Launch Prep').length, detail: 'Products marked ready for client conversations.', icon: CheckCircle2, tone: 'teal' },
       { label: 'In progress', value: products.filter((product) => product.status === 'In progress').length, detail: 'Products with defined direction but active polish pending.', icon: Clock3, tone: 'amber' },
       { label: 'Categories', value: categories.length, detail: 'Primary business segments for catalog planning.', icon: Activity },
     ],
@@ -99,13 +99,15 @@ export default function DashboardPage() {
       active: false,
     },
     {
-      label: 'Marksheet Engine',
+      label: 'AR-MARKSHEET-PRO',
       productCode: 'AR-MARKSHEET-PRO',
-      summary: 'Create student marksheets automatically from exam results.',
-      suiteLabel: 'Education Suite',
-      status: 'Coming Soon',
-      badge: 'Coming Soon',
-      active: false,
+      summary: 'Generate structured marksheets from Excel data and Word templates. Launch-prep detail is ready; workspace is coming next.',
+      suiteLabel: 'Education / Marksheets',
+      status: 'Launch Prep',
+      badge: 'Launch Prep',
+      active: true,
+      href: '/dashboard/products/ar-marksheet-pro',
+      buttonLabel: 'View Details',
     },
     {
       label: 'ID Card Engine',
@@ -212,7 +214,7 @@ export default function DashboardPage() {
       title: 'Education Suite',
       description: 'Certificates, worksheets, reports, marksheets, and student documents.',
       tone: 'education',
-      products: suiteProducts.filter((card) => card.suiteLabel === 'Education Suite'),
+      products: suiteProducts.filter((card) => card.suiteLabel === 'Education Suite' || card.suiteLabel.startsWith('Education /')),
     },
     {
       title: 'HR Suite',
