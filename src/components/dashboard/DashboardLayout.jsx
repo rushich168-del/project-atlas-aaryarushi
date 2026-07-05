@@ -1,9 +1,18 @@
+import { useEffect } from 'react'
 import Sidebar from './Sidebar.jsx'
 import Topbar from './Topbar.jsx'
 import { moduleNavItems } from './Sidebar.jsx'
 import { navigateTo } from '../../utils/routes.js'
+import { installScrollRestoration } from '../../utils/scrollRestoration.js'
 
 export default function DashboardLayout({ children, title, eyebrow, showBack = false, currentView, workspaceStatus }) {
+  // Install the app-wide scroll restoration manager once. It is a route-event
+  // driven singleton (idempotent), so calling it from every DashboardLayout
+  // mount is safe and it keeps working across page remounts and back/forward.
+  useEffect(() => {
+    installScrollRestoration()
+  }, [])
+
   return (
     <main className="min-h-screen bg-lightBg font-sans text-slateText">
       <div className="flex min-h-screen lg:gap-4 lg:p-4">
