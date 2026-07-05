@@ -48,14 +48,14 @@ const productSuiteGroups = [
       { name: 'AR-REPORT-PRO', status: 'Workspace setup', action: 'Request Setup', href: '/dashboard/products/ar-report-pro', description: 'Student report and progress document workflow prepared for setup.' },
       { name: 'AR-WORKSHEET-PRO', status: 'Workspace setup', action: 'Request Setup', href: '/dashboard/products/ar-worksheet-pro', description: 'Classroom worksheet and practice document workflow prepared for setup.' },
       { name: 'AR-QUESTION-PRO', status: 'Workspace setup', action: 'Request Setup', href: '/dashboard/products/ar-question-pro', description: 'Question paper, question sheet, and practice set workflow prepared for setup.' },
-      { name: 'AR-IDCARD-PRO', status: 'Workspace setup', action: 'Request Setup', href: '/dashboard/products/ar-idcard-pro', description: 'Student and employee ID card document workflow prepared for setup.' },
+      { name: 'AR-IDCARD-PRO', status: 'Product workspace', action: 'Open Workspace', href: '/dashboard/products/ar-idcard-pro/workspace', description: 'Text-based student and employee ID card documents from Excel data and Word templates.' },
     ],
   },
   {
     title: 'HR / Admin Suite',
     description: 'Admin-ready document and communication preparation for people and operations teams.',
     products: [
-      { name: 'AR-IDCARD-PRO', status: 'Workspace setup', action: 'Request Setup', href: '/dashboard/products/ar-idcard-pro', description: 'Student and employee ID card document workflow prepared for setup.' },
+      { name: 'AR-IDCARD-PRO', status: 'Product workspace', action: 'Open Workspace', href: '/dashboard/products/ar-idcard-pro/workspace', description: 'Text-based student and employee ID card documents. Photo areas stay manual in the template.' },
       { name: 'AR-MAIL-PRO', status: 'Mail preparation', action: 'Open Product', href: '/dashboard/products/ar-mail-pro', description: 'Mail preparation workspace with dry-run validation only. No real row-recipient emails are sent.' },
     ],
   },

@@ -51,10 +51,10 @@ const productGuidance = {
   'ar-idcard-pro': {
     templateLabel: 'ID card template',
     excelLabel: 'Student/staff details Excel',
-    template: 'Upload an ID card Word template with placeholders for identity, class/department, and photo-related fields.',
-    excel: 'Prepare student or staff details with ID numbers, names, class/department, and contact fields.',
-    fields: ['FullName', 'IDNumber', 'Class', 'Department', 'ValidUntil', 'PhotoReference'],
-    purpose: 'Prepare an ID card workspace by checking staff/student details and template placeholders. Photo automation is not treated as fully live here.',
+    template: 'Upload an ID card Word template with text placeholders for identity, class, section, role, academic year, blood group, and contact details.',
+    excel: 'Prepare student or staff details with matching text columns. For photo-based cards, keep the photo area manual in the template for now.',
+    fields: ['FullName', 'IDNumber', 'Class', 'Section', 'Role', 'AcademicYear', 'BloodGroup', 'ContactNumber'],
+    purpose: 'Prepare text-based ID card documents from template and Excel data. Automated per-person photo/image placement is not enabled yet.',
   },
   'ar-invoice-pro': {
     templateLabel: 'Invoice template',

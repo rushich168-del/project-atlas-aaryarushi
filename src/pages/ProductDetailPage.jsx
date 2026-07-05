@@ -172,24 +172,24 @@ const arInvoiceProLabels = ['Workspace setup', 'DOCX Output', 'Excel to Invoice'
 const arIdcardProWorkflow = [
   'Upload ID card Word template',
   'Upload Excel student/employee data',
-  'Map name, ID, class/department, and photo-related fields if applicable',
-  'Preview one row',
-  'Generate DOCX ID cards',
+  'Map text fields such as FullName, IDNumber, Class, Section, Role, AcademicYear, BloodGroup, and ContactNumber',
+  'Preview one text-based ID card row',
+  'Generate text-based DOCX ID cards',
   'Review outputs in History',
 ]
 
 const arIdcardProReadiness = [
-  'Product positioning ready',
+  'Shared DOCX workspace active for text placeholders',
   'Dashboard card ready',
   'Detail page ready',
-  'DOCX output planned',
-  'Workspace setup path ready',
-  'Photo automation not fully live',
+  'Text DOCX output active',
+  'Manual/static photo area guidance documented',
+  'Automated per-person photo placement not enabled',
   'PDF export not available',
   'Real email sending disabled',
 ]
 
-const arIdcardProLabels = ['Workspace setup', 'DOCX Output', 'Excel to ID Cards', 'Setup Workspace']
+const arIdcardProLabels = ['Product workspace', 'Text DOCX Output', 'Excel to ID Cards', 'Manual photo area']
 
 const arReportProWorkflow = [
   'Upload report Word template',
@@ -264,6 +264,7 @@ export default function ProductDetailPage({ slug }) {
     'ar-report-pro',
     'ar-worksheet-pro',
     'ar-question-pro',
+    'ar-idcard-pro',
     'ar-invoice-pro',
     'ar-fee-receipt-pro',
   ].includes(product.slug)
@@ -720,9 +721,9 @@ export default function ProductDetailPage({ slug }) {
         {isArIdcardPro ? (
           <section className="mt-6 grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
             <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-              <h3 className="text-lg font-semibold text-primary">Workspace setup workflow</h3>
+              <h3 className="text-lg font-semibold text-primary">Shared DOCX workspace workflow</h3>
               <p className="mt-2 text-sm leading-6 text-slate-600">
-                AR-IDCARD-PRO is positioned as an education and HR/Admin product workspace. The current setup path documents the ID card workflow while a dedicated ID card workspace is scoped.
+                AR-IDCARD-PRO now uses the shared DOCX workspace for text-based ID card documents from an ID card template and student/staff Excel data.
               </p>
               <div className="mt-4 grid gap-2">
                 {arIdcardProWorkflow.map((step, index) => (
@@ -746,7 +747,7 @@ export default function ProductDetailPage({ slug }) {
               </div>
               <div className="mt-4 rounded-md border border-amber-200 bg-amber-50 p-3">
                 <p className="text-sm font-semibold text-amber-800">Current honesty note</p>
-                <p className="mt-1 text-sm leading-6 text-amber-800">AR-IDCARD-PRO does not yet have a separate live workspace. Photo automation is not fully live, PDF export is not available, and real email sending is disabled.</p>
+                <p className="mt-1 text-sm leading-6 text-amber-800">For photo-based ID cards, keep the photo area in the template manually for now; automated per-person photo/image placement is not enabled. PDF export and real email sending are not available.</p>
               </div>
             </article>
           </section>

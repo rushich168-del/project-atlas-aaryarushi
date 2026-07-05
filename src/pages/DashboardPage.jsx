@@ -129,13 +129,13 @@ export default function DashboardPage() {
     {
       label: 'AR-IDCARD-PRO',
       productCode: 'AR-IDCARD-PRO',
-      summary: 'Student or employee ID card document workflow is ready for product workspace setup.',
+      summary: 'Text-based student or employee ID card documents run through the shared DOCX workspace.',
       suiteLabel: 'Education / HR / ID Cards',
-      status: 'Workspace setup',
-      badge: 'Workspace setup',
+      status: 'Product workspace',
+      badge: 'Product workspace',
       active: true,
       href: '/dashboard/products/ar-idcard-pro/workspace',
-      buttonLabel: 'Setup Workspace',
+      buttonLabel: 'Open Workspace',
     },
     {
       label: 'Offer Letter Engine',
@@ -158,7 +158,7 @@ export default function DashboardPage() {
     {
       label: 'Employee ID Engine',
       productCode: 'AR-EMP-ID-PRO',
-      summary: 'Employee IDs created from staff details and photo mappings.',
+      summary: 'Employee ID text details prepared from staff data and templates.',
       suiteLabel: 'HR / Admin Suite',
       status: 'Request setup',
       badge: 'Request setup',

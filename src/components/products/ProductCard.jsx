@@ -16,6 +16,7 @@ export default function ProductCard({ product }) {
     'ar-report-pro',
     'ar-worksheet-pro',
     'ar-question-pro',
+    'ar-idcard-pro',
     'ar-invoice-pro',
     'ar-fee-receipt-pro',
   ].includes(product.slug)
