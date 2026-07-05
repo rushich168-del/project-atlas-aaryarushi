@@ -10,11 +10,15 @@ function getSuiteLabel(product) {
 
 export default function ProductCard({ product }) {
   const isActive = product.slug === 'ar-cert-pro'
-  const buttonLabel = isActive ? 'Start Demo' : 'Coming soon'
+  const isLaunchPrep = product.slug === 'ar-marksheet-pro'
+  const canOpen = isActive || isLaunchPrep
+  const buttonLabel = isActive ? 'Start Demo' : isLaunchPrep ? 'View Details' : 'Coming soon'
   const suiteLabel = getSuiteLabel(product)
-  const statusLabel = isActive ? 'Demo Ready' : product.desktopAvailable ? 'Desktop Ready' : 'Coming Soon'
+  const statusLabel = isActive ? 'Demo Ready' : isLaunchPrep ? 'Launch Prep' : product.desktopAvailable ? 'Desktop Ready' : 'Coming Soon'
   const statusClass = isActive
     ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+    : isLaunchPrep
+      ? 'border-blue-200 bg-blue-50 text-blue-700'
     : product.desktopAvailable
       ? 'border-sky-200 bg-sky-50 text-sky-700'
       : 'border-amber-200 bg-amber-50 text-amber-700'
@@ -44,17 +48,19 @@ export default function ProductCard({ product }) {
         onClick={() => {
           if (isActive) {
             navigateTo(`/dashboard/products/${product.slug}/workspace`)
+          } else if (isLaunchPrep) {
+            navigateTo(`/dashboard/products/${product.slug}`)
           }
         }}
-        disabled={!isActive}
+        disabled={!canOpen}
         className={`focus-ring mt-4 inline-flex min-h-9 w-full items-center justify-center gap-2 rounded-md px-2.5 text-sm font-semibold transition ${
-          isActive
+          canOpen
             ? 'bg-accentTeal text-white hover:bg-teal-800'
             : 'cursor-not-allowed border border-slate-200 bg-slate-100 text-slate-400'
         }`}
       >
         {buttonLabel}
-        {isActive ? <ArrowUpRight size={16} aria-hidden="true" /> : null}
+        {canOpen ? <ArrowUpRight size={16} aria-hidden="true" /> : null}
       </button>
     </article>
   )

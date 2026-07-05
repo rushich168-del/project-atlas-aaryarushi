@@ -44,18 +44,18 @@ export const products = [
     name: 'AR-MARKSHEET-PRO',
     categoryId: 'education',
     sector: 'education',
-    status: 'In progress',
-    summary: 'Structured marksheet preparation with student records, grade calculations, and exports.',
-    metrics: ['Grade logic', 'Student records', 'Template output'],
-    audience: 'Schools, colleges, coaching centers',
-    stage: 'Core flow defined; template and grading variations need refinement.',
+    status: 'Launch Prep',
+    summary: 'Generate structured marksheets from Excel data and Word templates.',
+    metrics: ['DOCX Output', 'Excel to Marksheet', 'Coming Next'],
+    audience: 'Schools, colleges, coaching centers, training institutes, admin offices handling student marksheets',
+    stage: 'Launch-prep product brief and detail page ready; separate marksheet workspace is not live yet.',
     currentVersion: '0.1',
     desktopAvailable: true,
     saasAvailable: false,
     isBeta: true,
     isEnabled: true,
-    inputs: ['Student data', 'Subject marks', 'Grade rules'],
-    outputs: ['Marksheet documents', 'PDF exports', 'Class summaries'],
+    inputs: ['Word marksheet template', 'Excel marks data', 'Student and subject field mapping'],
+    outputs: ['Planned DOCX marksheets', 'History review after workspace launch', 'No PDF export yet'],
   },
   {
     id: 'ar-question-pro',
@@ -199,7 +199,7 @@ export const products = [
   },
 ]
 
-export const productStatuses = ['All', 'Demo Ready', 'Ready', 'In progress', 'Planned', 'Concept']
+export const productStatuses = ['All', 'Demo Ready', 'Launch Prep', 'Ready', 'In progress', 'Planned', 'Concept']
 export const availabilityFilters = ['All', 'Desktop', 'SaaS', 'Beta']
 
 export function getProductsByCategory(categoryId) {

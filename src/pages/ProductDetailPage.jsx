@@ -27,6 +27,27 @@ const arCertProReadiness = [
 
 const arCertProLabels = ['Demo Ready', 'DOCX Output', 'Excel to Word', 'Safe Email Dry-run']
 
+const arMarksheetProWorkflow = [
+  'Upload marksheet Word template',
+  'Upload Excel marks data',
+  'Map student and subject fields',
+  'Preview one row',
+  'Generate DOCX marksheets',
+  'Review outputs in History',
+]
+
+const arMarksheetProReadiness = [
+  'Product positioning ready',
+  'Dashboard card ready',
+  'Detail page ready',
+  'DOCX output planned',
+  'Separate workspace coming next',
+  'PDF export not available',
+  'Real email sending disabled',
+]
+
+const arMarksheetProLabels = ['Launch Prep', 'DOCX Output', 'Excel to Marksheet', 'Coming Next']
+
 export default function ProductDetailPage({ slug }) {
   const { organization, categories, products, source, status, loading, error } = useProductCatalog()
   const product = products.find((item) => item.slug === slug)
@@ -65,6 +86,7 @@ export default function ProductDetailPage({ slug }) {
 
   const category = categories.find((item) => item.id === product.categoryId)
   const isArCertPro = product.slug === 'ar-cert-pro'
+  const isArMarksheetPro = product.slug === 'ar-marksheet-pro'
 
   return (
     <DashboardLayout title={product.name} eyebrow={category?.name || 'Product'} showBack currentView="products" workspaceStatus={status}>
@@ -82,8 +104,13 @@ export default function ProductDetailPage({ slug }) {
                   Built for schools, colleges, coaching centers, and training institutes that need repeatable certificate generation from familiar Excel and Word files.
                 </p>
               ) : null}
+              {isArMarksheetPro ? (
+                <p className="mt-3 max-w-3xl leading-7 text-slate-600">
+                  Prepared for schools, colleges, coaching centers, training institutes, and admin offices that manage repeated student marksheet documents from spreadsheet data.
+                </p>
+              ) : null}
               <div className="mt-6 flex flex-wrap gap-2">
-                {(isArCertPro ? arCertProLabels : product.metrics).map((metric) => (
+                {(isArCertPro ? arCertProLabels : isArMarksheetPro ? arMarksheetProLabels : product.metrics).map((metric) => (
                   <span key={metric} className="inline-flex min-h-9 items-center rounded-md border border-slate-200 bg-lightBg px-3 text-sm font-semibold text-slate-600">
                     {metric}
                   </span>
@@ -153,6 +180,41 @@ export default function ProductDetailPage({ slug }) {
           </section>
         ) : null}
 
+        {isArMarksheetPro ? (
+          <section className="mt-6 grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
+            <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+              <h3 className="text-lg font-semibold text-primary">Launch-prep workflow</h3>
+              <p className="mt-2 text-sm leading-6 text-slate-600">
+                AR-MARKSHEET-PRO is positioned as the second education product in the lineup. The current milestone prepares the launch story and detail page; a separate marksheet workspace is still coming next.
+              </p>
+              <div className="mt-4 grid gap-2">
+                {arMarksheetProWorkflow.map((step, index) => (
+                  <div key={step} className="flex items-center gap-3 rounded-md border border-slate-200 bg-slate-50 p-3">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-accentTeal text-xs font-bold text-white">{index + 1}</span>
+                    <p className="text-sm font-semibold text-primary">{step}</p>
+                  </div>
+                ))}
+              </div>
+            </article>
+
+            <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+              <h3 className="text-lg font-semibold text-primary">Readiness and limitations</h3>
+              <div className="mt-4 grid gap-2">
+                {arMarksheetProReadiness.map((item) => (
+                  <div key={item} className="flex items-center gap-3 rounded-md border border-blue-200 bg-blue-50 p-3">
+                    <CheckCircle2 size={17} className="shrink-0 text-accentBlue" aria-hidden="true" />
+                    <p className="text-sm font-semibold text-blue-800">{item}</p>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-4 rounded-md border border-amber-200 bg-amber-50 p-3">
+                <p className="text-sm font-semibold text-amber-800">Current honesty note</p>
+                <p className="mt-1 text-sm leading-6 text-amber-800">AR-MARKSHEET-PRO does not yet have a separate live workspace. PDF export and real email sending are not available.</p>
+              </div>
+            </article>
+          </section>
+        ) : null}
+
         <section className="mt-6 grid gap-4 xl:grid-cols-[1fr_1fr_0.8fr]">
           <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
             <FileInput className="text-accentBlue" size={24} aria-hidden="true" />
@@ -198,7 +260,7 @@ export default function ProductDetailPage({ slug }) {
                   : 'cursor-not-allowed border border-slate-200 bg-slate-100 text-slate-400'
               }`}
             >
-              {product.slug === 'ar-cert-pro' ? 'Start Demo' : 'Coming soon'}
+              {product.slug === 'ar-cert-pro' ? 'Start Demo' : product.slug === 'ar-marksheet-pro' ? 'Workspace coming next' : 'Coming soon'}
               {product.slug === 'ar-cert-pro' ? <ArrowUpRight size={16} aria-hidden="true" /> : null}
             </button>
           </article>
