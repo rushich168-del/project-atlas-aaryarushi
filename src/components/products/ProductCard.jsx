@@ -72,7 +72,7 @@ export default function ProductCard({ product }) {
           if (isActive) {
             navigateTo(`/dashboard/products/${product.slug}/workspace`)
           } else if (canOpen) {
-            navigateTo(`/dashboard/products/${product.slug}`)
+            navigateTo(`/dashboard/products/${product.slug}/workspace`)
           }
         }}
         disabled={!canOpen}

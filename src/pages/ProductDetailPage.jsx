@@ -262,13 +262,13 @@ export default function ProductDetailPage({ slug }) {
   const mainActionLabel = hasDedicatedWorkspace
     ? 'Open Workspace'
     : isArMailPro
-      ? 'Review Mail Prep Checklist'
-      : 'Start Workspace Setup'
+      ? 'Open Mail Prep Workspace'
+      : 'Prepare Workspace'
   const actionHelpText = hasDedicatedWorkspace
     ? 'Opens the connected AR-CERT-PRO workspace for template upload, data upload, preview, DOCX generation, and History.'
     : isArMailPro
-      ? 'Use this page to prepare the mail workflow safely. Real row-recipient sending stays disabled.'
-      : 'Use this setup page to confirm template, data, fields, and output expectations before a dedicated workspace is connected.'
+      ? 'Opens a guided mail preparation workspace. Real row-recipient sending stays disabled.'
+      : 'Opens a guided workspace starter to confirm template, data, fields, and output expectations before a dedicated workflow is connected.'
   const beforeStartChecklist = isArMailPro
     ? [
       'Excel/contact data with recipient and personalization columns',
@@ -302,12 +302,7 @@ export default function ProductDetailPage({ slug }) {
       ? 'Editable DOCX output, generated batch files, and History records from the connected workspace.'
       : 'A clear setup checklist for the product workflow. DOCX output is expected only after the dedicated workspace is connected and tested.'
   const handleMainAction = () => {
-    if (hasDedicatedWorkspace) {
-      navigateTo(`/dashboard/products/${product.slug}/workspace`)
-      return
-    }
-
-    document.getElementById('before-you-start')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    navigateTo(`/dashboard/products/${product.slug}/workspace`)
   }
 
   return (
@@ -445,7 +440,7 @@ export default function ProductDetailPage({ slug }) {
               <div className="mt-4 rounded-md border border-amber-200 bg-amber-50 p-3">
                 <p className="text-sm font-semibold text-amber-800">Safe setup message</p>
                 <p className="mt-1 text-sm leading-6 text-amber-800">
-                  This product does not open a separate fake workspace. Use the setup checklist here until the dedicated workflow is connected and tested.
+                  This product uses a guided workspace starter until the dedicated generation workflow is connected and tested.
                 </p>
               </div>
             ) : null}

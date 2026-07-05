@@ -79,7 +79,7 @@ export default function DashboardPage() {
       status: 'Workspace setup',
       badge: 'Workspace setup',
       active: true,
-      href: '/dashboard/products/ar-worksheet-pro',
+      href: '/dashboard/products/ar-worksheet-pro/workspace',
       buttonLabel: 'Setup Workspace',
     },
     {
@@ -90,7 +90,7 @@ export default function DashboardPage() {
       status: 'Workspace setup',
       badge: 'Workspace setup',
       active: true,
-      href: '/dashboard/products/ar-question-pro',
+      href: '/dashboard/products/ar-question-pro/workspace',
       buttonLabel: 'Setup Workspace',
     },
     {
@@ -101,7 +101,7 @@ export default function DashboardPage() {
       status: 'Workspace setup',
       badge: 'Workspace setup',
       active: true,
-      href: '/dashboard/products/ar-report-pro',
+      href: '/dashboard/products/ar-report-pro/workspace',
       buttonLabel: 'Setup Workspace',
     },
     {
@@ -112,7 +112,7 @@ export default function DashboardPage() {
       status: 'Request setup',
       badge: 'Request setup',
       active: true,
-      href: '/dashboard/products/ar-fee-receipt-pro',
+      href: '/dashboard/products/ar-fee-receipt-pro/workspace',
       buttonLabel: 'Setup Workspace',
     },
     {
@@ -123,7 +123,7 @@ export default function DashboardPage() {
       status: 'Workspace setup',
       badge: 'Workspace setup',
       active: true,
-      href: '/dashboard/products/ar-marksheet-pro',
+      href: '/dashboard/products/ar-marksheet-pro/workspace',
       buttonLabel: 'Setup Workspace',
     },
     {
@@ -134,7 +134,7 @@ export default function DashboardPage() {
       status: 'Workspace setup',
       badge: 'Workspace setup',
       active: true,
-      href: '/dashboard/products/ar-idcard-pro',
+      href: '/dashboard/products/ar-idcard-pro/workspace',
       buttonLabel: 'Setup Workspace',
     },
     {
@@ -190,7 +190,7 @@ export default function DashboardPage() {
       status: 'Workspace setup',
       badge: 'Workspace setup',
       active: true,
-      href: '/dashboard/products/ar-invoice-pro',
+      href: '/dashboard/products/ar-invoice-pro/workspace',
       buttonLabel: 'Setup Workspace',
     },
     {
@@ -228,7 +228,7 @@ export default function DashboardPage() {
       status: 'Mail preparation',
       badge: 'Mail preparation',
       active: true,
-      href: '/dashboard/products/ar-mail-pro',
+      href: '/dashboard/products/ar-mail-pro/workspace',
       buttonLabel: 'Mail Prep',
     },
   ]
