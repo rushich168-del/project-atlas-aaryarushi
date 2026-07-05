@@ -15,6 +15,28 @@ function normalizeFileName(fileName) {
   return `${baseName || 'project-atlas-document'}.docx`
 }
 
+// docxtemplater resolves tags case-sensitively against the render data. The merge
+// step keys `values` by field id (e.g. `studentname`), while templates use the
+// advertised placeholder text (e.g. `{{StudentName}}`). Feed BOTH keyings so a
+// template written with the documented {{ColumnName}} placeholders renders the
+// mapped value instead of a blank/"undefined". `mergeResult.placeholders` is keyed
+// by the full `{{...}}` string, so strip the braces to recover the tag name.
+// AR-CERT-PRO (lowercase {{name}} placeholders) is unaffected — its tag name and
+// field id already match.
+function buildRenderData(mergeResult) {
+  const renderData = { ...(mergeResult.values || {}) }
+
+  for (const [placeholder, value] of Object.entries(mergeResult.placeholders || {})) {
+    const tagName = String(placeholder).replace(/^\{\{\s*/, '').replace(/\s*\}\}$/, '')
+
+    if (tagName && !(tagName in renderData)) {
+      renderData[tagName] = value
+    }
+  }
+
+  return renderData
+}
+
 function collectDocxErrors(error) {
   if (!error) {
     return [generationError('DOCX generation failed.')]
@@ -87,9 +109,12 @@ export function generateDocxFromTemplate({ templateArrayBuffer, mergeResult, opt
       },
       paragraphLoop: true,
       linebreaks: true,
+      // Never render the literal string "undefined" into a user document for a
+      // tag we have no value for; a blank is the safe, expected result.
+      nullGetter: () => '',
     })
 
-    doc.render(mergeResult.values)
+    doc.render(buildRenderData(mergeResult))
 
     const blob = doc.getZip().generate({
       type: 'blob',

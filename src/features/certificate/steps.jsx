@@ -13,6 +13,7 @@ import { getUploadError } from '../../utils/errorMessages.js'
 import { BATCH_ROW_LIMIT } from './services/certificateBatchService.js'
 import { navigateTo } from '../../utils/routes.js'
 import EmailPreparationPanel from '../../components/email/EmailPreparationPanel.jsx'
+import SampleStarterPanel from '../document-workspace/SampleStarterPanel.jsx'
 
 function normalizeName(value) {
   return String(value || '')
@@ -142,17 +143,20 @@ export function TemplateStep({ state, actions, workspace, config }) {
   }
 
   return (
-    <FileUploadControl
-      title={config.copy?.templateTitle || 'Upload your certificate template'}
-      description={config.copy?.templateDescription || 'Choose the approved DOCX template for this certificate batch. Placeholder fields will be detected after upload.'}
-      acceptLabel=".docx only, max 10 MB"
-      accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-      loading={state.uploadingTemplate}
-      selectedFile={state.templateFile}
-      record={state.templateRecord}
-      error={state.templateUploadError}
-      onFile={handleTemplateFile}
-    />
+    <div className="grid gap-5">
+      <SampleStarterPanel slug={config.productSlug} />
+      <FileUploadControl
+        title={config.copy?.templateTitle || 'Upload your certificate template'}
+        description={config.copy?.templateDescription || 'Choose the approved DOCX template for this certificate batch. Placeholder fields will be detected after upload.'}
+        acceptLabel=".docx only, max 10 MB"
+        accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        loading={state.uploadingTemplate}
+        selectedFile={state.templateFile}
+        record={state.templateRecord}
+        error={state.templateUploadError}
+        onFile={handleTemplateFile}
+      />
+    </div>
   )
 }
 
