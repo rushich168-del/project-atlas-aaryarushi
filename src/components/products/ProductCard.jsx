@@ -2,15 +2,15 @@ import { ArrowUpRight, Boxes } from 'lucide-react'
 import { navigateTo } from '../../utils/routes.js'
 
 function getSuiteLabel(product) {
-  if (product.categoryId === 'education') return 'Education Suite'
-  if (product.categoryId === 'hr') return 'HR Suite'
-  if (product.categoryId === 'office-business') return 'Office / Business Suite'
+  if (product.categoryId === 'education' || product.sector === 'education') return 'Education Suite'
+  if (product.categoryId === 'hr' || product.sector === 'hr') return 'HR Suite'
+  if (product.categoryId === 'office-business' || product.sector === 'office-business') return 'Office / Business Suite'
   return 'Product Suite'
 }
 
 export default function ProductCard({ product }) {
   const isActive = product.slug === 'ar-cert-pro'
-  const isLaunchPrep = product.slug === 'ar-marksheet-pro' || product.slug === 'ar-invoice-pro' || product.slug === 'ar-idcard-pro' || product.slug === 'ar-report-pro' || product.slug === 'ar-worksheet-pro'
+  const isLaunchPrep = product.status === 'Launch Prep'
   const canOpen = isActive || isLaunchPrep
   const buttonLabel = isActive ? 'Start Demo' : isLaunchPrep ? 'View Details' : 'Coming soon'
   const suiteLabel = getSuiteLabel(product)

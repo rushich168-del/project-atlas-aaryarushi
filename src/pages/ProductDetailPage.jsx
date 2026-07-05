@@ -3,6 +3,7 @@ import DataStateBanner from '../components/dashboard/DataStateBanner.jsx'
 import DashboardLayout from '../components/dashboard/DashboardLayout.jsx'
 import EnvironmentBanner from '../components/dashboard/EnvironmentBanner.jsx'
 import ProductBadges from '../components/products/ProductBadges.jsx'
+import { getCategoryById, getProductBySlug } from '../data/products.js'
 import { useProductCatalog } from '../hooks/useProductCatalog.js'
 import { navigateTo } from '../utils/routes.js'
 
@@ -135,7 +136,7 @@ const arReportProLabels = ['Launch Prep', 'DOCX Output', 'Excel to Reports', 'Co
 
 export default function ProductDetailPage({ slug }) {
   const { organization, categories, products, source, status, loading, error } = useProductCatalog()
-  const product = products.find((item) => item.slug === slug)
+  const product = products.find((item) => item.slug === slug) || getProductBySlug(slug)
 
   if (loading) {
     return (
@@ -169,7 +170,7 @@ export default function ProductDetailPage({ slug }) {
     )
   }
 
-  const category = categories.find((item) => item.id === product.categoryId)
+  const category = categories.find((item) => item.id === product.categoryId) || getCategoryById(product.categoryId)
   const isArCertPro = product.slug === 'ar-cert-pro'
   const isArMarksheetPro = product.slug === 'ar-marksheet-pro'
   const isArInvoicePro = product.slug === 'ar-invoice-pro'
@@ -495,23 +496,16 @@ export default function ProductDetailPage({ slug }) {
             <Target className="text-accentBlue" size={24} aria-hidden="true" />
             <h3 className="mt-5 text-lg font-semibold text-primary">Audience</h3>
             <p className="mt-3 text-sm leading-6 text-slate-600">{product.audience}</p>
-            <button
-              type="button"
-              onClick={() => {
-                if (product.slug === 'ar-cert-pro') {
-                  navigateTo(`/dashboard/products/${product.slug}/workspace`)
-                }
-              }}
-              disabled={product.slug !== 'ar-cert-pro'}
-              className={`focus-ring mt-5 inline-flex min-h-10 items-center justify-center gap-2 rounded-md px-4 text-sm font-semibold transition ${
-                product.slug === 'ar-cert-pro'
-                  ? 'bg-accentTeal text-white hover:bg-teal-800'
-                  : 'cursor-not-allowed border border-slate-200 bg-slate-100 text-slate-400'
-              }`}
-            >
-              {product.slug === 'ar-cert-pro' ? 'Start Demo' : product.slug === 'ar-marksheet-pro' || product.slug === 'ar-invoice-pro' || product.slug === 'ar-idcard-pro' || product.slug === 'ar-report-pro' || product.slug === 'ar-worksheet-pro' ? 'Workspace coming next' : 'Coming soon'}
-              {product.slug === 'ar-cert-pro' ? <ArrowUpRight size={16} aria-hidden="true" /> : null}
-            </button>
+            {isArCertPro ? (
+              <button
+                type="button"
+                onClick={() => navigateTo(`/dashboard/products/${product.slug}/workspace`)}
+                className="focus-ring mt-5 inline-flex min-h-10 items-center justify-center gap-2 rounded-md bg-accentTeal px-4 text-sm font-semibold text-white transition hover:bg-teal-800"
+              >
+                Start Demo
+                <ArrowUpRight size={16} aria-hidden="true" />
+              </button>
+            ) : null}
           </article>
         </section>
 
