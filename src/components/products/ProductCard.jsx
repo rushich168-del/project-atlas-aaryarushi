@@ -5,19 +5,23 @@ function getSuiteLabel(product) {
   if (product.categoryId === 'education' || product.sector === 'education') return 'Education Suite'
   if (product.categoryId === 'hr' || product.sector === 'hr') return 'HR Suite'
   if (product.categoryId === 'office-business' || product.sector === 'office-business') return 'Office / Business Suite'
+  if (product.categoryId === 'communication' || product.sector === 'communication') return 'Communication Suite'
   return 'Product Suite'
 }
 
 export default function ProductCard({ product }) {
   const isActive = product.slug === 'ar-cert-pro'
+  const isSafeDemo = product.status === 'Safe Demo'
   const isLaunchPrep = product.status === 'Launch Prep'
   const isProductPrep = product.status === 'Product Prep'
-  const canOpen = isActive || isLaunchPrep || isProductPrep
-  const buttonLabel = isActive ? 'Start Demo' : isProductPrep ? 'View Plan' : isLaunchPrep ? 'View Details' : 'Coming soon'
+  const canOpen = isActive || isSafeDemo || isLaunchPrep || isProductPrep
+  const buttonLabel = isActive ? 'Start Demo' : isProductPrep ? 'View Plan' : isSafeDemo || isLaunchPrep ? 'View Details' : 'Coming soon'
   const suiteLabel = getSuiteLabel(product)
-  const statusLabel = isActive ? 'Demo Ready' : isLaunchPrep ? 'Launch Prep' : isProductPrep ? 'Product Prep' : product.desktopAvailable ? 'Desktop Ready' : 'Coming Soon'
+  const statusLabel = isActive ? 'Demo Ready' : isSafeDemo ? 'Safe Demo' : isLaunchPrep ? 'Launch Prep' : isProductPrep ? 'Product Prep' : product.desktopAvailable ? 'Desktop Ready' : 'Coming Soon'
   const statusClass = isActive
     ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+    : isSafeDemo
+      ? 'border-teal-200 bg-teal-50 text-teal-700'
     : isLaunchPrep
       ? 'border-blue-200 bg-blue-50 text-blue-700'
     : isProductPrep
@@ -51,7 +55,7 @@ export default function ProductCard({ product }) {
         onClick={() => {
           if (isActive) {
             navigateTo(`/dashboard/products/${product.slug}/workspace`)
-          } else if (isLaunchPrep || isProductPrep) {
+          } else if (isSafeDemo || isLaunchPrep || isProductPrep) {
             navigateTo(`/dashboard/products/${product.slug}`)
           }
         }}

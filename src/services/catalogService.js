@@ -3,6 +3,7 @@ import { isSupabaseConfigured, supabase } from '../lib/supabaseClient.js'
 
 const statusLabels = {
   demo_ready: 'Demo Ready',
+  safe_demo: 'Safe Demo',
   launch_prep: 'Launch Prep',
   product_prep: 'Product Prep',
   ready: 'Ready',
@@ -11,7 +12,7 @@ const statusLabels = {
   concept: 'Concept',
 }
 
-const staticCatalogOverlayStatuses = new Set(['Launch Prep', 'Product Prep'])
+const staticCatalogOverlayStatuses = new Set(['Safe Demo', 'Launch Prep', 'Product Prep'])
 
 function normalizeDbCategory(category) {
   return {
