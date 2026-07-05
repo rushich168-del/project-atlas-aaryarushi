@@ -52,7 +52,7 @@ export default function DashboardPage() {
   const stats = useMemo(
     () => [
       { label: 'Total products', value: products.length, detail: 'Across education, HR, and office automation.', icon: Boxes },
-      { label: 'Ready to demo', value: products.filter((product) => product.status === 'Ready' || product.status === 'Demo Ready' || product.status === 'Launch Prep').length, detail: 'Products marked ready for client conversations.', icon: CheckCircle2, tone: 'teal' },
+      { label: 'Ready to demo', value: products.filter((product) => product.status === 'Ready' || product.status === 'Demo Ready' || product.status === 'Safe Demo' || product.status === 'Launch Prep').length, detail: 'Products marked ready for client conversations.', icon: CheckCircle2, tone: 'teal' },
       { label: 'In progress', value: products.filter((product) => product.status === 'In progress').length, detail: 'Products with defined direction but active polish pending.', icon: Clock3, tone: 'amber' },
       { label: 'Categories', value: categories.length, detail: 'Primary business segments for catalog planning.', icon: Activity },
     ],
@@ -221,13 +221,15 @@ export default function DashboardPage() {
       active: false,
     },
     {
-      label: 'Business Mail Engine',
-      productCode: 'AR-BUSINESSMAIL-PRO',
-      summary: 'Business communication templates and mail merge workflows.',
-      suiteLabel: 'Office / Business Suite',
-      status: 'Coming Soon',
-      badge: 'Coming Soon',
-      active: false,
+      label: 'AR-MAIL-PRO',
+      productCode: 'AR-MAIL-PRO',
+      summary: 'Prepare personalized email batches from Excel data and templates with safe dry-run validation. No real sending is enabled in Project Atlas.',
+      suiteLabel: 'Communication / Email Automation',
+      status: 'Safe Demo',
+      badge: 'Safe Demo',
+      active: true,
+      href: '/dashboard/products/ar-mail-pro',
+      buttonLabel: 'View Details',
     },
   ]
   const suiteSections = [
@@ -248,6 +250,12 @@ export default function DashboardPage() {
       description: 'Invoices, quotations, purchase orders, receipts, and business mail.',
       tone: 'business',
       products: suiteProducts.filter((card) => card.suiteLabel === 'Office / Business Suite' || card.suiteLabel.startsWith('Office / Business /')),
+    },
+    {
+      title: 'Communication Suite',
+      description: 'Email preparation, dry-run validation, and safe communication workflows.',
+      tone: 'communication',
+      products: suiteProducts.filter((card) => card.suiteLabel === 'Communication Suite' || card.suiteLabel.startsWith('Communication /')),
     },
   ]
   const selectedSuiteSection = suiteSections.find((section) => section.title === selectedSuite) || suiteSections[0]
@@ -352,12 +360,14 @@ export default function DashboardPage() {
         </section>
 
         <section className="mt-6 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="grid gap-4 lg:grid-cols-3">
+          <div className="grid gap-4 lg:grid-cols-4">
             {suiteSections.map((section) => {
             const toneClass = section.tone === 'education'
               ? 'border-blue-100 bg-blue-50/70 text-blue-800'
               : section.tone === 'hr'
                 ? 'border-emerald-100 bg-emerald-50/70 text-emerald-800'
+                : section.tone === 'communication'
+                  ? 'border-teal-100 bg-teal-50/70 text-teal-800'
                 : 'border-slate-200 bg-slate-50 text-slate-800'
             const selected = selectedSuite === section.title
 

@@ -106,6 +106,28 @@ const arFeeReceiptProPlaceholders = [
 
 const arFeeReceiptProLabels = ['Product Prep', 'Planned DOCX', 'Fee Receipts', 'Coming Next']
 
+const arMailProWorkflow = [
+  'Upload or select Excel/contact data',
+  'Prepare an email subject and body template',
+  'Map recipient and personalization fields',
+  'Preview prepared recipients and message content',
+  'Run server-authoritative dry-run validation',
+  'Review prepared count and safety results',
+]
+
+const arMailProReadiness = [
+  'Safe demo positioning ready',
+  'Email preparation workflow described',
+  'Recipient preview and prepared count supported',
+  'Server-authoritative dry-run validation supported',
+  'No real row-recipient emails are sent',
+  'Controlled batch sending remains disabled',
+  'Failed-row resend remains disabled',
+  'Gmail/Outlook OAuth not added',
+]
+
+const arMailProLabels = ['Safe Demo', 'Email Prep', 'Dry-run validation', 'Real sending disabled']
+
 const arMarksheetProWorkflow = [
   'Upload marksheet Word template',
   'Upload Excel marks data',
@@ -236,6 +258,7 @@ export default function ProductDetailPage({ slug }) {
   const isArWorksheetPro = product.slug === 'ar-worksheet-pro'
   const isArQuestionPro = product.slug === 'ar-question-pro'
   const isArFeeReceiptPro = product.slug === 'ar-fee-receipt-pro'
+  const isArMailPro = product.slug === 'ar-mail-pro'
 
   return (
     <DashboardLayout title={product.name} eyebrow={category?.name || 'Product'} showBack currentView="products" workspaceStatus={status}>
@@ -288,8 +311,13 @@ export default function ProductDetailPage({ slug }) {
                   Prepared as a future product concept for schools, colleges, coaching centers, training institutes, admin offices, and accounts teams that need fee receipt and payment acknowledgment documents.
                 </p>
               ) : null}
+              {isArMailPro ? (
+                <p className="mt-3 max-w-3xl leading-7 text-slate-600">
+                  Prepared for schools, colleges, coaching centers, training institutes, admin offices, small businesses, and HR/admin teams that need safe personalized email preparation from spreadsheet data.
+                </p>
+              ) : null}
               <div className="mt-6 flex flex-wrap gap-2">
-                {(isArCertPro ? arCertProLabels : isArMarksheetPro ? arMarksheetProLabels : isArInvoicePro ? arInvoiceProLabels : isArIdcardPro ? arIdcardProLabels : isArReportPro ? arReportProLabels : isArWorksheetPro ? arWorksheetProLabels : isArQuestionPro ? arQuestionProLabels : isArFeeReceiptPro ? arFeeReceiptProLabels : product.metrics).map((metric) => (
+                {(isArCertPro ? arCertProLabels : isArMarksheetPro ? arMarksheetProLabels : isArInvoicePro ? arInvoiceProLabels : isArIdcardPro ? arIdcardProLabels : isArReportPro ? arReportProLabels : isArWorksheetPro ? arWorksheetProLabels : isArQuestionPro ? arQuestionProLabels : isArFeeReceiptPro ? arFeeReceiptProLabels : isArMailPro ? arMailProLabels : product.metrics).map((metric) => (
                   <span key={metric} className="inline-flex min-h-9 items-center rounded-md border border-slate-200 bg-lightBg px-3 text-sm font-semibold text-slate-600">
                     {metric}
                   </span>
@@ -463,6 +491,41 @@ export default function ProductDetailPage({ slug }) {
               <div className="mt-4 rounded-md border border-amber-200 bg-amber-50 p-3">
                 <p className="text-sm font-semibold text-amber-800">Current honesty note</p>
                 <p className="mt-1 text-sm leading-6 text-amber-800">AR-FEE-RECEIPT-PRO is not live yet. A dedicated workspace, DOCX generation workflow, PDF export, payment gateway, and real email sending are not available.</p>
+              </div>
+            </article>
+          </section>
+        ) : null}
+
+        {isArMailPro ? (
+          <section className="mt-6 grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
+            <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+              <h3 className="text-lg font-semibold text-primary">Safe demo workflow</h3>
+              <p className="mt-2 text-sm leading-6 text-slate-600">
+                AR-MAIL-PRO prepares personalized email batches from Excel/contact data and templates. Inside Project Atlas, this is dry-run only: no real row-recipient emails are sent.
+              </p>
+              <div className="mt-4 grid gap-2">
+                {arMailProWorkflow.map((step, index) => (
+                  <div key={step} className="flex items-center gap-3 rounded-md border border-slate-200 bg-slate-50 p-3">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-accentTeal text-xs font-bold text-white">{index + 1}</span>
+                    <p className="text-sm font-semibold text-primary">{step}</p>
+                  </div>
+                ))}
+              </div>
+            </article>
+
+            <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+              <h3 className="text-lg font-semibold text-primary">Safety and capability status</h3>
+              <div className="mt-4 grid gap-2">
+                {arMailProReadiness.map((item) => (
+                  <div key={item} className="flex items-center gap-3 rounded-md border border-teal-200 bg-teal-50 p-3">
+                    <CheckCircle2 size={17} className="shrink-0 text-teal-700" aria-hidden="true" />
+                    <p className="text-sm font-semibold text-teal-800">{item}</p>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-4 rounded-md border border-amber-200 bg-amber-50 p-3">
+                <p className="text-sm font-semibold text-amber-800">Dry-run only in Project Atlas</p>
+                <p className="mt-1 text-sm leading-6 text-amber-800">No real row-recipient emails are sent. Controlled batch sending remains disabled. Failed-row resend remains disabled. Gmail/Outlook OAuth and billing are not added.</p>
               </div>
             </article>
           </section>

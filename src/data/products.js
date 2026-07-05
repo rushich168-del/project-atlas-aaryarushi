@@ -14,6 +14,11 @@ export const productCategories = [
     name: 'Office / Business',
     description: 'Practical document, Excel, PDF, and reporting automation for daily office work.',
   },
+  {
+    id: 'communication',
+    name: 'Communication',
+    description: 'Safe communication preparation, validation, and dry-run workflows for operational teams.',
+  },
 ]
 
 export const products = [
@@ -222,24 +227,24 @@ export const products = [
     productCode: 'AR-MAIL-PRO',
     slug: 'ar-mail-pro',
     name: 'AR-MAIL-PRO',
-    categoryId: 'office-business',
-    sector: 'office-business',
-    status: 'Planned',
-    summary: 'Mail merge and follow-up workflows for operational communication at scale.',
-    metrics: ['Mail merge', 'Follow-ups', 'Contact lists'],
-    audience: 'Sales, operations, admin, event teams',
-    stage: 'Planned communication automation module.',
+    categoryId: 'communication',
+    sector: 'communication',
+    status: 'Safe Demo',
+    summary: 'Prepare personalized email batches from Excel data and templates with safe dry-run validation.',
+    metrics: ['Email Prep', 'Excel to personalized email', 'Dry-run validation', 'Real sending disabled'],
+    audience: 'Schools, colleges, coaching centers, training institutes, admin offices, small businesses, HR/admin teams',
+    stage: 'Demo-ready safe email preparation workflow for Project Atlas. Dry-run only; real row-recipient email sending remains disabled.',
     currentVersion: '0.1',
     desktopAvailable: true,
     saasAvailable: false,
     isBeta: true,
     isEnabled: true,
-    inputs: ['Contact list', 'Message template', 'Follow-up rules'],
-    outputs: ['Prepared emails', 'Follow-up list', 'Delivery tracker'],
+    inputs: ['Excel contact data', 'Email subject/body template', 'Recipient and personalization field mapping'],
+    outputs: ['Prepared email preview', 'Recipient prepared count', 'Server-authoritative dry-run validation', 'No real row-recipient emails sent'],
   },
 ]
 
-export const productStatuses = ['All', 'Demo Ready', 'Launch Prep', 'Product Prep', 'Ready', 'In progress', 'Planned', 'Concept']
+export const productStatuses = ['All', 'Demo Ready', 'Safe Demo', 'Launch Prep', 'Product Prep', 'Ready', 'In progress', 'Planned', 'Concept']
 export const availabilityFilters = ['All', 'Desktop', 'SaaS', 'Beta']
 
 export function getProductsByCategory(categoryId) {
