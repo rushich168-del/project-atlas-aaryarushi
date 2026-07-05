@@ -91,6 +91,27 @@ const arIdcardProReadiness = [
 
 const arIdcardProLabels = ['Launch Prep', 'DOCX Output', 'Excel to ID Cards', 'Coming Next']
 
+const arReportProWorkflow = [
+  'Upload report Word template',
+  'Upload Excel student/report data',
+  'Map student, marks, attendance, remarks, and report fields',
+  'Preview one row',
+  'Generate DOCX reports',
+  'Review outputs in History',
+]
+
+const arReportProReadiness = [
+  'Product positioning ready',
+  'Dashboard card ready',
+  'Detail page ready',
+  'DOCX output planned',
+  'Separate report workspace coming next',
+  'PDF export not available',
+  'Real email sending disabled',
+]
+
+const arReportProLabels = ['Launch Prep', 'DOCX Output', 'Excel to Reports', 'Coming Next']
+
 export default function ProductDetailPage({ slug }) {
   const { organization, categories, products, source, status, loading, error } = useProductCatalog()
   const product = products.find((item) => item.slug === slug)
@@ -132,6 +153,7 @@ export default function ProductDetailPage({ slug }) {
   const isArMarksheetPro = product.slug === 'ar-marksheet-pro'
   const isArInvoicePro = product.slug === 'ar-invoice-pro'
   const isArIdcardPro = product.slug === 'ar-idcard-pro'
+  const isArReportPro = product.slug === 'ar-report-pro'
 
   return (
     <DashboardLayout title={product.name} eyebrow={category?.name || 'Product'} showBack currentView="products" workspaceStatus={status}>
@@ -164,8 +186,13 @@ export default function ProductDetailPage({ slug }) {
                   Prepared for schools, colleges, coaching centers, training institutes, HR teams, admin offices, and small organizations that need repeatable ID card documents from spreadsheet data.
                 </p>
               ) : null}
+              {isArReportPro ? (
+                <p className="mt-3 max-w-3xl leading-7 text-slate-600">
+                  Prepared for schools, colleges, coaching centers, training institutes, class teachers, academic coordinators, and admin offices that need repeatable progress reports from spreadsheet data.
+                </p>
+              ) : null}
               <div className="mt-6 flex flex-wrap gap-2">
-                {(isArCertPro ? arCertProLabels : isArMarksheetPro ? arMarksheetProLabels : isArInvoicePro ? arInvoiceProLabels : isArIdcardPro ? arIdcardProLabels : product.metrics).map((metric) => (
+                {(isArCertPro ? arCertProLabels : isArMarksheetPro ? arMarksheetProLabels : isArInvoicePro ? arInvoiceProLabels : isArIdcardPro ? arIdcardProLabels : isArReportPro ? arReportProLabels : product.metrics).map((metric) => (
                   <span key={metric} className="inline-flex min-h-9 items-center rounded-md border border-slate-200 bg-lightBg px-3 text-sm font-semibold text-slate-600">
                     {metric}
                   </span>
@@ -340,6 +367,41 @@ export default function ProductDetailPage({ slug }) {
           </section>
         ) : null}
 
+        {isArReportPro ? (
+          <section className="mt-6 grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
+            <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+              <h3 className="text-lg font-semibold text-primary">Launch-prep workflow</h3>
+              <p className="mt-2 text-sm leading-6 text-slate-600">
+                AR-REPORT-PRO is positioned as the next education product in the lineup. The current milestone prepares the launch story and detail page; a separate report workspace is still coming next.
+              </p>
+              <div className="mt-4 grid gap-2">
+                {arReportProWorkflow.map((step, index) => (
+                  <div key={step} className="flex items-center gap-3 rounded-md border border-slate-200 bg-slate-50 p-3">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-accentTeal text-xs font-bold text-white">{index + 1}</span>
+                    <p className="text-sm font-semibold text-primary">{step}</p>
+                  </div>
+                ))}
+              </div>
+            </article>
+
+            <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+              <h3 className="text-lg font-semibold text-primary">Readiness and limitations</h3>
+              <div className="mt-4 grid gap-2">
+                {arReportProReadiness.map((item) => (
+                  <div key={item} className="flex items-center gap-3 rounded-md border border-blue-200 bg-blue-50 p-3">
+                    <CheckCircle2 size={17} className="shrink-0 text-accentBlue" aria-hidden="true" />
+                    <p className="text-sm font-semibold text-blue-800">{item}</p>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-4 rounded-md border border-amber-200 bg-amber-50 p-3">
+                <p className="text-sm font-semibold text-amber-800">Current honesty note</p>
+                <p className="mt-1 text-sm leading-6 text-amber-800">AR-REPORT-PRO does not yet have a separate live workspace. PDF export and real email sending are not available.</p>
+              </div>
+            </article>
+          </section>
+        ) : null}
+
         <section className="mt-6 grid gap-4 xl:grid-cols-[1fr_1fr_0.8fr]">
           <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
             <FileInput className="text-accentBlue" size={24} aria-hidden="true" />
@@ -385,7 +447,7 @@ export default function ProductDetailPage({ slug }) {
                   : 'cursor-not-allowed border border-slate-200 bg-slate-100 text-slate-400'
               }`}
             >
-              {product.slug === 'ar-cert-pro' ? 'Start Demo' : product.slug === 'ar-marksheet-pro' || product.slug === 'ar-invoice-pro' || product.slug === 'ar-idcard-pro' ? 'Workspace coming next' : 'Coming soon'}
+              {product.slug === 'ar-cert-pro' ? 'Start Demo' : product.slug === 'ar-marksheet-pro' || product.slug === 'ar-invoice-pro' || product.slug === 'ar-idcard-pro' || product.slug === 'ar-report-pro' ? 'Workspace coming next' : 'Coming soon'}
               {product.slug === 'ar-cert-pro' ? <ArrowUpRight size={16} aria-hidden="true" /> : null}
             </button>
           </article>
