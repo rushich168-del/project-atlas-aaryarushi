@@ -23,15 +23,15 @@ export default function Sidebar({ currentView = 'dashboard' }) {
   const workspaceName = loading ? 'Loading workspace' : currentOrganization?.name || 'Static Workspace'
 
   return (
-    <aside className="hidden min-h-screen w-72 shrink-0 border-r border-slate-200 bg-white px-4 py-5 lg:sticky lg:top-0 lg:block">
-      <div className="flex min-h-[calc(100vh-2.5rem)] flex-col">
+    <aside className="hidden h-[calc(100vh-2rem)] w-64 shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-white px-3 py-4 shadow-sm lg:sticky lg:top-4 lg:block">
+      <div className="flex h-full flex-col">
       <button
         type="button"
         onClick={() => navigateTo('/')}
-        className="focus-ring flex w-full items-center gap-3 rounded-md px-3 py-2 text-left"
+        className="focus-ring flex w-full items-center gap-3 rounded-md px-2.5 py-2 text-left"
       >
-        <span className="flex h-10 w-10 items-center justify-center rounded-md bg-primary text-white">
-          <Sparkles size={19} aria-hidden="true" />
+        <span className="flex h-9 w-9 items-center justify-center rounded-md bg-accentTeal text-white">
+          <Sparkles size={18} aria-hidden="true" />
         </span>
         <span>
           <span className="block text-sm font-bold text-primary">Project Atlas</span>
@@ -40,7 +40,7 @@ export default function Sidebar({ currentView = 'dashboard' }) {
       </button>
 
       {organizations.length > 1 && (
-        <label className="mt-5 grid gap-2 px-3">
+        <label className="mt-5 grid gap-2 px-2.5">
           <span className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Organization</span>
           <select
             value={currentOrganizationId || ''}
@@ -56,8 +56,8 @@ export default function Sidebar({ currentView = 'dashboard' }) {
         </label>
       )}
 
-      <nav className="mt-8 grid gap-1">
-        <p className="px-3 text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Workspace</p>
+      <nav className="mt-7 grid gap-1">
+        <p className="px-2.5 text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Workspace</p>
         {moduleNavItems.map((item) => {
           const Icon = item.icon
           return (
@@ -65,7 +65,7 @@ export default function Sidebar({ currentView = 'dashboard' }) {
               key={item.id}
               type="button"
               onClick={() => navigateTo(item.path)}
-              className={`focus-ring flex min-h-11 items-center gap-3 rounded-md px-3 text-sm font-semibold transition ${currentView === item.id ? 'bg-primary text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-primary'}`}
+              className={`focus-ring flex min-h-10 items-center gap-2.5 rounded-md px-2.5 text-sm font-semibold transition ${currentView === item.id ? 'bg-accentTeal text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50 hover:text-primary'}`}
             >
               <Icon size={18} aria-hidden="true" />
               {item.label}
