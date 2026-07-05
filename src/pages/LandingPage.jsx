@@ -40,7 +40,7 @@ const fadeUp = {
 
 const productSuiteGroups = [
   {
-    title: 'Education',
+    title: 'Education Suite',
     description: 'Document automation workflows for academic teams and institute operations.',
     products: [
       { name: 'AR-CERT-PRO', status: 'Demo Ready', description: 'Working demo for certificate DOCX generation from Excel data and Word templates.' },
@@ -52,7 +52,7 @@ const productSuiteGroups = [
     ],
   },
   {
-    title: 'HR / Admin',
+    title: 'HR / Admin Suite',
     description: 'Admin-ready document and communication preparation for people and operations teams.',
     products: [
       { name: 'AR-IDCARD-PRO', status: 'Launch Prep', description: 'Launch-prep plan for student and employee ID card documents.' },
@@ -60,7 +60,7 @@ const productSuiteGroups = [
     ],
   },
   {
-    title: 'Office / Business',
+    title: 'Office / Business Suite',
     description: 'Repeatable document preparation for small businesses and admin teams.',
     products: [
       { name: 'AR-INVOICE-PRO', status: 'Launch Prep', description: 'Launch-prep plan for invoice documents from spreadsheet data.' },
