@@ -1,10 +1,17 @@
 const historyPath = '/dashboard/history'
 const historyScrollStorageKey = 'projectAtlas.history.scrollTop'
 
+// History uses a dedicated, proven scroll-restoration path (this file +
+// HistoryPage), separate from the app-wide scrollRestoration.js manager which
+// handles Dashboard / Workspace / other routes. History is special-cased because
+// its list loads asynchronously and its loading state is partially tall, which
+// tripped the generic manager into saving 0 over a valid deep scroll value. The
+// manager explicitly skips historyPath so the two never fight.
+//
 // The whole document is the History scroll container: the dashboard layout uses
 // `min-h-screen` and grows with its content, so the window/document scrolls —
-// there is no inner overflow-y-auto pane wrapping History. Read and write scroll
-// state through the scrolling element accordingly.
+// there is no inner overflow-y-auto pane wrapping History.
+
 function getScrollTop() {
   return window.document.scrollingElement?.scrollTop ?? window.scrollY ?? 0
 }
@@ -41,6 +48,8 @@ function getSavedHistoryScrollPosition() {
 }
 
 export function navigateTo(path) {
+  // Save the outgoing History scroll BEFORE the URL changes and before any React
+  // re-render — the reliable moment, while still on History with its DOM intact.
   if (window.location.pathname === historyPath) {
     saveHistoryScrollPosition()
   }
@@ -48,10 +57,11 @@ export function navigateTo(path) {
   window.history.pushState({}, '', path)
   window.dispatchEvent(new PopStateEvent('popstate'))
 
+  // History restores through its own retry loop; every other route is restored
+  // (or reset to top) by the app-wide scrollRestoration.js manager via popstate,
+  // so navigateTo must NOT force those pages to the top here.
   if (path === historyPath) {
     restoreScrollForPath(path)
-  } else {
-    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 }
 
