@@ -11,14 +11,23 @@
 //     actually scrollable, otherwise it falls back to the document scroller.
 //
 //   * Saving on React unmount is unreliable: useEffect cleanup runs after React
-//     has already swapped in the next page, so reading scroll at that point
-//     yields the NEW page's position (usually 0) and clobbers the outgoing
-//     route's saved value. Instead we save on the `popstate` event, which fires
-//     while the outgoing DOM is still mounted and the scroll position is still
-//     valid, and we track the current route key ourselves so the save is written
-//     under the page we are leaving.
+//     has already swapped in the next page. Instead we save on the `popstate`
+//     event (fired while the outgoing DOM is still mounted), continuously on
+//     scroll, and on pagehide / visibilitychange:hidden — and we track the
+//     current route key ourselves so a save is always written under the page
+//     being left.
+//
+//   * History is async: its list renders after the route mounts, so restore uses
+//     an rAF retry loop and pages re-signal via notifyRouteContentReady() once
+//     their data is in. Crucially, the continuous scroll-saver is suppressed
+//     WHILE a restore is running, otherwise the restore's own intermediate
+//     scrollTop writes (clamped to the still-short page) would overwrite the real
+//     saved offset with a smaller value — the bug that made History snap back.
 //
 // Route key = pathname. Stored as sessionStorage `projectAtlas.scrollRestore:<path>`.
+// sessionStorage is per-tab and survives in-tab navigation, back/forward, bfcache
+// and tab switching (all same-tab), which is exactly the scope we support; we do
+// not attempt cross-browser sync.
 
 const STORAGE_PREFIX = 'projectAtlas.scrollRestore:'
 const RESTORE_TIMEOUT_MS = 5000
@@ -27,6 +36,7 @@ let installed = false
 let currentKey = null
 let saveFrame = 0
 let restoreToken = 0
+let activeRestores = 0
 
 function keyForPath(pathname) {
   return pathname || '/'
@@ -42,8 +52,6 @@ function maxScrollTop(element) {
 
 // Resolve the element that actually scrolls for the current page. Prefer a
 // tagged, genuinely-scrollable container; otherwise the whole document scrolls.
-// Resolved lazily on every read/write because scrollability changes as async
-// content mounts.
 function getActiveScroller() {
   const tagged = window.document.querySelector('[data-scroll-restore]')
 
@@ -72,10 +80,10 @@ function writeSaved(key, top) {
 }
 
 // Persist the current route's scroll position. Skipped when there is nothing to
-// scroll (page short / mid-load), so a transient collapse-to-top during route
-// teardown or data loading never overwrites a real saved value with 0.
+// scroll (page short / mid-load) and while a restore is running, so a transient
+// collapse or the restore's own clamped writes never overwrite a good value.
 function saveCurrent() {
-  if (!currentKey) {
+  if (!currentKey || activeRestores > 0) {
     return
   }
 
@@ -93,19 +101,41 @@ function saveCurrent() {
 function scheduleRestore(key) {
   const token = ++restoreToken
   const target = readSaved(key)
+
+  if (target === null) {
+    // Fresh route (no saved position) — reset to top once, no retry needed.
+    window.requestAnimationFrame(() => {
+      if (token === restoreToken && currentKey === key) {
+        getActiveScroller().scrollTop = 0
+      }
+    })
+    return
+  }
+
   const startedAt = Date.now()
   let lastMax = -1
   let stableFrames = 0
+  let finished = false
+
+  activeRestores += 1
+
+  function finish() {
+    if (!finished) {
+      finished = true
+      activeRestores = Math.max(0, activeRestores - 1)
+    }
+  }
 
   function attempt() {
     // Superseded by a newer navigation, or the route changed again mid-retry.
     if (token !== restoreToken || currentKey !== key) {
+      finish()
       return
     }
 
     const scroller = getActiveScroller()
     const max = maxScrollTop(scroller)
-    const desired = target === null ? 0 : Math.min(target, max)
+    const desired = Math.min(target, max)
 
     // Assign scrollTop directly: instant, and it ignores the global
     // `html { scroll-behavior: smooth }` that would otherwise animate.
@@ -119,18 +149,19 @@ function scheduleRestore(key) {
     lastMax = max
 
     const reached = Math.abs(scroller.scrollTop - desired) <= 2
-    const tallEnough = target === null || max >= target
+    const tallEnough = max >= target
     const elapsed = Date.now() - startedAt
 
     // Accept a page that is genuinely shorter than the saved offset ONLY once its
     // height has held steady for many frames AND enough time has passed for async
-    // content to have rendered. This is the fix for History: its loading state is
-    // itself partially tall and height-stable, so a naive "stable => done" check
-    // stopped the retry before the async list grew the page to the saved depth.
+    // content to have rendered. History's loading state is itself partially tall
+    // and height-stable, so a naive "stable => done" check would stop the retry
+    // before the async list grew the page to the saved depth.
     const settledShorter = max > 0 && stableFrames >= 12 && elapsed > 1500
     const timedOut = elapsed > RESTORE_TIMEOUT_MS
 
     if ((reached && (tallEnough || settledShorter)) || timedOut) {
+      finish()
       return
     }
 
@@ -138,21 +169,6 @@ function scheduleRestore(key) {
   }
 
   window.requestAnimationFrame(attempt)
-}
-
-// Re-run restoration for the current route. Async pages (History, Workspace)
-// call this once their data/list has rendered, so the saved deep-scroll position
-// is restored after the page has actually grown tall enough — the popstate-time
-// attempt alone can finish before the list exists. Ensures the manager is
-// installed first, which also covers React running child effects before the
-// parent DashboardLayout's install effect on a cold mount.
-export function notifyRouteContentReady() {
-  if (!installed) {
-    installScrollRestoration()
-    return
-  }
-
-  scheduleRestore(currentKey)
 }
 
 function handleScroll() {
@@ -182,6 +198,30 @@ function handlePopState() {
   scheduleRestore(currentKey)
 }
 
+// Fired on initial load AND when a page is restored from the bfcache (back/forward
+// to a document without a React remount or loading transition). Re-sync the key
+// and restore, so a bfcache return doesn't leave History pinned at the top.
+function handlePageShow() {
+  currentKey = keyForPath(window.location.pathname)
+  scheduleRestore(currentKey)
+}
+
+// Re-run restoration for the current route. Async pages (History, Workspace)
+// call this once their data/list has rendered, so the saved deep-scroll position
+// is restored after the page has actually grown tall enough — the popstate-time
+// attempt alone can finish before the list exists. Ensures the manager is
+// installed first, which also covers React running child effects before the
+// parent DashboardLayout's install effect on a cold mount.
+export function notifyRouteContentReady() {
+  if (!installed) {
+    installScrollRestoration()
+    return
+  }
+
+  currentKey = keyForPath(window.location.pathname)
+  scheduleRestore(currentKey)
+}
+
 // Idempotent. Safe to call from every DashboardLayout mount; listeners install
 // once. Independent of React lifecycle so it survives remounts and covers both
 // in-app navigation and native browser back/forward (both emit popstate).
@@ -206,6 +246,7 @@ export function installScrollRestoration() {
   // is observed (scroll events don't bubble but do have a capture phase).
   window.addEventListener('scroll', handleScroll, { passive: true, capture: true })
   window.addEventListener('popstate', handlePopState)
+  window.addEventListener('pageshow', handlePageShow)
   window.addEventListener('pagehide', saveCurrent)
   window.document.addEventListener('visibilitychange', handleVisibilityChange)
 
