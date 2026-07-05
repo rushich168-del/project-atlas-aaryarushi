@@ -259,13 +259,25 @@ export default function ProductDetailPage({ slug }) {
   const isArFeeReceiptPro = product.slug === 'ar-fee-receipt-pro'
   const isArMailPro = product.slug === 'ar-mail-pro'
   const hasDedicatedWorkspace = isArCertPro
+  const isSharedDocxWorkspace = [
+    'ar-marksheet-pro',
+    'ar-report-pro',
+    'ar-worksheet-pro',
+    'ar-question-pro',
+    'ar-invoice-pro',
+    'ar-fee-receipt-pro',
+  ].includes(product.slug)
   const mainActionLabel = hasDedicatedWorkspace
     ? 'Open Workspace'
+    : isSharedDocxWorkspace
+      ? 'Start DOCX Workspace'
     : isArMailPro
       ? 'Open Mail Prep Workspace'
       : 'Prepare Workspace'
   const actionHelpText = hasDedicatedWorkspace
     ? 'Opens the connected AR-CERT-PRO workspace for template upload, data upload, preview, DOCX generation, and History.'
+    : isSharedDocxWorkspace
+      ? 'Opens the shared DOCX workspace for template upload, data upload, placeholder checking, preview, and supported DOCX generation.'
     : isArMailPro
       ? 'Opens a guided mail preparation workspace. Real row-recipient sending stays disabled.'
       : 'Opens a guided workspace starter to confirm template, data, fields, and output expectations before a dedicated workflow is connected.'
@@ -290,6 +302,13 @@ export default function ProductDetailPage({ slug }) {
           'Required placeholders such as StudentName, Course, Date, and CertificateId',
           'Preview one row before DOCX generation',
         ]
+        : isSharedDocxWorkspace
+          ? [
+            `Word ${product.name.replace('AR-', '').replace('-PRO', '').toLowerCase()} template with {{ColumnName}} placeholders`,
+            'Excel data file with matching column headers',
+            'Required placeholders and Excel columns for the selected product',
+            'Preview one row before DOCX generation',
+          ]
         : [
           `Word ${product.name.replace('AR-', '').replace('-PRO', '').toLowerCase()} template`,
           'Excel data file for the rows to prepare',
@@ -300,6 +319,8 @@ export default function ProductDetailPage({ slug }) {
     ? 'Prepared recipient preview, prepared count, and dry-run validation results. No real row-recipient emails are sent.'
     : hasDedicatedWorkspace
       ? 'Editable DOCX output, generated batch files, and History records from the connected workspace.'
+      : isSharedDocxWorkspace
+        ? 'DOCX output from the shared document workspace, with preview and History support where the workspace is saved.'
       : 'A clear setup checklist for the product workflow. DOCX output is expected only after the dedicated workspace is connected and tested.'
   const handleMainAction = () => {
     navigateTo(`/dashboard/products/${product.slug}/workspace`)
@@ -436,7 +457,7 @@ export default function ProductDetailPage({ slug }) {
             <FileOutput className="text-accentBlue" size={24} aria-hidden="true" />
             <h3 className="mt-5 text-lg font-semibold text-primary">Expected output</h3>
             <p className="mt-3 text-sm leading-6 text-slate-600">{expectedOutputText}</p>
-            {!hasDedicatedWorkspace ? (
+            {!hasDedicatedWorkspace && !isSharedDocxWorkspace ? (
               <div className="mt-4 rounded-md border border-amber-200 bg-amber-50 p-3">
                 <p className="text-sm font-semibold text-amber-800">Safe setup message</p>
                 <p className="mt-1 text-sm leading-6 text-amber-800">
@@ -485,9 +506,9 @@ export default function ProductDetailPage({ slug }) {
         {isArWorksheetPro ? (
           <section className="mt-6 grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
             <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-              <h3 className="text-lg font-semibold text-primary">Workspace setup workflow</h3>
+              <h3 className="text-lg font-semibold text-primary">Shared DOCX workspace workflow</h3>
               <p className="mt-2 text-sm leading-6 text-slate-600">
-                AR-WORKSHEET-PRO is positioned as an education product workspace. The current setup path documents the worksheet workflow while a dedicated worksheet workspace is scoped.
+                AR-WORKSHEET-PRO now uses the shared DOCX workspace for worksheet templates, worksheet content Excel data, preview, and supported DOCX generation.
               </p>
               <div className="mt-4 grid gap-2">
                 {arWorksheetProWorkflow.map((step, index) => (
@@ -511,7 +532,7 @@ export default function ProductDetailPage({ slug }) {
               </div>
               <div className="mt-4 rounded-md border border-amber-200 bg-amber-50 p-3">
                 <p className="text-sm font-semibold text-amber-800">Current honesty note</p>
-                <p className="mt-1 text-sm leading-6 text-amber-800">AR-WORKSHEET-PRO does not yet have a separate live workspace. PDF export and real email sending are not available.</p>
+                <p className="mt-1 text-sm leading-6 text-amber-800">AR-WORKSHEET-PRO uses the shared DOCX workspace. PDF export and real email sending are not available.</p>
               </div>
             </article>
           </section>
@@ -520,9 +541,9 @@ export default function ProductDetailPage({ slug }) {
         {isArQuestionPro ? (
           <section className="mt-6 grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
             <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-              <h3 className="text-lg font-semibold text-primary">Workspace setup workflow</h3>
+              <h3 className="text-lg font-semibold text-primary">Shared DOCX workspace workflow</h3>
               <p className="mt-2 text-sm leading-6 text-slate-600">
-                AR-QUESTION-PRO is positioned as an education product workspace. The current setup path documents the question paper workflow while a dedicated question workspace is scoped.
+                AR-QUESTION-PRO now uses the shared DOCX workspace for question paper templates, question bank Excel data, preview, and supported DOCX generation.
               </p>
               <div className="mt-4 grid gap-2">
                 {arQuestionProWorkflow.map((step, index) => (
@@ -546,7 +567,7 @@ export default function ProductDetailPage({ slug }) {
               </div>
               <div className="mt-4 rounded-md border border-amber-200 bg-amber-50 p-3">
                 <p className="text-sm font-semibold text-amber-800">Current honesty note</p>
-                <p className="mt-1 text-sm leading-6 text-amber-800">AR-QUESTION-PRO does not yet have a separate live workspace. PDF export, question randomization, and real email sending are not available.</p>
+                <p className="mt-1 text-sm leading-6 text-amber-800">AR-QUESTION-PRO uses the shared DOCX workspace. PDF export, question randomization, and real email sending are not available.</p>
               </div>
             </article>
           </section>
@@ -734,9 +755,9 @@ export default function ProductDetailPage({ slug }) {
         {isArReportPro ? (
           <section className="mt-6 grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
             <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-              <h3 className="text-lg font-semibold text-primary">Workspace setup workflow</h3>
+              <h3 className="text-lg font-semibold text-primary">Shared DOCX workspace workflow</h3>
               <p className="mt-2 text-sm leading-6 text-slate-600">
-                AR-REPORT-PRO is positioned as an education product workspace. The current setup path documents the report workflow while a dedicated report workspace is scoped.
+                AR-REPORT-PRO now uses the shared DOCX workspace for student report templates, student performance Excel data, preview, and supported DOCX generation.
               </p>
               <div className="mt-4 grid gap-2">
                 {arReportProWorkflow.map((step, index) => (
@@ -760,7 +781,7 @@ export default function ProductDetailPage({ slug }) {
               </div>
               <div className="mt-4 rounded-md border border-amber-200 bg-amber-50 p-3">
                 <p className="text-sm font-semibold text-amber-800">Current honesty note</p>
-                <p className="mt-1 text-sm leading-6 text-amber-800">AR-REPORT-PRO does not yet have a separate live workspace. PDF export and real email sending are not available.</p>
+                <p className="mt-1 text-sm leading-6 text-amber-800">AR-REPORT-PRO uses the shared DOCX workspace. PDF export and real email sending are not available.</p>
               </div>
             </article>
           </section>

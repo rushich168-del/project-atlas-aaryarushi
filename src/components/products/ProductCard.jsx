@@ -11,13 +11,23 @@ function getSuiteLabel(product) {
 
 export default function ProductCard({ product }) {
   const isActive = product.slug === 'ar-cert-pro'
+  const isSharedDocxWorkspace = [
+    'ar-marksheet-pro',
+    'ar-report-pro',
+    'ar-worksheet-pro',
+    'ar-question-pro',
+    'ar-invoice-pro',
+    'ar-fee-receipt-pro',
+  ].includes(product.slug)
   const isSafeDemo = product.status === 'Safe Demo'
   const isLaunchPrep = product.status === 'Launch Prep'
   const isProductPrep = product.status === 'Product Prep'
   const canOpen = product.isEnabled !== false
   const buttonLabel = isActive
     ? 'Open Workspace'
-    : isSafeDemo
+    : isSharedDocxWorkspace
+      ? 'Open Workspace'
+      : isSafeDemo
       ? 'Mail Prep'
       : isLaunchPrep || isProductPrep || product.status === 'Planned' || product.status === 'Concept'
         ? 'Setup Workspace'
@@ -25,7 +35,9 @@ export default function ProductCard({ product }) {
   const suiteLabel = getSuiteLabel(product)
   const statusLabel = isActive
     ? 'Ready to use'
-    : isSafeDemo
+    : isSharedDocxWorkspace
+      ? 'Product workspace'
+      : isSafeDemo
       ? 'Mail preparation'
       : isLaunchPrep
         ? 'Workspace setup'
@@ -36,9 +48,11 @@ export default function ProductCard({ product }) {
             : 'Workspace setup'
   const statusClass = isActive
     ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-    : isSafeDemo
+    : isSharedDocxWorkspace
+      ? 'border-blue-200 bg-blue-50 text-blue-700'
+      : isSafeDemo
       ? 'border-teal-200 bg-teal-50 text-teal-700'
-    : isLaunchPrep
+      : isLaunchPrep
       ? 'border-blue-200 bg-blue-50 text-blue-700'
     : isProductPrep
       ? 'border-amber-200 bg-amber-50 text-amber-700'
