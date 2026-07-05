@@ -2,6 +2,8 @@ import { productCategories as staticCategories, products as staticProducts } fro
 import { isSupabaseConfigured, supabase } from '../lib/supabaseClient.js'
 
 const statusLabels = {
+  demo_ready: 'Demo Ready',
+  launch_prep: 'Launch Prep',
   ready: 'Ready',
   in_progress: 'In progress',
   planned: 'Planned',
@@ -55,6 +57,46 @@ function staticFallback(reason = '', status = 'static', organization = null) {
     source: 'static',
     status,
     message: reason,
+  }
+}
+
+function findCategoryForStaticProduct(categories, staticProduct) {
+  return categories.find((category) => (
+    category.id === staticProduct.categoryId
+    || category.slug === staticProduct.categoryId
+    || category.sector === staticProduct.sector
+  ))
+}
+
+function mergeStaticLaunchPrepProducts(categories, products) {
+  const productSlugs = new Set(products.map((product) => product.slug))
+  const categoryIds = new Set(categories.map((category) => category.id))
+  const mergedCategories = [...categories]
+  const mergedProducts = [...products]
+
+  staticProducts
+    .filter((product) => product.status === 'Launch Prep' && !productSlugs.has(product.slug))
+    .forEach((product, index) => {
+      const matchingCategory = findCategoryForStaticProduct(mergedCategories, product)
+      const staticCategory = staticCategories.find((category) => category.id === product.categoryId)
+      const categoryId = matchingCategory?.id || product.categoryId
+
+      if (!matchingCategory && staticCategory && !categoryIds.has(staticCategory.id)) {
+        mergedCategories.push(staticCategory)
+        categoryIds.add(staticCategory.id)
+      }
+
+      mergedProducts.push({
+        ...product,
+        categoryId,
+        sortOrder: products.length + index + 1,
+      })
+      productSlugs.add(product.slug)
+    })
+
+  return {
+    categories: mergedCategories,
+    products: mergedProducts,
   }
 }
 
@@ -182,10 +224,12 @@ export async function getCatalogData(organizationId, organization = null) {
       return staticFallback('The live catalog is ready for setup. A sample catalog is shown until products are seeded.', 'empty_catalog', organization)
     }
 
+    const mergedCatalog = mergeStaticLaunchPrepProducts(categories, products)
+
     return {
       organization,
-      categories,
-      products,
+      categories: mergedCatalog.categories,
+      products: mergedCatalog.products,
       source: 'supabase',
       status: 'connected',
       message: '',
