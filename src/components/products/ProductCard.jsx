@@ -10,7 +10,7 @@ function getSuiteLabel(product) {
 
 export default function ProductCard({ product }) {
   const isActive = product.slug === 'ar-cert-pro'
-  const isLaunchPrep = product.slug === 'ar-marksheet-pro' || product.slug === 'ar-invoice-pro'
+  const isLaunchPrep = product.slug === 'ar-marksheet-pro' || product.slug === 'ar-invoice-pro' || product.slug === 'ar-idcard-pro'
   const canOpen = isActive || isLaunchPrep
   const buttonLabel = isActive ? 'Start Demo' : isLaunchPrep ? 'View Details' : 'Coming soon'
   const suiteLabel = getSuiteLabel(product)
