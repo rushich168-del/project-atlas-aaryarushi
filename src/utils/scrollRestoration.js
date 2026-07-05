@@ -17,12 +17,12 @@
 //     current route key ourselves so a save is always written under the page
 //     being left.
 //
-//   * History is async: its list renders after the route mounts, so restore uses
-//     an rAF retry loop and pages re-signal via notifyRouteContentReady() once
-//     their data is in. Crucially, the continuous scroll-saver is suppressed
-//     WHILE a restore is running, otherwise the restore's own intermediate
-//     scrollTop writes (clamped to the still-short page) would overwrite the real
-//     saved offset with a smaller value — the bug that made History snap back.
+//   * History is deliberately NOT handled here — it has its own dedicated path
+//     (routes.js + HistoryPage) that is guarded by React's real loading state.
+//     This manager skips HISTORY_PATH for both save and restore so the two never
+//     conflict. The continuous scroll-saver is also suppressed WHILE a restore is
+//     running, so a restore's own intermediate scrollTop writes can't overwrite a
+//     saved offset.
 //
 // Route key = pathname. Stored as sessionStorage `projectAtlas.scrollRestore:<path>`.
 // sessionStorage is per-tab and survives in-tab navigation, back/forward, bfcache
@@ -31,6 +31,12 @@
 
 const STORAGE_PREFIX = 'projectAtlas.scrollRestore:'
 const RESTORE_TIMEOUT_MS = 5000
+
+// History is handled by its own dedicated, proven path (routes.js + HistoryPage),
+// because its async, partially-tall loading state made this generic manager save
+// 0 over a valid deep scroll value. The manager skips this route entirely so the
+// two systems never fight.
+const HISTORY_PATH = '/dashboard/history'
 
 let installed = false
 let currentKey = null
@@ -83,7 +89,7 @@ function writeSaved(key, top) {
 // scroll (page short / mid-load) and while a restore is running, so a transient
 // collapse or the restore's own clamped writes never overwrite a good value.
 function saveCurrent() {
-  if (!currentKey || activeRestores > 0) {
+  if (!currentKey || currentKey === HISTORY_PATH || activeRestores > 0) {
     return
   }
 
@@ -99,6 +105,11 @@ function saveCurrent() {
 // Restore a route's saved position, retrying across frames because History /
 // Workspace data renders after the route mounts and grows the page.
 function scheduleRestore(key) {
+  // History restores through its own path; do not touch it here.
+  if (key === HISTORY_PATH) {
+    return
+  }
+
   const token = ++restoreToken
   const target = readSaved(key)
 
@@ -202,22 +213,6 @@ function handlePopState() {
 // to a document without a React remount or loading transition). Re-sync the key
 // and restore, so a bfcache return doesn't leave History pinned at the top.
 function handlePageShow() {
-  currentKey = keyForPath(window.location.pathname)
-  scheduleRestore(currentKey)
-}
-
-// Re-run restoration for the current route. Async pages (History, Workspace)
-// call this once their data/list has rendered, so the saved deep-scroll position
-// is restored after the page has actually grown tall enough — the popstate-time
-// attempt alone can finish before the list exists. Ensures the manager is
-// installed first, which also covers React running child effects before the
-// parent DashboardLayout's install effect on a cold mount.
-export function notifyRouteContentReady() {
-  if (!installed) {
-    installScrollRestoration()
-    return
-  }
-
   currentKey = keyForPath(window.location.pathname)
   scheduleRestore(currentKey)
 }
