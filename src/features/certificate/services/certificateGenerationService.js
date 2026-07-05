@@ -8,22 +8,22 @@ import { supabase } from '../../../lib/supabaseClient.js'
 // Implementing a browser-side PDF converter here would risk producing broken or
 // low-fidelity PDFs, which is not acceptable for Project Atlas v2.3.
 
-function buildGeneratedFileName({ templateRecord, mergeResult }) {
+function buildGeneratedFileName({ templateRecord, mergeResult, documentLabel = 'certificate' }) {
   const certificateId = mergeResult?.values?.certificate_id
   const recipient = mergeResult?.values?.name
-  const baseName = [certificateId, recipient, 'certificate']
+  const baseName = [certificateId, recipient, documentLabel]
     .filter(Boolean)
     .join('-')
 
-  return baseName || templateRecord?.file_name || 'certificate'
+  return baseName || templateRecord?.file_name || documentLabel
 }
 
-export function generateCertificateDocxForRow({ templateArrayBuffer, templateRecord, mergeResult, outputFileName }) {
+export function generateCertificateDocxForRow({ templateArrayBuffer, templateRecord, mergeResult, outputFileName, documentLabel }) {
   return generateDocxFromTemplate({
     templateArrayBuffer,
     mergeResult,
     options: {
-      fileName: outputFileName || buildGeneratedFileName({ templateRecord, mergeResult }),
+      fileName: outputFileName || buildGeneratedFileName({ templateRecord, mergeResult, documentLabel }),
     },
   })
 }
@@ -44,12 +44,13 @@ export async function downloadCertificateTemplateArrayBuffer(templateRecord) {
   return data.arrayBuffer()
 }
 
-export async function generateCertificateDocx({ templateRecord, mergeResult }) {
+export async function generateCertificateDocx({ templateRecord, mergeResult, documentLabel }) {
   const templateArrayBuffer = await downloadCertificateTemplateArrayBuffer(templateRecord)
 
   return generateCertificateDocxForRow({
     templateArrayBuffer,
     templateRecord,
     mergeResult,
+    documentLabel,
   })
 }

@@ -5,12 +5,14 @@ import DashboardLayout from '../components/dashboard/DashboardLayout.jsx'
 import EnvironmentBanner from '../components/dashboard/EnvironmentBanner.jsx'
 import { getCategoryById } from '../data/products.js'
 import { certificateWorkspaceConfig } from '../features/certificate/config.js'
+import { sharedDocumentWorkspaceConfigs } from '../features/document-workspace/config.js'
 import WorkspaceLayout from '../features/workspace-engine/WorkspaceLayout.jsx'
 import { useProductCatalog } from '../hooks/useProductCatalog.js'
 import { navigateTo } from '../utils/routes.js'
 
 const workspaceConfigs = {
   'ar-cert-pro': certificateWorkspaceConfig,
+  ...sharedDocumentWorkspaceConfigs,
 }
 
 const productGuidance = {

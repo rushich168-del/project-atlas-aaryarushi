@@ -98,7 +98,7 @@ function FileUploadControl({ title, description, acceptLabel, accept, loading, s
   )
 }
 
-export function TemplateStep({ state, actions, workspace }) {
+export function TemplateStep({ state, actions, workspace, config }) {
   async function handleTemplateFile(file) {
     actions.updateState({ uploadingTemplate: true, templateUploadError: '' })
 
@@ -143,8 +143,8 @@ export function TemplateStep({ state, actions, workspace }) {
 
   return (
     <FileUploadControl
-      title="Upload your certificate template"
-      description="Choose the approved DOCX template for this certificate batch. Placeholder fields will be detected after upload."
+      title={config.copy?.templateTitle || 'Upload your certificate template'}
+      description={config.copy?.templateDescription || 'Choose the approved DOCX template for this certificate batch. Placeholder fields will be detected after upload.'}
       acceptLabel=".docx only, max 10 MB"
       accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
       loading={state.uploadingTemplate}
@@ -156,7 +156,7 @@ export function TemplateStep({ state, actions, workspace }) {
   )
 }
 
-export function ExcelStep({ state, actions, workspace }) {
+export function ExcelStep({ state, actions, workspace, config }) {
   async function handleExcelFile(file) {
     actions.updateState({ uploadingExcel: true, excelUploadError: '' })
 
@@ -180,7 +180,7 @@ export function ExcelStep({ state, actions, workspace }) {
         excelRows,
         previewRowIndex: 0,
         rowCount,
-        fieldMapping: {
+        fieldMapping: config.createEmptyFieldMapping ? config.createEmptyFieldMapping() : {
           name: '',
           course: '',
           date: '',
@@ -210,8 +210,8 @@ export function ExcelStep({ state, actions, workspace }) {
   return (
     <div className="grid gap-5">
       <FileUploadControl
-        title="Upload your Excel data"
-        description="Choose the spreadsheet with student or participant rows. Column headers are detected in the browser."
+        title={config.copy?.excelTitle || 'Upload your Excel data'}
+        description={config.copy?.excelDescription || 'Choose the spreadsheet with student or participant rows. Column headers are detected in the browser.'}
         acceptLabel=".xlsx or .xls, max 10 MB"
         accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
         loading={state.uploadingExcel}
@@ -456,8 +456,8 @@ export function PreviewStep({ state, actions, config }) {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-400">Step 4</p>
-          <h3 className="mt-1 text-xl font-semibold text-primary">Preview one student row</h3>
-          <p className="mt-2 text-sm leading-6 text-slate-600">Review one parsed Excel row before generating DOCX files.</p>
+          <h3 className="mt-1 text-xl font-semibold text-primary">{config.copy?.previewTitle || 'Preview one student row'}</h3>
+          <p className="mt-2 text-sm leading-6 text-slate-600">{config.copy?.previewDescription || 'Review one parsed Excel row before generating DOCX files.'}</p>
         </div>
         <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700">
           {totalRows ? `Row ${previewRowNumber} of ${totalRows}` : 'No preview rows available'}
@@ -496,18 +496,20 @@ export function PreviewStep({ state, actions, config }) {
 
           <div className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
             <div className="text-center">
-              <p className="text-sm font-semibold uppercase tracking-[0.16em] text-accentBlue">Certificate preview</p>
+              <p className="text-sm font-semibold uppercase tracking-[0.16em] text-accentBlue">{config.copy?.previewCardEyebrow || 'Document preview'}</p>
             </div>
             <div className="mt-6 rounded-lg border border-slate-200 bg-slate-50 p-6 text-center">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accentBlue">Certificate of Completion</p>
-              <h4 className="mt-6 text-3xl font-semibold text-primary">{previewData.name || 'Participant Name'}</h4>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accentBlue">{config.copy?.previewDocumentTitle || 'Prepared DOCX Preview'}</p>
+              <h4 className="mt-6 text-3xl font-semibold text-primary">{previewData.name || config.copy?.previewNameFallback || 'Primary Name'}</h4>
               <p className="mt-4 text-sm leading-6 text-slate-600">
-                has completed {previewData.course || 'Course Name'} on {previewData.date || 'Date'}.
+                {config.copy?.previewSentence
+                  ? config.copy.previewSentence(previewData)
+                  : `has completed ${previewData.course || 'Course Name'} on ${previewData.date || 'Date'}.`}
               </p>
               <p className="mt-6 text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
-                {previewData.certificate_id || 'CERT-ID'}
+                {previewData.certificate_id || config.copy?.previewIdFallback || 'DOCUMENT-ID'}
               </p>
-              {previewData.trainer && <p className="mt-4 text-sm font-semibold text-slate-500">Trainer: {previewData.trainer}</p>}
+              {previewData.trainer && <p className="mt-4 text-sm font-semibold text-slate-500">{config.copy?.optionalFieldLabel || 'Prepared by'}: {previewData.trainer}</p>}
             </div>
             <div className="mt-5 rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-600">
               <p className="font-semibold text-slate-800">Raw preview row values</p>
@@ -691,7 +693,7 @@ function BatchProgress({ state }) {
   )
 }
 
-function BatchResult({ state }) {
+function BatchResult({ state, config }) {
   const [zipState, setZipState] = useState({
     preparing: false,
     progressMessage: '',
@@ -713,7 +715,7 @@ function BatchResult({ state }) {
       const url = URL.createObjectURL(blob)
       const link = window.document.createElement('a')
       link.href = url
-      link.download = output.file_name || `row-${output.row_index}-certificate.docx`
+      link.download = output.file_name || `row-${output.row_index}-${config.id || 'document'}.docx`
       window.document.body.appendChild(link)
       link.click()
       link.remove()
@@ -732,7 +734,7 @@ function BatchResult({ state }) {
     setZipState({ preparing: true, progressMessage: 'Preparing ZIP...', warningMessage: '', errorMessage: '' })
 
     try {
-      const fileName = `AR-CERT-PRO-batch-${state.batchJob.id}.zip`
+      const fileName = `${config.productSlug || 'project-atlas'}-batch-${state.batchJob.id}.zip`
       const { zipBlob, warnings } = await createBatchDocxZip(generatedOutputs, fileName, ({ message }) => {
         setZipState((current) => ({ ...current, progressMessage: message }))
       })
@@ -946,7 +948,7 @@ export function GenerateStep({ state, actions, config }) {
       )}
       <BatchSummary state={state} config={config} />
       <BatchProgress state={state} />
-      <BatchResult state={state} />
+      <BatchResult state={state} config={config} />
       {state.generationError && (
         <div className="mt-4 rounded-md border border-red-200 bg-red-50 p-3 text-sm font-medium leading-6 text-red-700">
           {state.generationError}
