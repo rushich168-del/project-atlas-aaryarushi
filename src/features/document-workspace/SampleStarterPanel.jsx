@@ -140,7 +140,15 @@ export default function SampleStarterPanel({ slug }) {
             </div>
           ) : null}
 
-          <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+          <div className="mt-6 rounded-md border border-teal-200 bg-teal-50/60 p-3">
+            <p className="text-sm font-semibold text-teal-800">Need a quick start?</p>
+            <p className="mt-1 text-sm leading-6 text-teal-800">
+              Download both sample files, replace the example values with your real data, then upload them in the steps above.
+              The columns and placeholders already line up, so generation works on the first try.
+            </p>
+          </div>
+
+          <div className="mt-4 flex flex-col gap-3 sm:flex-row">
             <button
               type="button"
               onClick={handleDownloadExcel}

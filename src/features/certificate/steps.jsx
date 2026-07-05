@@ -14,6 +14,7 @@ import { BATCH_ROW_LIMIT } from './services/certificateBatchService.js'
 import { navigateTo } from '../../utils/routes.js'
 import EmailPreparationPanel from '../../components/email/EmailPreparationPanel.jsx'
 import SampleStarterPanel from '../document-workspace/SampleStarterPanel.jsx'
+import FirstRunGuide from '../document-workspace/FirstRunGuide.jsx'
 
 function normalizeName(value) {
   return String(value || '')
@@ -144,6 +145,7 @@ export function TemplateStep({ state, actions, workspace, config }) {
 
   return (
     <div className="grid gap-5">
+      <FirstRunGuide slug={config.productSlug} />
       <SampleStarterPanel slug={config.productSlug} />
       <FileUploadControl
         title={config.copy?.templateTitle || 'Upload your certificate template'}
