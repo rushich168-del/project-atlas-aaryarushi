@@ -224,7 +224,7 @@ export default function DashboardPage() {
       label: 'AR-MAIL-PRO',
       productCode: 'AR-MAIL-PRO',
       summary: 'Prepare personalized email batches from Excel data and templates with safe dry-run validation. No real sending is enabled in Project Atlas.',
-      suiteLabel: 'Communication / Email Automation',
+      suiteLabel: 'HR / Admin / Email Automation',
       status: 'Safe Demo',
       badge: 'Safe Demo',
       active: true,
@@ -243,19 +243,13 @@ export default function DashboardPage() {
       title: 'HR Suite',
       description: 'Offer letters, payslips, employee IDs, experience letters, and HR mail.',
       tone: 'hr',
-      products: suiteProducts.filter((card) => card.suiteLabel === 'HR Suite'),
+      products: suiteProducts.filter((card) => card.suiteLabel === 'HR Suite' || card.suiteLabel.startsWith('HR / Admin /')),
     },
     {
       title: 'Office / Business Suite',
       description: 'Invoices, quotations, purchase orders, receipts, and business mail.',
       tone: 'business',
       products: suiteProducts.filter((card) => card.suiteLabel === 'Office / Business Suite' || card.suiteLabel.startsWith('Office / Business /')),
-    },
-    {
-      title: 'Communication Suite',
-      description: 'Email preparation, dry-run validation, and safe communication workflows.',
-      tone: 'communication',
-      products: suiteProducts.filter((card) => card.suiteLabel === 'Communication Suite' || card.suiteLabel.startsWith('Communication /')),
     },
   ]
   const selectedSuiteSection = suiteSections.find((section) => section.title === selectedSuite) || suiteSections[0]
@@ -366,8 +360,6 @@ export default function DashboardPage() {
               ? 'border-blue-100 bg-blue-50/70 text-blue-800'
               : section.tone === 'hr'
                 ? 'border-emerald-100 bg-emerald-50/70 text-emerald-800'
-                : section.tone === 'communication'
-                  ? 'border-teal-100 bg-teal-50/70 text-teal-800'
                 : 'border-slate-200 bg-slate-50 text-slate-800'
             const selected = selectedSuite === section.title
 

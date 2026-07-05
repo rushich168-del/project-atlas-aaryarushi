@@ -40,7 +40,7 @@ const fadeUp = {
 
 const productSuiteGroups = [
   {
-    title: 'Education',
+    title: 'Education Suite',
     description: 'Document automation workflows for academic teams and institute operations.',
     products: [
       { name: 'AR-CERT-PRO', status: 'Demo Ready', description: 'Working demo for certificate DOCX generation from Excel data and Word templates.' },
@@ -52,18 +52,19 @@ const productSuiteGroups = [
     ],
   },
   {
-    title: 'Office / Business',
+    title: 'HR / Admin Suite',
+    description: 'Admin-ready document and communication preparation for people and operations teams.',
+    products: [
+      { name: 'AR-IDCARD-PRO', status: 'Launch Prep', description: 'Launch-prep plan for student and employee ID card documents.' },
+      { name: 'AR-MAIL-PRO', status: 'Safe Demo', description: 'Email preparation with dry-run validation only. No real row-recipient emails are sent.' },
+    ],
+  },
+  {
+    title: 'Office / Business Suite',
     description: 'Repeatable document preparation for small businesses and admin teams.',
     products: [
       { name: 'AR-INVOICE-PRO', status: 'Launch Prep', description: 'Launch-prep plan for invoice documents from spreadsheet data.' },
       { name: 'AR-FEE-RECEIPT-PRO', status: 'Product Prep', description: 'Coming-next product plan for fee receipts and payment acknowledgments.' },
-    ],
-  },
-  {
-    title: 'Communication',
-    description: 'Safe email preparation and validation, without live bulk sending.',
-    products: [
-      { name: 'AR-MAIL-PRO', status: 'Safe Demo', description: 'Email preparation with dry-run validation only. No real row-recipient emails are sent.' },
     ],
   },
 ]
