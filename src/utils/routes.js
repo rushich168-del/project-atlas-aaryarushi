@@ -3,8 +3,8 @@ const historyScrollStorageKey = 'projectAtlas.history.scrollTop'
 
 // The whole document is the History scroll container: the dashboard layout uses
 // `min-h-screen` and grows with its content, so the window/document scrolls —
-// there is no inner overflow-y-auto pane. Read and write scroll state through
-// the scrolling element accordingly.
+// there is no inner overflow-y-auto pane wrapping History. Read and write scroll
+// state through the scrolling element accordingly.
 function getScrollTop() {
   return window.document.scrollingElement?.scrollTop ?? window.scrollY ?? 0
 }
@@ -23,7 +23,7 @@ function setScrollTop(top) {
   }
 }
 
-function saveHistoryScrollPosition() {
+export function saveHistoryScrollPosition() {
   try {
     window.sessionStorage.setItem(historyScrollStorageKey, String(getScrollTop()))
   } catch {
@@ -37,14 +37,6 @@ function getSavedHistoryScrollPosition() {
     return Number.isFinite(savedScrollY) && savedScrollY > 0 ? savedScrollY : null
   } catch {
     return null
-  }
-}
-
-function clearSavedHistoryScrollPosition() {
-  try {
-    window.sessionStorage.removeItem(historyScrollStorageKey)
-  } catch {
-    // Ignore restricted storage contexts.
   }
 }
 
@@ -68,10 +60,11 @@ export function getCurrentPath() {
 }
 
 // Restore the saved History scroll position. History data loads asynchronously,
-// so the document is short right after the route mounts and grows over several
-// frames. Keep re-applying the target (instantly) until the page is tall enough
-// AND the scroll actually lands there, then consume the saved value so in-page
-// reloads (deletes, focus refreshes) don't yank the user back to it.
+// so the document is short right after the route mounts (internal nav, browser
+// back/forward, remount) and grows over several frames. Keep re-applying the
+// target (instantly) until the scroll lands there and the document height has
+// settled, then stop. The saved value is intentionally NOT cleared so every
+// return — including browser back/forward and post-reload remounts — can restore.
 export function restoreScrollForPath(path) {
   if (path !== historyPath) {
     return false
@@ -84,6 +77,7 @@ export function restoreScrollForPath(path) {
   }
 
   const startedAt = Date.now()
+  let lastMaxScrollY = -1
 
   function attempt() {
     // The user may have navigated away again while data was still loading; don't
@@ -97,13 +91,17 @@ export function restoreScrollForPath(path) {
 
     setScrollTop(targetScrollY)
 
-    const pageTallEnough = maxScrollY >= savedScrollY
-    const reachedTarget = Math.abs(getScrollTop() - savedScrollY) <= 2
+    const reachedTarget = Math.abs(getScrollTop() - targetScrollY) <= 2
+    const heightStable = maxScrollY === lastMaxScrollY
+    const tallEnough = maxScrollY >= savedScrollY
     const timedOut = Date.now() - startedAt > 3000
 
-    if ((pageTallEnough && reachedTarget) || timedOut) {
-      // Landed (or gave up): consume the value so it only applies to this arrival.
-      clearSavedHistoryScrollPosition()
+    lastMaxScrollY = maxScrollY
+
+    // Stop once we've landed on the target and the document has either grown tall
+    // enough or stopped growing (content genuinely shorter than when saved), or
+    // after a safety timeout so we never fight the user indefinitely.
+    if ((reachedTarget && (tallEnough || heightStable)) || timedOut) {
       return
     }
 

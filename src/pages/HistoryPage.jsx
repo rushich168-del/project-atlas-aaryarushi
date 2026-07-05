@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { AlertCircle, CalendarDays, Download, FileClock, FileText, Loader2, RefreshCw, Search, X } from 'lucide-react'
 import DashboardLayout from '../components/dashboard/DashboardLayout.jsx'
 import EnvironmentBanner from '../components/dashboard/EnvironmentBanner.jsx'
@@ -6,7 +6,7 @@ import { useWorkspace } from '../hooks/useWorkspace.js'
 import { createBatchDocxZip, downloadGeneratedCertificateDocx } from '../features/certificate/services/certificateOutputsService.js'
 import { deleteGeneratedDocument, deleteGenerationJob, deleteGenerationOutput, getGeneratedDocumentsHistory, getGenerationJobsHistory } from '../services/generatedDocumentsService.js'
 import { getDownloadError, getFriendlyError } from '../utils/errorMessages.js'
-import { navigateTo, restoreScrollForPath } from '../utils/routes.js'
+import { navigateTo, restoreScrollForPath, saveHistoryScrollPosition } from '../utils/routes.js'
 import EmailPreparationPanel from '../components/email/EmailPreparationPanel.jsx'
 import { getEmailDeliveryDryRunErrorMessage, listEmailDeliveryDryRunJobsForGeneration } from '../services/emailDeliveryDryRunService.js'
 
@@ -571,15 +571,71 @@ export default function HistoryPage() {
     loadHistory()
   }, [currentOrganizationId, workspaceLoading])
 
+  // Track whether History is mid-(re)load. While busy the document temporarily
+  // shrinks (loader replaces the list) and the browser clamps scrollTop to 0, so
+  // the continuous saver below must NOT persist that transient 0. useLayoutEffect
+  // keeps the ref current synchronously, before the clamp's scroll event fires.
+  const isBusy = loading || workspaceLoading
+  const isBusyRef = useRef(isBusy)
+  useLayoutEffect(() => {
+    isBusyRef.current = isBusy
+  }, [isBusy])
+
+  // Continuously remember the History scroll position so it can be restored no
+  // matter HOW the page is left — internal nav, browser back/forward, tab/window
+  // switch, or unmount/remount. This is what makes browser-level returns work:
+  // the value is always current by the time the page is left, and it is never
+  // overwritten with the clamped-to-top value that appears during a reload.
+  useEffect(() => {
+    let frame = 0
+
+    const saveIfIdle = () => {
+      if (!isBusyRef.current) {
+        saveHistoryScrollPosition()
+      }
+    }
+
+    const handleScroll = () => {
+      if (frame) {
+        return
+      }
+
+      frame = window.requestAnimationFrame(() => {
+        frame = 0
+        saveIfIdle()
+      })
+    }
+
+    const handleVisibilityChange = () => {
+      if (window.document.visibilityState === 'hidden') {
+        saveIfIdle()
+      }
+    }
+
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    window.document.addEventListener('visibilitychange', handleVisibilityChange)
+    window.addEventListener('pagehide', saveIfIdle)
+
+    return () => {
+      if (frame) {
+        window.cancelAnimationFrame(frame)
+      }
+
+      saveIfIdle()
+      window.removeEventListener('scroll', handleScroll)
+      window.document.removeEventListener('visibilitychange', handleVisibilityChange)
+      window.removeEventListener('pagehide', saveIfIdle)
+    }
+  }, [])
+
   // Once data is loaded and the list is rendered, the document is finally tall
   // enough to hold the saved scroll — request one authoritative restore here.
+  // Runs on initial mount, browser back/forward remounts, and after every reload.
   useEffect(() => {
     if (loading || workspaceLoading) {
       return
     }
 
-    // Restore after every load completes — initial mount AND focus-triggered
-    // refreshes — since a reload resets the scroll container to the top.
     restoreScrollForPath(historyPath)
   }, [loading, workspaceLoading])
 
