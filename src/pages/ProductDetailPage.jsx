@@ -41,13 +41,13 @@ const arWorksheetProReadiness = [
   'Product positioning ready',
   'Dashboard card ready',
   'Detail page ready',
-  'DOCX output planned',
-  'Workspace setup path ready',
+  'DOCX output active',
+  'Placeholder and Excel column guidance ready',
   'PDF export not available',
   'Real email sending disabled',
 ]
 
-const arWorksheetProLabels = ['Workspace setup', 'DOCX Output', 'Excel to Worksheets', 'Setup Workspace']
+const arWorksheetProLabels = ['Product workspace', 'DOCX Output', 'Excel to Worksheets', 'Shared Workspace']
 
 const arQuestionProWorkflow = [
   'Upload question paper Word template',
@@ -62,14 +62,14 @@ const arQuestionProReadiness = [
   'Product positioning ready',
   'Dashboard card ready',
   'Detail page ready',
-  'DOCX output planned',
-  'Workspace setup path ready',
+  'DOCX output active',
+  'Placeholder and Excel column guidance ready',
   'PDF export not available',
   'Question randomization not claimed',
   'Real email sending disabled',
 ]
 
-const arQuestionProLabels = ['Workspace setup', 'DOCX Output', 'Excel to Questions', 'Setup Workspace']
+const arQuestionProLabels = ['Product workspace', 'DOCX Output', 'Excel to Questions', 'Shared Workspace']
 
 const arFeeReceiptProWorkflow = [
   'Upload fee receipt Word template',
@@ -81,29 +81,28 @@ const arFeeReceiptProWorkflow = [
 ]
 
 const arFeeReceiptProReadiness = [
-  'Product workspace plan prepared',
-  'Dashboard plan card ready',
-  'Detail plan page ready',
-  'DOCX generation workflow planned',
-  'Dedicated fee receipt workspace requires setup',
+  'Shared DOCX workspace active',
+  'Dashboard card ready',
+  'Detail page ready',
+  'Text DOCX output active',
+  'Placeholder and Excel column guidance ready',
   'PDF export not available',
   'Real email sending disabled',
 ]
 
 const arFeeReceiptProPlaceholders = [
-  'ReceiptNumber',
-  'StudentName',
-  'Class',
-  'Course',
-  'Amount',
+  'ReceiptNo',
   'ReceiptDate',
-  'ReceiptMode',
-  'AcademicYear',
-  'BalanceAmount',
-  'AuthorizedBy',
+  'StudentName',
+  'RollNo',
+  'Class',
+  'FeeType',
+  'AmountPaid',
+  'PaymentMode',
+  'Balance',
 ]
 
-const arFeeReceiptProLabels = ['Request setup', 'Planned DOCX', 'Fee Receipts', 'Workspace Setup']
+const arFeeReceiptProLabels = ['Product workspace', 'DOCX Output', 'Excel to Fee Receipts', 'Shared Workspace']
 
 const arMailProWorkflow = [
   'Upload or select Excel/contact data',
@@ -137,16 +136,16 @@ const arMarksheetProWorkflow = [
 ]
 
 const arMarksheetProReadiness = [
-  'Product positioning ready',
+  'Shared DOCX workspace active',
   'Dashboard card ready',
   'Detail page ready',
-  'DOCX output planned',
-  'Workspace setup path ready',
+  'DOCX output active',
+  'Placeholder and Excel column guidance ready',
   'PDF export not available',
   'Real email sending disabled',
 ]
 
-const arMarksheetProLabels = ['Workspace setup', 'DOCX Output', 'Excel to Marksheet', 'Setup Workspace']
+const arMarksheetProLabels = ['Product workspace', 'DOCX Output', 'Excel to Marksheet', 'Shared Workspace']
 
 const arInvoiceProWorkflow = [
   'Upload invoice Word template',
@@ -158,16 +157,16 @@ const arInvoiceProWorkflow = [
 ]
 
 const arInvoiceProReadiness = [
-  'Product positioning ready',
+  'Shared DOCX workspace active',
   'Dashboard card ready',
   'Detail page ready',
-  'DOCX output planned',
-  'Workspace setup path ready',
+  'DOCX output active',
+  'Placeholder and Excel column guidance ready',
   'PDF export not available',
   'Real email sending disabled',
 ]
 
-const arInvoiceProLabels = ['Workspace setup', 'DOCX Output', 'Excel to Invoice', 'Setup Workspace']
+const arInvoiceProLabels = ['Product workspace', 'DOCX Output', 'Excel to Invoice', 'Shared Workspace']
 
 const arIdcardProWorkflow = [
   'Upload ID card Word template',
@@ -204,13 +203,13 @@ const arReportProReadiness = [
   'Product positioning ready',
   'Dashboard card ready',
   'Detail page ready',
-  'DOCX output planned',
-  'Workspace setup path ready',
+  'DOCX output active',
+  'Placeholder and Excel column guidance ready',
   'PDF export not available',
   'Real email sending disabled',
 ]
 
-const arReportProLabels = ['Workspace setup', 'DOCX Output', 'Excel to Reports', 'Setup Workspace']
+const arReportProLabels = ['Product workspace', 'DOCX Output', 'Excel to Reports', 'Shared Workspace']
 
 export default function ProductDetailPage({ slug }) {
   const { organization, categories, products, source, status, loading, error } = useProductCatalog()
@@ -291,10 +290,10 @@ export default function ProductDetailPage({ slug }) {
     ]
     : isArFeeReceiptPro
       ? [
-        'Word fee receipt template',
-        'Excel fee/student data',
-        'Required placeholders such as ReceiptNumber, StudentName, Amount, ReceiptDate, and AuthorizedBy',
-        'Preview one receipt layout before generation is enabled',
+        'Word fee receipt template with {{ColumnName}} placeholders',
+        'Excel fee/student data with matching column headers',
+        'Required placeholders such as ReceiptNo, ReceiptDate, StudentName, Class, FeeType, AmountPaid, and PaymentMode',
+        'Preview one receipt row before DOCX generation',
       ]
       : isArCertPro
         ? [
@@ -577,22 +576,22 @@ export default function ProductDetailPage({ slug }) {
         {isArFeeReceiptPro ? (
           <section className="mt-6 grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
             <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-              <h3 className="text-lg font-semibold text-primary">Product workspace setup plan</h3>
+              <h3 className="text-lg font-semibold text-primary">Shared DOCX workspace workflow</h3>
               <p className="mt-2 text-sm leading-6 text-slate-600">
-                AR-FEE-RECEIPT-PRO is a product setup path for fee receipt documents. The plan is documented here so the dedicated workspace and generation workflow can be scoped accurately before use.
+                AR-FEE-RECEIPT-PRO now uses the shared DOCX workspace for fee receipt templates, student/payment Excel data, preview, and supported DOCX generation.
               </p>
               <div className="mt-4 grid gap-2">
                 {arFeeReceiptProWorkflow.map((step, index) => (
                   <div key={step} className="flex items-center gap-3 rounded-md border border-slate-200 bg-slate-50 p-3">
                     <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-accentTeal text-xs font-bold text-white">{index + 1}</span>
-                    <p className="text-sm font-semibold text-primary">Planned: {step}</p>
+                    <p className="text-sm font-semibold text-primary">{step}</p>
                   </div>
                 ))}
               </div>
             </article>
 
             <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-              <h3 className="text-lg font-semibold text-primary">Preparation notes</h3>
+              <h3 className="text-lg font-semibold text-primary">Readiness and limitations</h3>
               <div className="mt-4 grid gap-2">
                 {arFeeReceiptProReadiness.map((item) => (
                   <div key={item} className="flex items-center gap-3 rounded-md border border-amber-200 bg-amber-50 p-3">
@@ -602,12 +601,12 @@ export default function ProductDetailPage({ slug }) {
                 ))}
               </div>
               <div className="mt-4 rounded-md border border-slate-200 bg-slate-50 p-3">
-                <p className="text-sm font-semibold text-primary">Suggested future placeholders</p>
+                <p className="text-sm font-semibold text-primary">Supported placeholders</p>
                 <p className="mt-1 text-sm leading-6 text-slate-600">{arFeeReceiptProPlaceholders.join(', ')}</p>
               </div>
               <div className="mt-4 rounded-md border border-amber-200 bg-amber-50 p-3">
                 <p className="text-sm font-semibold text-amber-800">Current honesty note</p>
-                <p className="mt-1 text-sm leading-6 text-amber-800">AR-FEE-RECEIPT-PRO requires workspace setup before use. A dedicated workspace, DOCX generation workflow, PDF export, and real email sending are not available inside Project Atlas yet.</p>
+                <p className="mt-1 text-sm leading-6 text-amber-800">AR-FEE-RECEIPT-PRO uses the shared DOCX workspace. PDF export and real email sending are not available.</p>
               </div>
             </article>
           </section>
@@ -651,9 +650,9 @@ export default function ProductDetailPage({ slug }) {
         {isArMarksheetPro ? (
           <section className="mt-6 grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
             <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-              <h3 className="text-lg font-semibold text-primary">Workspace setup workflow</h3>
+              <h3 className="text-lg font-semibold text-primary">Shared DOCX workspace workflow</h3>
               <p className="mt-2 text-sm leading-6 text-slate-600">
-                AR-MARKSHEET-PRO is positioned as an education product workspace. The current setup path documents the marksheet workflow while a dedicated marksheet workspace is scoped.
+                AR-MARKSHEET-PRO now uses the shared DOCX workspace for marksheet templates, student marks Excel data, preview, and supported DOCX generation.
               </p>
               <div className="mt-4 grid gap-2">
                 {arMarksheetProWorkflow.map((step, index) => (
@@ -677,7 +676,7 @@ export default function ProductDetailPage({ slug }) {
               </div>
               <div className="mt-4 rounded-md border border-amber-200 bg-amber-50 p-3">
                 <p className="text-sm font-semibold text-amber-800">Current honesty note</p>
-                <p className="mt-1 text-sm leading-6 text-amber-800">AR-MARKSHEET-PRO does not yet have a separate live workspace. PDF export and real email sending are not available.</p>
+                <p className="mt-1 text-sm leading-6 text-amber-800">AR-MARKSHEET-PRO uses the shared DOCX workspace. PDF export and real email sending are not available.</p>
               </div>
             </article>
           </section>
@@ -686,9 +685,9 @@ export default function ProductDetailPage({ slug }) {
         {isArInvoicePro ? (
           <section className="mt-6 grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
             <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-              <h3 className="text-lg font-semibold text-primary">Workspace setup workflow</h3>
+              <h3 className="text-lg font-semibold text-primary">Shared DOCX workspace workflow</h3>
               <p className="mt-2 text-sm leading-6 text-slate-600">
-                AR-INVOICE-PRO is positioned as an Office / Business product workspace. The current setup path documents the invoice workflow while a dedicated invoice workspace is scoped.
+                AR-INVOICE-PRO now uses the shared DOCX workspace for invoice templates, customer/item Excel data, preview, and supported DOCX generation.
               </p>
               <div className="mt-4 grid gap-2">
                 {arInvoiceProWorkflow.map((step, index) => (
@@ -712,7 +711,7 @@ export default function ProductDetailPage({ slug }) {
               </div>
               <div className="mt-4 rounded-md border border-amber-200 bg-amber-50 p-3">
                 <p className="text-sm font-semibold text-amber-800">Current honesty note</p>
-                <p className="mt-1 text-sm leading-6 text-amber-800">AR-INVOICE-PRO does not yet have a separate live workspace. PDF export and real email sending are not available.</p>
+                <p className="mt-1 text-sm leading-6 text-amber-800">AR-INVOICE-PRO uses the shared DOCX workspace. PDF export and real email sending are not available.</p>
               </div>
             </article>
           </section>

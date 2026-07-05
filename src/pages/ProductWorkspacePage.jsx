@@ -366,19 +366,19 @@ export default function ProductWorkspacePage({ slug }) {
 
   if (!product) {
     return (
-      <DashboardLayout title="Workspace unavailable" eyebrow="Project Atlas" showBack currentView="products" workspaceStatus={catalogState.status}>
+      <DashboardLayout title="Product not found" eyebrow="Project Atlas" showBack currentView="products" workspaceStatus={catalogState.status}>
         <div className="px-4 py-6 sm:px-6 lg:px-8">
           <EnvironmentBanner />
           <DataStateBanner {...catalogState} />
           <div className="rounded-lg border border-slate-200 bg-white p-8 text-center shadow-sm">
-            <h2 className="text-xl font-semibold text-primary">This product workspace is not configured yet.</h2>
-            <p className="mt-2 text-sm leading-6 text-slate-600">AR-CERT-PRO is the first product wired into the generic workspace engine.</p>
+            <h2 className="text-xl font-semibold text-primary">This product workspace is not available.</h2>
+            <p className="mt-2 text-sm leading-6 text-slate-600">The requested product could not be found in the current catalog. Return to the dashboard to choose an available product.</p>
             <button
               type="button"
-              onClick={() => navigateTo(`/dashboard/products/${slug}`)}
+              onClick={() => navigateTo('/dashboard')}
               className="focus-ring mt-5 inline-flex min-h-10 items-center justify-center rounded-md bg-primary px-4 text-sm font-semibold text-white transition hover:bg-slate-800"
             >
-              Back to product
+              Back to dashboard
             </button>
           </div>
         </div>

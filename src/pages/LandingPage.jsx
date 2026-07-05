@@ -44,10 +44,10 @@ const productSuiteGroups = [
     description: 'Document automation workflows for academic teams and institute operations.',
     products: [
       { name: 'AR-CERT-PRO', status: 'Ready to use', action: 'Open Workspace', href: '/dashboard/products/ar-cert-pro/workspace', description: 'Certificate DOCX generation from Excel data and Word templates.' },
-      { name: 'AR-MARKSHEET-PRO', status: 'Workspace setup', action: 'Request Setup', href: '/dashboard/products/ar-marksheet-pro', description: 'Structured marksheet document workflow prepared for setup.' },
-      { name: 'AR-REPORT-PRO', status: 'Workspace setup', action: 'Request Setup', href: '/dashboard/products/ar-report-pro', description: 'Student report and progress document workflow prepared for setup.' },
-      { name: 'AR-WORKSHEET-PRO', status: 'Workspace setup', action: 'Request Setup', href: '/dashboard/products/ar-worksheet-pro', description: 'Classroom worksheet and practice document workflow prepared for setup.' },
-      { name: 'AR-QUESTION-PRO', status: 'Workspace setup', action: 'Request Setup', href: '/dashboard/products/ar-question-pro', description: 'Question paper, question sheet, and practice set workflow prepared for setup.' },
+      { name: 'AR-MARKSHEET-PRO', status: 'Product workspace', action: 'Open Workspace', href: '/dashboard/products/ar-marksheet-pro/workspace', description: 'Structured marksheet documents run through the shared DOCX workspace.' },
+      { name: 'AR-REPORT-PRO', status: 'Product workspace', action: 'Open Workspace', href: '/dashboard/products/ar-report-pro/workspace', description: 'Student report and progress documents run through the shared DOCX workspace.' },
+      { name: 'AR-WORKSHEET-PRO', status: 'Product workspace', action: 'Open Workspace', href: '/dashboard/products/ar-worksheet-pro/workspace', description: 'Classroom worksheet and practice documents run through the shared DOCX workspace.' },
+      { name: 'AR-QUESTION-PRO', status: 'Product workspace', action: 'Open Workspace', href: '/dashboard/products/ar-question-pro/workspace', description: 'Question paper, question sheet, and practice set documents run through the shared DOCX workspace.' },
       { name: 'AR-IDCARD-PRO', status: 'Product workspace', action: 'Open Workspace', href: '/dashboard/products/ar-idcard-pro/workspace', description: 'Text-based student and employee ID card documents from Excel data and Word templates.' },
     ],
   },
@@ -63,8 +63,8 @@ const productSuiteGroups = [
     title: 'Office / Business Suite',
     description: 'Repeatable document preparation for small businesses and admin teams.',
     products: [
-      { name: 'AR-INVOICE-PRO', status: 'Workspace setup', action: 'Request Setup', href: '/dashboard/products/ar-invoice-pro', description: 'Invoice document workflow prepared for setup from spreadsheet data.' },
-      { name: 'AR-FEE-RECEIPT-PRO', status: 'Request setup', action: 'Request Setup', href: '/dashboard/products/ar-fee-receipt-pro', description: 'Fee receipt document workspace can be scoped with the client before use.' },
+      { name: 'AR-INVOICE-PRO', status: 'Product workspace', action: 'Open Workspace', href: '/dashboard/products/ar-invoice-pro/workspace', description: 'Invoice documents run through the shared DOCX workspace from spreadsheet data.' },
+      { name: 'AR-FEE-RECEIPT-PRO', status: 'Product workspace', action: 'Open Workspace', href: '/dashboard/products/ar-fee-receipt-pro/workspace', description: 'Fee receipt documents run through the shared DOCX workspace from spreadsheet data.' },
     ],
   },
 ]
@@ -177,6 +177,7 @@ const safetyStatements = [
 function getStatusClass(status) {
   if (status === 'Ready to use') return 'bg-emerald-50 text-emerald-700'
   if (status === 'Mail preparation') return 'bg-teal-50 text-teal-700'
+  if (status === 'Product workspace') return 'bg-blue-50 text-blue-700'
   if (status === 'Workspace setup') return 'bg-blue-50 text-blue-700'
   return 'bg-amber-50 text-amber-700'
 }
