@@ -4,9 +4,14 @@ import { navigateTo } from '../../utils/routes.js'
 const badgeStyles = {
   live: 'border-emerald-200 bg-emerald-50 text-emerald-700',
   demo_ready: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+  ready_to_use: 'border-emerald-200 bg-emerald-50 text-emerald-700',
   safe_demo: 'border-teal-200 bg-teal-50 text-teal-700',
+  mail_preparation: 'border-teal-200 bg-teal-50 text-teal-700',
   launch_prep: 'border-blue-200 bg-blue-50 text-blue-700',
+  workspace_setup: 'border-blue-200 bg-blue-50 text-blue-700',
+  product_workspace: 'border-blue-200 bg-blue-50 text-blue-700',
   product_prep: 'border-amber-200 bg-amber-50 text-amber-700',
+  request_setup: 'border-amber-200 bg-amber-50 text-amber-700',
   'desktop-ready': 'border-sky-200 bg-sky-50 text-sky-700',
   coming_soon: 'border-amber-200 bg-amber-50 text-amber-700',
   planned: 'border-amber-200 bg-amber-50 text-amber-700',
@@ -58,7 +63,7 @@ export default function SuiteProductCard({ card }) {
               : 'cursor-not-allowed border border-slate-200 bg-slate-100 text-slate-400'
           }`}
         >
-          {buttonLabel || (active ? 'Open Workspace' : 'Coming Soon')}
+          {buttonLabel || (active ? 'Open Workspace' : 'Request Setup')}
           {active ? <ArrowRight size={16} aria-hidden="true" /> : null}
         </button>
       </div>

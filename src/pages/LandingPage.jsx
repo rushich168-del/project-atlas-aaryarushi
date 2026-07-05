@@ -43,28 +43,28 @@ const productSuiteGroups = [
     title: 'Education Suite',
     description: 'Document automation workflows for academic teams and institute operations.',
     products: [
-      { name: 'AR-CERT-PRO', status: 'Demo Ready', description: 'Working demo for certificate DOCX generation from Excel data and Word templates.' },
-      { name: 'AR-MARKSHEET-PRO', status: 'Launch Prep', description: 'Launch-prep plan for structured marksheet documents.' },
-      { name: 'AR-REPORT-PRO', status: 'Launch Prep', description: 'Launch-prep plan for student reports and progress documents.' },
-      { name: 'AR-WORKSHEET-PRO', status: 'Launch Prep', description: 'Launch-prep plan for classroom worksheets and practice documents.' },
-      { name: 'AR-QUESTION-PRO', status: 'Launch Prep', description: 'Launch-prep plan for question papers, question sheets, and practice sets.' },
-      { name: 'AR-IDCARD-PRO', status: 'Launch Prep', description: 'Launch-prep plan for student and employee ID card documents.' },
+      { name: 'AR-CERT-PRO', status: 'Ready to use', action: 'Open Workspace', href: '/dashboard/products/ar-cert-pro/workspace', description: 'Certificate DOCX generation from Excel data and Word templates.' },
+      { name: 'AR-MARKSHEET-PRO', status: 'Workspace setup', action: 'Request Setup', href: '/dashboard/products/ar-marksheet-pro', description: 'Structured marksheet document workflow prepared for setup.' },
+      { name: 'AR-REPORT-PRO', status: 'Workspace setup', action: 'Request Setup', href: '/dashboard/products/ar-report-pro', description: 'Student report and progress document workflow prepared for setup.' },
+      { name: 'AR-WORKSHEET-PRO', status: 'Workspace setup', action: 'Request Setup', href: '/dashboard/products/ar-worksheet-pro', description: 'Classroom worksheet and practice document workflow prepared for setup.' },
+      { name: 'AR-QUESTION-PRO', status: 'Workspace setup', action: 'Request Setup', href: '/dashboard/products/ar-question-pro', description: 'Question paper, question sheet, and practice set workflow prepared for setup.' },
+      { name: 'AR-IDCARD-PRO', status: 'Workspace setup', action: 'Request Setup', href: '/dashboard/products/ar-idcard-pro', description: 'Student and employee ID card document workflow prepared for setup.' },
     ],
   },
   {
     title: 'HR / Admin Suite',
     description: 'Admin-ready document and communication preparation for people and operations teams.',
     products: [
-      { name: 'AR-IDCARD-PRO', status: 'Launch Prep', description: 'Launch-prep plan for student and employee ID card documents.' },
-      { name: 'AR-MAIL-PRO', status: 'Safe Demo', description: 'Email preparation with dry-run validation only. No real row-recipient emails are sent.' },
+      { name: 'AR-IDCARD-PRO', status: 'Workspace setup', action: 'Request Setup', href: '/dashboard/products/ar-idcard-pro', description: 'Student and employee ID card document workflow prepared for setup.' },
+      { name: 'AR-MAIL-PRO', status: 'Mail preparation', action: 'Open Product', href: '/dashboard/products/ar-mail-pro', description: 'Mail preparation workspace with dry-run validation only. No real row-recipient emails are sent.' },
     ],
   },
   {
     title: 'Office / Business Suite',
     description: 'Repeatable document preparation for small businesses and admin teams.',
     products: [
-      { name: 'AR-INVOICE-PRO', status: 'Launch Prep', description: 'Launch-prep plan for invoice documents from spreadsheet data.' },
-      { name: 'AR-FEE-RECEIPT-PRO', status: 'Product Prep', description: 'Coming-next product plan for fee receipts and payment acknowledgments.' },
+      { name: 'AR-INVOICE-PRO', status: 'Workspace setup', action: 'Request Setup', href: '/dashboard/products/ar-invoice-pro', description: 'Invoice document workflow prepared for setup from spreadsheet data.' },
+      { name: 'AR-FEE-RECEIPT-PRO', status: 'Request setup', action: 'Request Setup', href: '/dashboard/products/ar-fee-receipt-pro', description: 'Fee receipt document workspace can be scoped with the client before use.' },
     ],
   },
 ]
@@ -72,7 +72,7 @@ const productSuiteGroups = [
 const trustBadges = [
   'DOCX Automation',
   'Excel-Based Generation',
-  'Safe Email Dry-run',
+  'Safe Email Preparation',
   'Product Suite Catalog',
   'Built for Education and Business',
 ]
@@ -152,7 +152,7 @@ const processSteps = [
   'Preview',
   'Generate DOCX',
   'Review History',
-  'Email Prep Dry-run',
+  'Email Prep dry-run',
 ]
 
 const workflowCards = [
@@ -171,13 +171,13 @@ const safetyStatements = [
   'Controlled batch sending remains disabled.',
   'Failed-row resend remains disabled.',
   'Gmail/Outlook OAuth is not connected.',
-  'PDF export and payment gateway features are not claimed as available.',
+  'PDF export is not presented as available inside Project Atlas.',
 ]
 
 function getStatusClass(status) {
-  if (status === 'Demo Ready') return 'bg-emerald-50 text-emerald-700'
-  if (status === 'Safe Demo') return 'bg-teal-50 text-teal-700'
-  if (status === 'Launch Prep') return 'bg-blue-50 text-blue-700'
+  if (status === 'Ready to use') return 'bg-emerald-50 text-emerald-700'
+  if (status === 'Mail preparation') return 'bg-teal-50 text-teal-700'
+  if (status === 'Workspace setup') return 'bg-blue-50 text-blue-700'
   return 'bg-amber-50 text-amber-700'
 }
 
@@ -438,7 +438,7 @@ function LandingPage() {
           <div className="hidden items-center gap-6 text-sm font-medium text-slate-600 md:flex">
             <a href="#product-suite" className="hover:text-primary">Product Suite</a>
             <a href="#workflow" className="hover:text-primary">Workflow</a>
-            <a href="#safe-demo" className="hover:text-primary">Safe Demo</a>
+            <a href="#workspace-readiness" className="hover:text-primary">Readiness</a>
             <a href="#process" className="hover:text-primary">Process</a>
             <a href="/dashboard" className="hover:text-primary">Dashboard</a>
             <a href="#contact" className="hover:text-primary">Contact</a>
@@ -524,6 +524,13 @@ function LandingPage() {
                       </span>
                     </div>
                     <p className="mt-2 text-sm leading-6 text-slate-600">{product.description}</p>
+                    <a
+                      href={product.href}
+                      className="focus-ring mt-3 inline-flex min-h-9 items-center justify-center gap-2 rounded-md bg-accentTeal px-3 text-sm font-semibold text-white transition hover:bg-teal-800"
+                    >
+                      {product.action}
+                      <ArrowRight size={16} aria-hidden="true" />
+                    </a>
                   </div>
                 ))}
               </div>
@@ -598,7 +605,7 @@ function LandingPage() {
         </div>
       </Section>
 
-      <Section id="safe-demo" eyebrow="Safe demo" title="Demo-ready where it is real, honest where it is staged">
+      <Section id="workspace-readiness" eyebrow="Workspace readiness" title="Ready to use where connected, clear setup where scoped">
         <div className="grid gap-5 lg:grid-cols-[0.9fr_1.1fr]">
           <motion.article
             className="rounded-lg border border-emerald-200 bg-emerald-50 p-6"
@@ -609,9 +616,9 @@ function LandingPage() {
             transition={{ duration: 0.45 }}
           >
             <BadgeCheck className="text-emerald-700" size={28} aria-hidden="true" />
-            <h3 className="mt-5 text-xl font-semibold text-primary">AR-CERT-PRO is the main working demo</h3>
+            <h3 className="mt-5 text-xl font-semibold text-primary">AR-CERT-PRO is ready to use</h3>
             <p className="mt-3 leading-7 text-slate-700">
-              The certificate workflow is the primary demo-ready product in Project Atlas. Other catalog products are presented as Launch Prep or Product Prep when their dedicated workspace is not live yet.
+              The certificate workflow is connected to the live product workspace. Other catalog products provide a clear setup path when a dedicated workspace is not live yet.
             </p>
             <div className="mt-5">
               <ButtonLink href="/dashboard/products/ar-cert-pro/workspace">
@@ -680,7 +687,7 @@ function LandingPage() {
                 rel="noopener noreferrer"
                 className="focus-ring inline-flex min-h-12 items-center justify-center gap-2 rounded-md bg-white px-5 text-sm font-semibold text-primary transition hover:bg-slate-100"
               >
-                Book Free 20-Min Automation Audit <ArrowRight size={18} />
+                Book Automation Audit <ArrowRight size={18} />
               </a>
             </div>
           </motion.div>
@@ -700,7 +707,7 @@ function LandingPage() {
           </div>
           <div className="text-sm text-slate-500 lg:text-right">
             <p>Project Atlas public product suite</p>
-            <p className="mt-2">Built for demo-ready catalog review with honest feature status.</p>
+            <p className="mt-2">Built for ready-to-use product review with honest feature status.</p>
           </div>
         </div>
       </footer>

@@ -3,7 +3,7 @@ import { navigateTo } from '../../utils/routes.js'
 
 function getSuiteLabel(product) {
   if (product.categoryId === 'education' || product.sector === 'education') return 'Education Suite'
-  if (product.categoryId === 'hr' || product.sector === 'hr') return 'HR Suite'
+  if (product.categoryId === 'hr' || product.sector === 'hr') return 'HR / Admin Suite'
   if (product.categoryId === 'office-business' || product.sector === 'office-business') return 'Office / Business Suite'
   if (product.categoryId === 'communication' || product.sector === 'communication') return 'HR / Admin Suite'
   return 'Product Suite'
@@ -14,10 +14,26 @@ export default function ProductCard({ product }) {
   const isSafeDemo = product.status === 'Safe Demo'
   const isLaunchPrep = product.status === 'Launch Prep'
   const isProductPrep = product.status === 'Product Prep'
-  const canOpen = isActive || isSafeDemo || isLaunchPrep || isProductPrep
-  const buttonLabel = isActive ? 'Start Demo' : isProductPrep ? 'View Plan' : isSafeDemo || isLaunchPrep ? 'View Details' : 'Coming soon'
+  const canOpen = product.isEnabled !== false
+  const buttonLabel = isActive
+    ? 'Open Workspace'
+    : isSafeDemo
+      ? 'Open Product'
+      : isLaunchPrep || isProductPrep || product.status === 'Planned' || product.status === 'Concept'
+        ? 'Request Setup'
+        : 'Use Product'
   const suiteLabel = getSuiteLabel(product)
-  const statusLabel = isActive ? 'Demo Ready' : isSafeDemo ? 'Safe Demo' : isLaunchPrep ? 'Launch Prep' : isProductPrep ? 'Product Prep' : product.desktopAvailable ? 'Desktop Ready' : 'Coming Soon'
+  const statusLabel = isActive
+    ? 'Ready to use'
+    : isSafeDemo
+      ? 'Mail preparation'
+      : isLaunchPrep
+        ? 'Workspace setup'
+        : isProductPrep || product.status === 'Planned' || product.status === 'Concept'
+          ? 'Request setup'
+          : product.desktopAvailable
+            ? 'Product workspace'
+            : 'Workspace setup'
   const statusClass = isActive
     ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
     : isSafeDemo
@@ -55,7 +71,7 @@ export default function ProductCard({ product }) {
         onClick={() => {
           if (isActive) {
             navigateTo(`/dashboard/products/${product.slug}/workspace`)
-          } else if (isSafeDemo || isLaunchPrep || isProductPrep) {
+          } else if (canOpen) {
             navigateTo(`/dashboard/products/${product.slug}`)
           }
         }}

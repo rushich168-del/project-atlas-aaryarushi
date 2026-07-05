@@ -2,7 +2,19 @@ export function filterProducts(products, searchTerm, statusFilter, categoryFilte
   const search = searchTerm.trim().toLowerCase()
 
   return products.filter((product) => {
-    const matchesStatus = statusFilter === 'All' || product.status === statusFilter
+    const displayStatus =
+      product.slug === 'ar-cert-pro' || product.status === 'Demo Ready' || product.status === 'Ready'
+        ? 'Ready to use'
+        : product.status === 'Safe Demo'
+          ? 'Mail preparation'
+          : product.status === 'Launch Prep'
+            ? 'Workspace setup'
+            : product.status === 'Product Prep' || product.status === 'Planned' || product.status === 'Concept'
+              ? 'Request setup'
+              : product.desktopAvailable
+                ? 'Product workspace'
+                : product.status
+    const matchesStatus = statusFilter === 'All' || displayStatus === statusFilter
     const matchesCategory = categoryFilter === 'all' || product.categoryId === categoryFilter
     const matchesAvailability =
       availabilityFilter === 'All' ||

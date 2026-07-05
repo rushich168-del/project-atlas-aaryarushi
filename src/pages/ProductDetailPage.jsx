@@ -26,7 +26,7 @@ const arCertProReadiness = [
   'Email dry-run ready',
 ]
 
-const arCertProLabels = ['Demo Ready', 'DOCX Output', 'Excel to Word', 'Safe Email Dry-run']
+const arCertProLabels = ['Ready to use', 'DOCX Output', 'Excel to Word', 'Safe Email Preparation']
 
 const arWorksheetProWorkflow = [
   'Upload worksheet Word template',
@@ -42,12 +42,12 @@ const arWorksheetProReadiness = [
   'Dashboard card ready',
   'Detail page ready',
   'DOCX output planned',
-  'Separate worksheet workspace coming next',
+  'Workspace setup path ready',
   'PDF export not available',
   'Real email sending disabled',
 ]
 
-const arWorksheetProLabels = ['Launch Prep', 'DOCX Output', 'Excel to Worksheets', 'Coming Next']
+const arWorksheetProLabels = ['Workspace setup', 'DOCX Output', 'Excel to Worksheets', 'Request Setup']
 
 const arQuestionProWorkflow = [
   'Upload question paper Word template',
@@ -63,17 +63,17 @@ const arQuestionProReadiness = [
   'Dashboard card ready',
   'Detail page ready',
   'DOCX output planned',
-  'Separate question paper workspace coming next',
+  'Workspace setup path ready',
   'PDF export not available',
   'Question randomization not claimed',
   'Real email sending disabled',
 ]
 
-const arQuestionProLabels = ['Launch Prep', 'DOCX Output', 'Excel to Questions', 'Coming Next']
+const arQuestionProLabels = ['Workspace setup', 'DOCX Output', 'Excel to Questions', 'Request Setup']
 
 const arFeeReceiptProWorkflow = [
   'Upload fee receipt Word template',
-  'Upload Excel payment/student data',
+  'Upload Excel fee/student data',
   'Map receipt fields',
   'Preview one receipt',
   'Generate DOCX fee receipts',
@@ -81,13 +81,12 @@ const arFeeReceiptProWorkflow = [
 ]
 
 const arFeeReceiptProReadiness = [
-  'Product concept prepared',
+  'Product workspace plan prepared',
   'Dashboard plan card ready',
   'Detail plan page ready',
   'DOCX generation workflow planned',
-  'Dedicated fee receipt workspace not available',
+  'Dedicated fee receipt workspace requires setup',
   'PDF export not available',
-  'Payment gateway not available',
   'Real email sending disabled',
 ]
 
@@ -97,14 +96,14 @@ const arFeeReceiptProPlaceholders = [
   'Class',
   'Course',
   'Amount',
-  'PaymentDate',
-  'PaymentMode',
+  'ReceiptDate',
+  'ReceiptMode',
   'AcademicYear',
   'BalanceAmount',
   'AuthorizedBy',
 ]
 
-const arFeeReceiptProLabels = ['Product Prep', 'Planned DOCX', 'Fee Receipts', 'Coming Next']
+const arFeeReceiptProLabels = ['Request setup', 'Planned DOCX', 'Fee Receipts', 'Workspace Setup']
 
 const arMailProWorkflow = [
   'Upload or select Excel/contact data',
@@ -116,7 +115,7 @@ const arMailProWorkflow = [
 ]
 
 const arMailProReadiness = [
-  'Safe demo positioning ready',
+  'Mail preparation positioning ready',
   'Email preparation workflow described',
   'Recipient preview and prepared count supported',
   'Server-authoritative dry-run validation supported',
@@ -126,7 +125,7 @@ const arMailProReadiness = [
   'Gmail/Outlook OAuth not added',
 ]
 
-const arMailProLabels = ['Safe Demo', 'Email Prep', 'Dry-run validation', 'Real sending disabled']
+const arMailProLabels = ['Mail preparation', 'Email Prep', 'Dry-run validation', 'Real sending disabled']
 
 const arMarksheetProWorkflow = [
   'Upload marksheet Word template',
@@ -142,12 +141,12 @@ const arMarksheetProReadiness = [
   'Dashboard card ready',
   'Detail page ready',
   'DOCX output planned',
-  'Separate workspace coming next',
+  'Workspace setup path ready',
   'PDF export not available',
   'Real email sending disabled',
 ]
 
-const arMarksheetProLabels = ['Launch Prep', 'DOCX Output', 'Excel to Marksheet', 'Coming Next']
+const arMarksheetProLabels = ['Workspace setup', 'DOCX Output', 'Excel to Marksheet', 'Request Setup']
 
 const arInvoiceProWorkflow = [
   'Upload invoice Word template',
@@ -163,12 +162,12 @@ const arInvoiceProReadiness = [
   'Dashboard card ready',
   'Detail page ready',
   'DOCX output planned',
-  'Separate invoice workspace coming next',
+  'Workspace setup path ready',
   'PDF export not available',
   'Real email sending disabled',
 ]
 
-const arInvoiceProLabels = ['Launch Prep', 'DOCX Output', 'Excel to Invoice', 'Coming Next']
+const arInvoiceProLabels = ['Workspace setup', 'DOCX Output', 'Excel to Invoice', 'Request Setup']
 
 const arIdcardProWorkflow = [
   'Upload ID card Word template',
@@ -184,13 +183,13 @@ const arIdcardProReadiness = [
   'Dashboard card ready',
   'Detail page ready',
   'DOCX output planned',
-  'Separate ID card workspace coming next',
+  'Workspace setup path ready',
   'Photo automation not fully live',
   'PDF export not available',
   'Real email sending disabled',
 ]
 
-const arIdcardProLabels = ['Launch Prep', 'DOCX Output', 'Excel to ID Cards', 'Coming Next']
+const arIdcardProLabels = ['Workspace setup', 'DOCX Output', 'Excel to ID Cards', 'Request Setup']
 
 const arReportProWorkflow = [
   'Upload report Word template',
@@ -206,12 +205,12 @@ const arReportProReadiness = [
   'Dashboard card ready',
   'Detail page ready',
   'DOCX output planned',
-  'Separate report workspace coming next',
+  'Workspace setup path ready',
   'PDF export not available',
   'Real email sending disabled',
 ]
 
-const arReportProLabels = ['Launch Prep', 'DOCX Output', 'Excel to Reports', 'Coming Next']
+const arReportProLabels = ['Workspace setup', 'DOCX Output', 'Excel to Reports', 'Request Setup']
 
 export default function ProductDetailPage({ slug }) {
   const { organization, categories, products, source, status, loading, error } = useProductCatalog()
@@ -283,7 +282,7 @@ export default function ProductDetailPage({ slug }) {
               ) : null}
               {isArInvoicePro ? (
                 <p className="mt-3 max-w-3xl leading-7 text-slate-600">
-                  Prepared for small businesses, freelancers, coaching centers, admin offices, service providers, training institutes, and local teams that need repeatable invoice documents from spreadsheet data.
+                  Prepared for small businesses, independent service providers, coaching centers, admin offices, training institutes, and local teams that need repeatable invoice documents from spreadsheet data.
                 </p>
               ) : null}
               {isArIdcardPro ? (
@@ -308,7 +307,7 @@ export default function ProductDetailPage({ slug }) {
               ) : null}
               {isArFeeReceiptPro ? (
                 <p className="mt-3 max-w-3xl leading-7 text-slate-600">
-                  Prepared as a future product concept for schools, colleges, coaching centers, training institutes, admin offices, and accounts teams that need fee receipt and payment acknowledgment documents.
+                  Prepared as a product setup path for schools, colleges, coaching centers, training institutes, admin offices, and accounts teams that need fee receipt documents.
                 </p>
               ) : null}
               {isArMailPro ? (
@@ -355,7 +354,7 @@ export default function ProductDetailPage({ slug }) {
         {isArCertPro ? (
           <section className="mt-6 grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
             <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-              <h3 className="text-lg font-semibold text-primary">Launch demo workflow</h3>
+              <h3 className="text-lg font-semibold text-primary">Product workspace workflow</h3>
               <p className="mt-2 text-sm leading-6 text-slate-600">
                 AR-CERT-PRO turns a certificate template and student spreadsheet into individual DOCX certificates with a safe review path before any email work.
               </p>
@@ -370,7 +369,7 @@ export default function ProductDetailPage({ slug }) {
             </article>
 
             <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-              <h3 className="text-lg font-semibold text-primary">Demo readiness checklist</h3>
+              <h3 className="text-lg font-semibold text-primary">Workspace readiness checklist</h3>
               <div className="mt-4 grid gap-2">
                 {arCertProReadiness.map((item) => (
                   <div key={item} className="flex items-center gap-3 rounded-md border border-emerald-200 bg-emerald-50 p-3">
@@ -390,9 +389,9 @@ export default function ProductDetailPage({ slug }) {
         {isArWorksheetPro ? (
           <section className="mt-6 grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
             <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-              <h3 className="text-lg font-semibold text-primary">Launch-prep workflow</h3>
+              <h3 className="text-lg font-semibold text-primary">Workspace setup workflow</h3>
               <p className="mt-2 text-sm leading-6 text-slate-600">
-                AR-WORKSHEET-PRO is positioned as the next education product in the lineup. The current milestone prepares the launch story and detail page; a separate worksheet workspace is still coming next.
+                AR-WORKSHEET-PRO is positioned as an education product workspace. The current setup path documents the worksheet workflow while a dedicated worksheet workspace is scoped.
               </p>
               <div className="mt-4 grid gap-2">
                 {arWorksheetProWorkflow.map((step, index) => (
@@ -425,9 +424,9 @@ export default function ProductDetailPage({ slug }) {
         {isArQuestionPro ? (
           <section className="mt-6 grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
             <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-              <h3 className="text-lg font-semibold text-primary">Launch-prep workflow</h3>
+              <h3 className="text-lg font-semibold text-primary">Workspace setup workflow</h3>
               <p className="mt-2 text-sm leading-6 text-slate-600">
-                AR-QUESTION-PRO is positioned as the next education product in the lineup. The current milestone prepares the launch story and detail page; a separate question paper workspace is still coming next.
+                AR-QUESTION-PRO is positioned as an education product workspace. The current setup path documents the question paper workflow while a dedicated question workspace is scoped.
               </p>
               <div className="mt-4 grid gap-2">
                 {arQuestionProWorkflow.map((step, index) => (
@@ -460,9 +459,9 @@ export default function ProductDetailPage({ slug }) {
         {isArFeeReceiptPro ? (
           <section className="mt-6 grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
             <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-              <h3 className="text-lg font-semibold text-primary">Product-prep plan</h3>
+              <h3 className="text-lg font-semibold text-primary">Product workspace setup plan</h3>
               <p className="mt-2 text-sm leading-6 text-slate-600">
-                AR-FEE-RECEIPT-PRO is a future product concept for fee receipts and payment acknowledgments. The plan is documented here, but the dedicated workspace and generation workflow are not live yet.
+                AR-FEE-RECEIPT-PRO is a product setup path for fee receipt documents. The plan is documented here so the dedicated workspace and generation workflow can be scoped accurately before use.
               </p>
               <div className="mt-4 grid gap-2">
                 {arFeeReceiptProWorkflow.map((step, index) => (
@@ -490,7 +489,7 @@ export default function ProductDetailPage({ slug }) {
               </div>
               <div className="mt-4 rounded-md border border-amber-200 bg-amber-50 p-3">
                 <p className="text-sm font-semibold text-amber-800">Current honesty note</p>
-                <p className="mt-1 text-sm leading-6 text-amber-800">AR-FEE-RECEIPT-PRO is not live yet. A dedicated workspace, DOCX generation workflow, PDF export, payment gateway, and real email sending are not available.</p>
+                <p className="mt-1 text-sm leading-6 text-amber-800">AR-FEE-RECEIPT-PRO requires workspace setup before use. A dedicated workspace, DOCX generation workflow, PDF export, and real email sending are not available inside Project Atlas yet.</p>
               </div>
             </article>
           </section>
@@ -499,7 +498,7 @@ export default function ProductDetailPage({ slug }) {
         {isArMailPro ? (
           <section className="mt-6 grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
             <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-              <h3 className="text-lg font-semibold text-primary">Safe demo workflow</h3>
+              <h3 className="text-lg font-semibold text-primary">Mail preparation workflow</h3>
               <p className="mt-2 text-sm leading-6 text-slate-600">
                 AR-MAIL-PRO prepares personalized email batches from Excel/contact data and templates. Inside Project Atlas, this is dry-run only: no real row-recipient emails are sent.
               </p>
@@ -525,7 +524,7 @@ export default function ProductDetailPage({ slug }) {
               </div>
               <div className="mt-4 rounded-md border border-amber-200 bg-amber-50 p-3">
                 <p className="text-sm font-semibold text-amber-800">Dry-run only in Project Atlas</p>
-                <p className="mt-1 text-sm leading-6 text-amber-800">No real row-recipient emails are sent. Controlled batch sending remains disabled. Failed-row resend remains disabled. Gmail/Outlook OAuth and billing are not added.</p>
+                <p className="mt-1 text-sm leading-6 text-amber-800">No real row-recipient emails are sent. Controlled batch sending remains disabled. Failed-row resend remains disabled. Gmail/Outlook OAuth is not added.</p>
               </div>
             </article>
           </section>
@@ -534,9 +533,9 @@ export default function ProductDetailPage({ slug }) {
         {isArMarksheetPro ? (
           <section className="mt-6 grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
             <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-              <h3 className="text-lg font-semibold text-primary">Launch-prep workflow</h3>
+              <h3 className="text-lg font-semibold text-primary">Workspace setup workflow</h3>
               <p className="mt-2 text-sm leading-6 text-slate-600">
-                AR-MARKSHEET-PRO is positioned as the second education product in the lineup. The current milestone prepares the launch story and detail page; a separate marksheet workspace is still coming next.
+                AR-MARKSHEET-PRO is positioned as an education product workspace. The current setup path documents the marksheet workflow while a dedicated marksheet workspace is scoped.
               </p>
               <div className="mt-4 grid gap-2">
                 {arMarksheetProWorkflow.map((step, index) => (
@@ -569,9 +568,9 @@ export default function ProductDetailPage({ slug }) {
         {isArInvoicePro ? (
           <section className="mt-6 grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
             <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-              <h3 className="text-lg font-semibold text-primary">Launch-prep workflow</h3>
+              <h3 className="text-lg font-semibold text-primary">Workspace setup workflow</h3>
               <p className="mt-2 text-sm leading-6 text-slate-600">
-                AR-INVOICE-PRO is positioned as the first Office / Business product in the lineup. The current milestone prepares the launch story and detail page; a separate invoice workspace is still coming next.
+                AR-INVOICE-PRO is positioned as an Office / Business product workspace. The current setup path documents the invoice workflow while a dedicated invoice workspace is scoped.
               </p>
               <div className="mt-4 grid gap-2">
                 {arInvoiceProWorkflow.map((step, index) => (
@@ -604,9 +603,9 @@ export default function ProductDetailPage({ slug }) {
         {isArIdcardPro ? (
           <section className="mt-6 grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
             <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-              <h3 className="text-lg font-semibold text-primary">Launch-prep workflow</h3>
+              <h3 className="text-lg font-semibold text-primary">Workspace setup workflow</h3>
               <p className="mt-2 text-sm leading-6 text-slate-600">
-                AR-IDCARD-PRO is positioned as the next education and HR document product in the lineup. The current milestone prepares the launch story and detail page; a separate ID card workspace is still coming next.
+                AR-IDCARD-PRO is positioned as an education and HR/Admin product workspace. The current setup path documents the ID card workflow while a dedicated ID card workspace is scoped.
               </p>
               <div className="mt-4 grid gap-2">
                 {arIdcardProWorkflow.map((step, index) => (
@@ -639,9 +638,9 @@ export default function ProductDetailPage({ slug }) {
         {isArReportPro ? (
           <section className="mt-6 grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
             <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-              <h3 className="text-lg font-semibold text-primary">Launch-prep workflow</h3>
+              <h3 className="text-lg font-semibold text-primary">Workspace setup workflow</h3>
               <p className="mt-2 text-sm leading-6 text-slate-600">
-                AR-REPORT-PRO is positioned as the next education product in the lineup. The current milestone prepares the launch story and detail page; a separate report workspace is still coming next.
+                AR-REPORT-PRO is positioned as an education product workspace. The current setup path documents the report workflow while a dedicated report workspace is scoped.
               </p>
               <div className="mt-4 grid gap-2">
                 {arReportProWorkflow.map((step, index) => (
@@ -708,7 +707,7 @@ export default function ProductDetailPage({ slug }) {
                 onClick={() => navigateTo(`/dashboard/products/${product.slug}/workspace`)}
                 className="focus-ring mt-5 inline-flex min-h-10 items-center justify-center gap-2 rounded-md bg-accentTeal px-4 text-sm font-semibold text-white transition hover:bg-teal-800"
               >
-                Start Demo
+                Open Workspace
                 <ArrowUpRight size={16} aria-hidden="true" />
               </button>
             ) : null}
@@ -718,7 +717,7 @@ export default function ProductDetailPage({ slug }) {
         <section className="mt-6 grid gap-4 lg:grid-cols-3">
           {[
             ['Scope', 'Requirements, users, inputs, outputs, and delivery notes can be tracked here in a later release.', Layers3],
-            ['Documentation', 'Product briefs, screenshots, templates, and demo scripts can be attached later.', FileText],
+            ['Documentation', 'Product briefs, screenshots, templates, and setup notes can be attached later.', FileText],
             ['Roadmap', 'Milestones, owner notes, release readiness, and support status can be tracked here.', CalendarClock],
           ].map(([title, description, Icon]) => (
             <article key={title} className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
