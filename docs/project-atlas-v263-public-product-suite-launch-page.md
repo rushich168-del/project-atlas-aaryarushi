@@ -7,7 +7,7 @@ Project Atlas v2.63 Public Product Suite Launch Page
 ## What Changed
 
 - Updated the public landing hero to present AaryaRushi Automation Labs as a product suite.
-- Added public product suite grouping for Education, Office / Business, and Communication.
+- Added public product suite grouping for Education, HR / Admin, and Office / Business.
 - Reworked the workflow section around the Project Atlas document automation flow.
 - Added a safe-demo section that clearly identifies AR-CERT-PRO as the main working demo product.
 - Added a safety section for email dry-run behavior and disabled real-send paths.
@@ -24,14 +24,15 @@ Project Atlas v2.63 Public Product Suite Launch Page
 - AR-QUESTION-PRO: Launch Prep
 - AR-IDCARD-PRO: Launch Prep
 
+### HR / Admin
+
+- AR-IDCARD-PRO: Launch Prep
+- AR-MAIL-PRO: Safe Demo
+
 ### Office / Business
 
 - AR-INVOICE-PRO: Launch Prep
 - AR-FEE-RECEIPT-PRO: Product Prep
-
-### Communication
-
-- AR-MAIL-PRO: Safe Demo
 
 ## Honest Status Policy
 
@@ -58,7 +59,7 @@ Project Atlas v2.63 Public Product Suite Launch Page
 - Hero shows AaryaRushi Automation Labs and product-suite positioning.
 - Login / Open Dashboard CTA links to `/dashboard`.
 - See Product Suite CTA scrolls to the product suite section.
-- Product suite section shows Education, Office / Business, and Communication groups.
+- Product suite section shows Education, HR / Admin, and Office / Business groups.
 - AR-CERT-PRO is shown as Demo Ready.
 - AR-MAIL-PRO is shown as Safe Demo.
 - Launch Prep and Product Prep products do not claim live workspaces.
