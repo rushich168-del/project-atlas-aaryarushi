@@ -95,6 +95,7 @@ function scheduleRestore(key) {
   const target = readSaved(key)
   const startedAt = Date.now()
   let lastMax = -1
+  let stableFrames = 0
 
   function attempt() {
     // Superseded by a newer navigation, or the route changed again mid-retry.
@@ -110,17 +111,26 @@ function scheduleRestore(key) {
     // `html { scroll-behavior: smooth }` that would otherwise animate.
     scroller.scrollTop = desired
 
-    const reached = Math.abs(scroller.scrollTop - desired) <= 2
-    const contentPresentButShorter = max > 0 && max === lastMax
-    const tallEnough = target === null || max >= target
-    const timedOut = Date.now() - startedAt > RESTORE_TIMEOUT_MS
+    if (max === lastMax) {
+      stableFrames += 1
+    } else {
+      stableFrames = 0
+    }
     lastMax = max
 
-    // Done when we've landed and either the page is tall enough for the target,
-    // or content has loaded but is genuinely shorter than when saved. The
-    // `max > 0` guard prevents stopping early during the mid-load window when the
-    // page is transiently empty (height stably 0).
-    if ((reached && (tallEnough || contentPresentButShorter)) || timedOut) {
+    const reached = Math.abs(scroller.scrollTop - desired) <= 2
+    const tallEnough = target === null || max >= target
+    const elapsed = Date.now() - startedAt
+
+    // Accept a page that is genuinely shorter than the saved offset ONLY once its
+    // height has held steady for many frames AND enough time has passed for async
+    // content to have rendered. This is the fix for History: its loading state is
+    // itself partially tall and height-stable, so a naive "stable => done" check
+    // stopped the retry before the async list grew the page to the saved depth.
+    const settledShorter = max > 0 && stableFrames >= 12 && elapsed > 1500
+    const timedOut = elapsed > RESTORE_TIMEOUT_MS
+
+    if ((reached && (tallEnough || settledShorter)) || timedOut) {
       return
     }
 
@@ -128,6 +138,21 @@ function scheduleRestore(key) {
   }
 
   window.requestAnimationFrame(attempt)
+}
+
+// Re-run restoration for the current route. Async pages (History, Workspace)
+// call this once their data/list has rendered, so the saved deep-scroll position
+// is restored after the page has actually grown tall enough — the popstate-time
+// attempt alone can finish before the list exists. Ensures the manager is
+// installed first, which also covers React running child effects before the
+// parent DashboardLayout's install effect on a cold mount.
+export function notifyRouteContentReady() {
+  if (!installed) {
+    installScrollRestoration()
+    return
+  }
+
+  scheduleRestore(currentKey)
 }
 
 function handleScroll() {

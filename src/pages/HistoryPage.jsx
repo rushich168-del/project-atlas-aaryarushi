@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { AlertCircle, CalendarDays, Download, FileClock, FileText, Loader2, RefreshCw, Search, X } from 'lucide-react'
 import DashboardLayout from '../components/dashboard/DashboardLayout.jsx'
 import EnvironmentBanner from '../components/dashboard/EnvironmentBanner.jsx'
@@ -7,6 +7,7 @@ import { createBatchDocxZip, downloadGeneratedCertificateDocx } from '../feature
 import { deleteGeneratedDocument, deleteGenerationJob, deleteGenerationOutput, getGeneratedDocumentsHistory, getGenerationJobsHistory } from '../services/generatedDocumentsService.js'
 import { getDownloadError, getFriendlyError } from '../utils/errorMessages.js'
 import { navigateTo } from '../utils/routes.js'
+import { notifyRouteContentReady } from '../utils/scrollRestoration.js'
 import EmailPreparationPanel from '../components/email/EmailPreparationPanel.jsx'
 import { getEmailDeliveryDryRunErrorMessage, listEmailDeliveryDryRunJobsForGeneration } from '../services/emailDeliveryDryRunService.js'
 
@@ -573,6 +574,20 @@ export default function HistoryPage() {
   // Per-route scroll restoration is handled centrally by scrollRestoration.js
   // (installed in DashboardLayout), so History keeps no scroll bookkeeping of its
   // own. In-page reloads still preserve position via restoreScrollAfterListUpdate.
+  //
+  // History data loads async and only then does the list grow tall enough to hold
+  // a deep saved scroll. Signal the scroll manager once, after the first load
+  // completes (on initial mount and on any browser back/forward remount), so it
+  // restores against the fully-rendered list instead of the short loading state.
+  const initialScrollRestoreDoneRef = useRef(false)
+  useEffect(() => {
+    if (loading || workspaceLoading || initialScrollRestoreDoneRef.current) {
+      return
+    }
+
+    initialScrollRestoreDoneRef.current = true
+    notifyRouteContentReady()
+  }, [loading, workspaceLoading])
 
   useEffect(() => {
     setSessionObject(historyExpandedJobsKey, expandedJobs)
