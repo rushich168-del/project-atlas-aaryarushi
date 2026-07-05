@@ -140,7 +140,7 @@ function GuidanceUploadBox({ icon: Icon, title, description, fileState, accept, 
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0">
                   <p className="truncate font-semibold">{fileState.name}</p>
-                  <p className="mt-1 text-xs font-semibold">{formatFileSize(fileState.size)} · {fileState.status}</p>
+                  <p className="mt-1 text-xs font-semibold">{formatFileSize(fileState.size)} / {fileState.status}</p>
                 </div>
                 <button
                   type="button"
@@ -235,7 +235,7 @@ function GuidedWorkspaceStarter({ product, category, catalogState }) {
                   return (
                     <div key={step} className={`flex items-center gap-3 rounded-md border p-3 ${complete ? 'border-teal-200 bg-teal-50' : current ? 'border-blue-200 bg-blue-50' : guidanceOnly ? 'border-amber-200 bg-amber-50' : 'border-slate-200 bg-white'}`}>
                       <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-xs font-bold ${complete ? 'bg-accentTeal text-white' : current ? 'bg-accentBlue text-white' : guidanceOnly ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-500'}`}>
-                        {complete ? <CheckCircle2 size={15} aria-hidden="true" /> : locked ? '·' : index + 1}
+                        {complete ? <CheckCircle2 size={15} aria-hidden="true" /> : locked ? '-' : index + 1}
                       </span>
                       <div>
                         <p className={`text-sm font-semibold ${complete ? 'text-teal-800' : current ? 'text-blue-800' : guidanceOnly ? 'text-amber-800' : 'text-slate-500'}`}>{step}</p>

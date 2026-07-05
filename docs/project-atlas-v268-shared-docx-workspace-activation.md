@@ -1,28 +1,28 @@
-# Project Atlas v2.68 Shared DOCX Workspace Activation
+# Project Atlas v2.68 Shared DOCX Workspace Activation Note
 
 Date: 2026-07-05
 
-## Goal
+## Status
 
-Route non-email document products into a shared DOCX workspace so they can use the existing safe template, Excel, mapping, preview, DOCX generation, History, and download workflow where supported.
+This earlier broad activation note is superseded by:
 
-## Shared DOCX Workspace Products
+`docs/project-atlas-v268-shared-docx-workspace-foundation.md`
 
-These products now use the shared DOCX workspace route:
+The implemented v2.68 foundation activates only AR-MARKSHEET-PRO as the first shared DOCX product after AR-CERT-PRO.
+
+## Active Shared DOCX Workspace Product
 
 - AR-MARKSHEET-PRO
-- AR-REPORT-PRO
-- AR-WORKSHEET-PRO
-- AR-QUESTION-PRO
-- AR-IDCARD-PRO
-- AR-INVOICE-PRO
-- AR-FEE-RECEIPT-PRO
 
-Each product uses product-specific labels, guidance, preview copy, and field examples while reusing the existing safe DOCX workspace engine.
-
-## Products Not Routed To Shared DOCX
+## Products Not Activated Yet
 
 - AR-CERT-PRO remains on the original real certificate workspace.
+- AR-REPORT-PRO remains on the guided starter.
+- AR-WORKSHEET-PRO remains on the guided starter.
+- AR-QUESTION-PRO remains on the guided starter.
+- AR-IDCARD-PRO remains on the guided starter.
+- AR-INVOICE-PRO remains on the guided starter.
+- AR-FEE-RECEIPT-PRO remains on the guided starter.
 - AR-MAIL-PRO remains on the guided mail preparation starter. It does not route to document generation and does not imply real sending.
 
 ## Workspace Behavior
@@ -50,12 +50,6 @@ Each product uses product-specific labels, guidance, preview copy, and field exa
 
 - AR-CERT-PRO opens the original real workspace.
 - AR-MARKSHEET-PRO opens the shared DOCX workspace.
-- AR-REPORT-PRO opens the shared DOCX workspace.
-- AR-WORKSHEET-PRO opens the shared DOCX workspace.
-- AR-QUESTION-PRO opens the shared DOCX workspace.
-- AR-IDCARD-PRO opens the shared DOCX workspace.
-- AR-INVOICE-PRO opens the shared DOCX workspace.
-- AR-FEE-RECEIPT-PRO opens the shared DOCX workspace.
+- Other document products open guided starters.
 - AR-MAIL-PRO opens mail preparation guidance only.
-- Shared document products show product-specific upload labels and preview copy.
-- No unavailable workspace message appears for shared document products.
+- AR-MARKSHEET-PRO shows marksheet-specific upload labels and preview copy.

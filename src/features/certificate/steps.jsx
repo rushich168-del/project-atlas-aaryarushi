@@ -500,16 +500,16 @@ export function PreviewStep({ state, actions, config }) {
             </div>
             <div className="mt-6 rounded-lg border border-slate-200 bg-slate-50 p-6 text-center">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accentBlue">{config.copy?.previewDocumentTitle || 'Prepared DOCX Preview'}</p>
-              <h4 className="mt-6 text-3xl font-semibold text-primary">{previewData.name || config.copy?.previewNameFallback || 'Primary Name'}</h4>
+              <h4 className="mt-6 text-3xl font-semibold text-primary">{previewData[config.copy?.previewNameField || 'name'] || config.copy?.previewNameFallback || 'Primary Name'}</h4>
               <p className="mt-4 text-sm leading-6 text-slate-600">
                 {config.copy?.previewSentence
                   ? config.copy.previewSentence(previewData)
                   : `has completed ${previewData.course || 'Course Name'} on ${previewData.date || 'Date'}.`}
               </p>
               <p className="mt-6 text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
-                {previewData.certificate_id || config.copy?.previewIdFallback || 'DOCUMENT-ID'}
+                {previewData[config.copy?.previewIdField || 'certificate_id'] || config.copy?.previewIdFallback || 'DOCUMENT-ID'}
               </p>
-              {previewData.trainer && <p className="mt-4 text-sm font-semibold text-slate-500">{config.copy?.optionalFieldLabel || 'Prepared by'}: {previewData.trainer}</p>}
+              {previewData[config.copy?.optionalField || 'trainer'] && <p className="mt-4 text-sm font-semibold text-slate-500">{config.copy?.optionalFieldLabel || 'Prepared by'}: {previewData[config.copy?.optionalField || 'trainer']}</p>}
             </div>
             <div className="mt-5 rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-600">
               <p className="font-semibold text-slate-800">Raw preview row values</p>
