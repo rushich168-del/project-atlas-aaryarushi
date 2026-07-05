@@ -99,6 +99,7 @@ export function createSharedDocumentWorkspaceConfig(options) {
     eyebrow: options.eyebrow,
     title: options.title,
     description: options.description,
+    placeholderHelp: options.placeholderHelp,
     templateFields,
     copy: options.copy,
     createEmptyFieldMapping: emptyMapping,
@@ -531,6 +532,7 @@ export const sharedDocumentWorkspaceConfigs = {
     eyebrow: 'Shared DOCX Workspace',
     title: 'Marksheet DOCX Workspace',
     description: 'Generate marksheet DOCX documents from a marksheet template and student marks Excel data.',
+    placeholderHelp: 'Example: {{StudentName}} matches StudentName, {{RollNo}} matches RollNo, and {{Maths}} matches Maths in the Student marks Excel.',
     templateFields: sharedFields.marksheet,
     copy: {
       templateTitle: 'Upload marksheet template',

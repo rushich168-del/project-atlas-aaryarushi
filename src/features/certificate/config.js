@@ -103,6 +103,7 @@ export const certificateWorkspaceConfig = {
   title: 'Certificate Workspace',
   description:
     'Generate one DOCX certificate at a time from a saved draft and the selected Excel preview row.',
+  placeholderHelp: 'Example: {{name}} matches the Name column, {{course}} matches the Course column, and {{certificate_id}} matches the Certificate ID column.',
   templateFields: [
     { id: 'name', label: 'Recipient name', placeholder: '{{name}}', required: true, type: 'text', defaultValue: '', sample: 'Aarya Rushi' },
     { id: 'course', label: 'Course name', placeholder: '{{course}}', required: true, type: 'text', defaultValue: '', sample: 'Office Automation Foundations' },

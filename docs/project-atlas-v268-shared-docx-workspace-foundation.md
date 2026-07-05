@@ -65,7 +65,7 @@ The current engine-supported placeholders are:
 - `{{Total}}`
 - `{{Grade}}`
 
-The requested `<<StudentName>>` style is not activated yet because the current placeholder parser only supports `{{FieldName}}` tokens. Adding `<<...>>` support should be a separate parser enhancement.
+The supported placeholder contract is `{{FieldName}}`. User-facing setup guidance should use this format consistently.
 
 ## What Still Blocks Other Products
 

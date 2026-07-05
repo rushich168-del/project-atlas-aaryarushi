@@ -75,7 +75,7 @@ const productGuidance = {
   'ar-mail-pro': {
     templateLabel: 'Mail content guidance',
     excelLabel: 'Recipient list/data file',
-    template: 'Prepare subject and body text with personalization placeholders such as <<Name>> or <<Course>>. No real email sending is enabled here.',
+    template: 'Prepare subject and body text with personalization placeholders such as {{Name}} or {{Course}}. No real email sending is enabled here.',
     excel: 'Select a local recipient list/data file with recipient email and personalization columns.',
     fields: ['RecipientEmail', 'Name', 'SubjectData', 'PersonalMessage', 'AttachmentReference'],
     purpose: 'Prepare a mail workspace for dry-run validation only. Real row-recipient sending remains disabled.',
@@ -300,7 +300,7 @@ function GuidedWorkspaceStarter({ product, category, catalogState }) {
             <div className="mt-4 rounded-md border border-blue-200 bg-blue-50 p-3">
               <p className="text-sm font-semibold text-blue-800">Field matching guide</p>
               <p className="mt-1 text-sm leading-6 text-blue-800">
-                Word placeholders should look like <span className="font-mono">&lt;&lt;Name&gt;&gt;</span>. Excel columns should match the placeholder name. Example: <span className="font-mono">&lt;&lt;StudentName&gt;&gt;</span> matches the <span className="font-mono">StudentName</span> column.
+                Use <span className="font-mono">{'{{ColumnName}}'}</span> placeholders in your Word template. Excel columns should match the placeholder name. Example: <span className="font-mono">{'{{StudentName}}'}</span> matches the <span className="font-mono">StudentName</span> column, and <span className="font-mono">{'{{Maths}}'}</span> matches the <span className="font-mono">Maths</span> column.
               </p>
             </div>
             <div className="mt-4 flex flex-wrap gap-2">

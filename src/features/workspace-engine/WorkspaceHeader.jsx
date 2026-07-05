@@ -23,6 +23,10 @@ export default function WorkspaceHeader({ product, config, activeStep, readiness
             <span className="rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.08em] text-slate-600">Excel data</span>
             <span className="rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.08em] text-slate-600">DOCX output</span>
           </div>
+          <div className="mt-4 rounded-md border border-blue-200 bg-blue-50 p-3">
+            <p className="text-sm font-semibold text-blue-800">Use {'{{ColumnName}}'} placeholders in your Word template.</p>
+            <p className="mt-1 text-sm leading-6 text-blue-800">{config.placeholderHelp || 'Example: {{Name}} matches the Name column in Excel.'}</p>
+          </div>
         </div>
 
         <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 xl:min-w-72">

@@ -20,9 +20,9 @@ Make the guided workspace starter more useful and user-friendly without adding f
   - Guidance-only field checking
   - Locked preview/generation steps
 - Added a field matching guide:
-  - Word placeholders should look like `<<Name>>`
+  - Word placeholders should look like `{{Name}}`
   - Excel columns should match placeholder names
-  - Example: `<<StudentName>>` matches the `StudentName` column
+  - Example: `{{StudentName}}` matches the `StudentName` column
 
 ## Product-Specific Guidance
 
