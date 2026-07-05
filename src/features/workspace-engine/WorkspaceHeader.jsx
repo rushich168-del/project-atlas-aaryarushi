@@ -21,7 +21,8 @@ export default function WorkspaceHeader({ product, config, activeStep, readiness
           <div className="mt-4 flex flex-wrap gap-2">
             <span className="rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.08em] text-slate-600">Template</span>
             <span className="rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.08em] text-slate-600">Excel data</span>
-            <span className="rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.08em] text-slate-600">DOCX output</span>
+            <span className="rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.08em] text-slate-600">{config.outputLabel || 'DOCX output'}</span>
+            <span className="rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.08em] text-slate-600">{config.supportedOutput || 'DOCX'} only</span>
           </div>
           <div className="mt-4 rounded-md border border-blue-200 bg-blue-50 p-3">
             <p className="text-sm font-semibold text-blue-800">Use {'{{ColumnName}}'} placeholders in your Word template.</p>
