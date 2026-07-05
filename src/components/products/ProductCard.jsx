@@ -18,9 +18,9 @@ export default function ProductCard({ product }) {
   const buttonLabel = isActive
     ? 'Open Workspace'
     : isSafeDemo
-      ? 'Open Product'
+      ? 'Mail Prep'
       : isLaunchPrep || isProductPrep || product.status === 'Planned' || product.status === 'Concept'
-        ? 'Request Setup'
+        ? 'Setup Workspace'
         : 'Use Product'
   const suiteLabel = getSuiteLabel(product)
   const statusLabel = isActive

@@ -80,7 +80,7 @@ export default function DashboardPage() {
       badge: 'Workspace setup',
       active: true,
       href: '/dashboard/products/ar-worksheet-pro',
-      buttonLabel: 'Request Setup',
+      buttonLabel: 'Setup Workspace',
     },
     {
       label: 'AR-QUESTION-PRO',
@@ -91,7 +91,7 @@ export default function DashboardPage() {
       badge: 'Workspace setup',
       active: true,
       href: '/dashboard/products/ar-question-pro',
-      buttonLabel: 'Request Setup',
+      buttonLabel: 'Setup Workspace',
     },
     {
       label: 'AR-REPORT-PRO',
@@ -102,7 +102,7 @@ export default function DashboardPage() {
       badge: 'Workspace setup',
       active: true,
       href: '/dashboard/products/ar-report-pro',
-      buttonLabel: 'Request Setup',
+      buttonLabel: 'Setup Workspace',
     },
     {
       label: 'AR-FEE-RECEIPT-PRO',
@@ -113,7 +113,7 @@ export default function DashboardPage() {
       badge: 'Request setup',
       active: true,
       href: '/dashboard/products/ar-fee-receipt-pro',
-      buttonLabel: 'Request Setup',
+      buttonLabel: 'Setup Workspace',
     },
     {
       label: 'AR-MARKSHEET-PRO',
@@ -124,7 +124,7 @@ export default function DashboardPage() {
       badge: 'Workspace setup',
       active: true,
       href: '/dashboard/products/ar-marksheet-pro',
-      buttonLabel: 'Request Setup',
+      buttonLabel: 'Setup Workspace',
     },
     {
       label: 'AR-IDCARD-PRO',
@@ -135,7 +135,7 @@ export default function DashboardPage() {
       badge: 'Workspace setup',
       active: true,
       href: '/dashboard/products/ar-idcard-pro',
-      buttonLabel: 'Request Setup',
+      buttonLabel: 'Setup Workspace',
     },
     {
       label: 'Offer Letter Engine',
@@ -191,7 +191,7 @@ export default function DashboardPage() {
       badge: 'Workspace setup',
       active: true,
       href: '/dashboard/products/ar-invoice-pro',
-      buttonLabel: 'Request Setup',
+      buttonLabel: 'Setup Workspace',
     },
     {
       label: 'Quotation Engine',
@@ -229,7 +229,7 @@ export default function DashboardPage() {
       badge: 'Mail preparation',
       active: true,
       href: '/dashboard/products/ar-mail-pro',
-      buttonLabel: 'Open Product',
+      buttonLabel: 'Mail Prep',
     },
   ]
   const suiteSections = [

@@ -47,7 +47,7 @@ const arWorksheetProReadiness = [
   'Real email sending disabled',
 ]
 
-const arWorksheetProLabels = ['Workspace setup', 'DOCX Output', 'Excel to Worksheets', 'Request Setup']
+const arWorksheetProLabels = ['Workspace setup', 'DOCX Output', 'Excel to Worksheets', 'Setup Workspace']
 
 const arQuestionProWorkflow = [
   'Upload question paper Word template',
@@ -69,7 +69,7 @@ const arQuestionProReadiness = [
   'Real email sending disabled',
 ]
 
-const arQuestionProLabels = ['Workspace setup', 'DOCX Output', 'Excel to Questions', 'Request Setup']
+const arQuestionProLabels = ['Workspace setup', 'DOCX Output', 'Excel to Questions', 'Setup Workspace']
 
 const arFeeReceiptProWorkflow = [
   'Upload fee receipt Word template',
@@ -146,7 +146,7 @@ const arMarksheetProReadiness = [
   'Real email sending disabled',
 ]
 
-const arMarksheetProLabels = ['Workspace setup', 'DOCX Output', 'Excel to Marksheet', 'Request Setup']
+const arMarksheetProLabels = ['Workspace setup', 'DOCX Output', 'Excel to Marksheet', 'Setup Workspace']
 
 const arInvoiceProWorkflow = [
   'Upload invoice Word template',
@@ -167,7 +167,7 @@ const arInvoiceProReadiness = [
   'Real email sending disabled',
 ]
 
-const arInvoiceProLabels = ['Workspace setup', 'DOCX Output', 'Excel to Invoice', 'Request Setup']
+const arInvoiceProLabels = ['Workspace setup', 'DOCX Output', 'Excel to Invoice', 'Setup Workspace']
 
 const arIdcardProWorkflow = [
   'Upload ID card Word template',
@@ -189,7 +189,7 @@ const arIdcardProReadiness = [
   'Real email sending disabled',
 ]
 
-const arIdcardProLabels = ['Workspace setup', 'DOCX Output', 'Excel to ID Cards', 'Request Setup']
+const arIdcardProLabels = ['Workspace setup', 'DOCX Output', 'Excel to ID Cards', 'Setup Workspace']
 
 const arReportProWorkflow = [
   'Upload report Word template',
@@ -210,7 +210,7 @@ const arReportProReadiness = [
   'Real email sending disabled',
 ]
 
-const arReportProLabels = ['Workspace setup', 'DOCX Output', 'Excel to Reports', 'Request Setup']
+const arReportProLabels = ['Workspace setup', 'DOCX Output', 'Excel to Reports', 'Setup Workspace']
 
 export default function ProductDetailPage({ slug }) {
   const { organization, categories, products, source, status, loading, error } = useProductCatalog()
@@ -258,6 +258,57 @@ export default function ProductDetailPage({ slug }) {
   const isArQuestionPro = product.slug === 'ar-question-pro'
   const isArFeeReceiptPro = product.slug === 'ar-fee-receipt-pro'
   const isArMailPro = product.slug === 'ar-mail-pro'
+  const hasDedicatedWorkspace = isArCertPro
+  const mainActionLabel = hasDedicatedWorkspace
+    ? 'Open Workspace'
+    : isArMailPro
+      ? 'Review Mail Prep Checklist'
+      : 'Start Workspace Setup'
+  const actionHelpText = hasDedicatedWorkspace
+    ? 'Opens the connected AR-CERT-PRO workspace for template upload, data upload, preview, DOCX generation, and History.'
+    : isArMailPro
+      ? 'Use this page to prepare the mail workflow safely. Real row-recipient sending stays disabled.'
+      : 'Use this setup page to confirm template, data, fields, and output expectations before a dedicated workspace is connected.'
+  const beforeStartChecklist = isArMailPro
+    ? [
+      'Excel/contact data with recipient and personalization columns',
+      'Subject and body template text',
+      'Recipient field mapping',
+      'Preview prepared recipients before any dry-run validation',
+    ]
+    : isArFeeReceiptPro
+      ? [
+        'Word fee receipt template',
+        'Excel fee/student data',
+        'Required placeholders such as ReceiptNumber, StudentName, Amount, ReceiptDate, and AuthorizedBy',
+        'Preview one receipt layout before generation is enabled',
+      ]
+      : isArCertPro
+        ? [
+          'Word certificate template',
+          'Excel student data',
+          'Required placeholders such as StudentName, Course, Date, and CertificateId',
+          'Preview one row before DOCX generation',
+        ]
+        : [
+          `Word ${product.name.replace('AR-', '').replace('-PRO', '').toLowerCase()} template`,
+          'Excel data file for the rows to prepare',
+          'Required columns/placeholders for names, dates, IDs, subjects, amounts, or remarks as needed',
+          'Preview one row before generation is enabled',
+        ]
+  const expectedOutputText = isArMailPro
+    ? 'Prepared recipient preview, prepared count, and dry-run validation results. No real row-recipient emails are sent.'
+    : hasDedicatedWorkspace
+      ? 'Editable DOCX output, generated batch files, and History records from the connected workspace.'
+      : 'A clear setup checklist for the product workflow. DOCX output is expected only after the dedicated workspace is connected and tested.'
+  const handleMainAction = () => {
+    if (hasDedicatedWorkspace) {
+      navigateTo(`/dashboard/products/${product.slug}/workspace`)
+      return
+    }
+
+    document.getElementById('before-you-start')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
 
   return (
     <DashboardLayout title={product.name} eyebrow={category?.name || 'Product'} showBack currentView="products" workspaceStatus={status}>
@@ -332,6 +383,18 @@ export default function ProductDetailPage({ slug }) {
                 <p className="text-sm font-semibold text-slate-500">Stage</p>
                 <p className="mt-1 text-sm font-semibold leading-6 text-primary">{product.stage}</p>
               </div>
+              <div className="rounded-md border border-teal-200 bg-teal-50 p-4 sm:col-span-2">
+                <p className="text-sm font-semibold text-teal-700">Next action</p>
+                <p className="mt-2 text-sm leading-6 text-slate-700">{actionHelpText}</p>
+                <button
+                  type="button"
+                  onClick={handleMainAction}
+                  className="focus-ring mt-4 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-md bg-accentTeal px-4 text-sm font-semibold text-white transition hover:bg-teal-800"
+                >
+                  {mainActionLabel}
+                  <ArrowUpRight size={16} aria-hidden="true" />
+                </button>
+              </div>
             </div>
           </div>
           <div className="mt-6 grid gap-3 border-t border-slate-200 pt-5 sm:grid-cols-2 lg:grid-cols-4">
@@ -349,6 +412,44 @@ export default function ProductDetailPage({ slug }) {
               </div>
             ))}
           </div>
+        </section>
+
+        <section id="before-you-start" className="mt-6 grid gap-4 xl:grid-cols-[1fr_1.1fr_1fr]">
+          <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+            <FileText className="text-accentBlue" size={24} aria-hidden="true" />
+            <h3 className="mt-5 text-lg font-semibold text-primary">What this product does</h3>
+            <p className="mt-3 text-sm leading-6 text-slate-600">{product.summary}</p>
+            <p className="mt-3 text-sm leading-6 text-slate-600">
+              This page keeps the workflow simple: prepare the template, prepare the spreadsheet, map fields, preview one row, then continue only where the workspace capability is available.
+            </p>
+          </article>
+
+          <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+            <CheckCircle2 className="text-accentTeal" size={24} aria-hidden="true" />
+            <h3 className="mt-5 text-lg font-semibold text-primary">Before you start</h3>
+            <div className="mt-4 grid gap-2">
+              {beforeStartChecklist.map((item) => (
+                <div key={item} className="flex items-start gap-3 rounded-md border border-slate-200 bg-lightBg p-3">
+                  <CheckCircle2 size={17} className="mt-0.5 shrink-0 text-accentTeal" aria-hidden="true" />
+                  <p className="text-sm font-semibold leading-6 text-slate-700">{item}</p>
+                </div>
+              ))}
+            </div>
+          </article>
+
+          <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+            <FileOutput className="text-accentBlue" size={24} aria-hidden="true" />
+            <h3 className="mt-5 text-lg font-semibold text-primary">Expected output</h3>
+            <p className="mt-3 text-sm leading-6 text-slate-600">{expectedOutputText}</p>
+            {!hasDedicatedWorkspace ? (
+              <div className="mt-4 rounded-md border border-amber-200 bg-amber-50 p-3">
+                <p className="text-sm font-semibold text-amber-800">Safe setup message</p>
+                <p className="mt-1 text-sm leading-6 text-amber-800">
+                  This product does not open a separate fake workspace. Use the setup checklist here until the dedicated workflow is connected and tested.
+                </p>
+              </div>
+            ) : null}
+          </article>
         </section>
 
         {isArCertPro ? (

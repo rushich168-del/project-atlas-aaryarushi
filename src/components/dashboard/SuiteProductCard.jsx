@@ -63,7 +63,7 @@ export default function SuiteProductCard({ card }) {
               : 'cursor-not-allowed border border-slate-200 bg-slate-100 text-slate-400'
           }`}
         >
-          {buttonLabel || (active ? 'Open Workspace' : 'Request Setup')}
+          {buttonLabel || (active ? 'Open Workspace' : 'Setup Workspace')}
           {active ? <ArrowRight size={16} aria-hidden="true" /> : null}
         </button>
       </div>
