@@ -35,6 +35,7 @@ export function buildQuestionPaperModel(form = {}, rows = [], blueprint = null) 
   const showMarks = form.showMarks !== false
   const sections = groupBySection(rows).map((section) => ({
     name: section.name,
+    questionType: section.rows[0]?.QuestionType || '',
     questions: section.rows.map((row, index) => ({
       number: index + 1,
       text: row.QuestionText || '',

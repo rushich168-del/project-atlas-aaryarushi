@@ -50,6 +50,54 @@ export const QUESTION_PAPER_PATTERNS = [
   { id: 'sectioned-paper', label: 'Section-based paper', sections: 3, questionsPerSection: 5, marksPerQuestion: 4, questionType: 'Mixed' },
 ]
 
+export const QUESTION_VARIANTS = [
+  { id: 'set-a', label: 'Set A', offset: 0 },
+  { id: 'set-b', label: 'Set B', offset: 1 },
+  { id: 'set-c', label: 'Set C', offset: 2 },
+]
+
+export const QUESTION_VARIANT_IDS = QUESTION_VARIANTS.map((variant) => variant.id)
+
+export const QUESTION_SECTION_PATTERNS = [
+  {
+    id: 'uniform',
+    label: 'Simple / Current Pattern',
+    description: 'Uses the current section count, question count, marks, question type, and difficulty mix fields.',
+    sections: null,
+  },
+  {
+    id: 'balanced-exam',
+    label: 'Balanced Exam Pattern',
+    description: 'Easy MCQ section, medium short-answer section, and hard long-answer section.',
+    sections: [
+      { name: 'Section A', questionType: 'MCQ', count: 5, marksPerQuestion: 1, difficulty: 'Easy' },
+      { name: 'Section B', questionType: 'Short answer', count: 5, marksPerQuestion: 2, difficulty: 'Medium' },
+      { name: 'Section C', questionType: 'Long answer', count: 3, marksPerQuestion: 3, difficulty: 'Hard' },
+    ],
+  },
+  {
+    id: 'mcq-short-long',
+    label: 'MCQ + Short Answer + Long Answer',
+    description: 'Larger MCQ section followed by short-answer and long-answer sections.',
+    sections: [
+      { name: 'Section A', questionType: 'MCQ', count: 6, marksPerQuestion: 1, difficulty: 'Easy' },
+      { name: 'Section B', questionType: 'Short answer', count: 4, marksPerQuestion: 2, difficulty: 'Medium' },
+      { name: 'Section C', questionType: 'Long answer', count: 3, marksPerQuestion: 3, difficulty: 'Hard' },
+    ],
+  },
+  {
+    id: 'short-long',
+    label: 'Short Answer + Long Answer',
+    description: 'Two-section paper with medium short-answer and hard long-answer questions.',
+    sections: [
+      { name: 'Section A', questionType: 'Short answer', count: 6, marksPerQuestion: 2, difficulty: 'Medium' },
+      { name: 'Section B', questionType: 'Long answer', count: 4, marksPerQuestion: 3, difficulty: 'Hard' },
+    ],
+  },
+]
+
+export const QUESTION_SECTION_PATTERN_IDS = QUESTION_SECTION_PATTERNS.map((pattern) => pattern.id)
+
 export const QUESTION_TYPES = ['Multiple choice', 'Short answer', 'Long answer', 'True/False', 'Mixed']
 
 export const QUESTION_DIFFICULTY_DISTRIBUTIONS = [

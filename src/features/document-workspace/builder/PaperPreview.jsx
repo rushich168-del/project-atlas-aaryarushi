@@ -163,6 +163,9 @@ function QuestionPaperPaper({ form, rows, blueprint }) {
       {model.sections.map((section) => (
         <div key={section.name} className="mt-5">
           <p className="text-center text-sm font-bold uppercase tracking-wide text-slate-900">{section.name}</p>
+          {section.questionType ? (
+            <p className="mt-0.5 text-center text-[11px] font-semibold text-slate-500">{section.questionType}</p>
+          ) : null}
           <div className="mt-1 border-b border-slate-300" />
           <ol className="mt-2 list-none text-[13px] leading-8 text-slate-800">
             {section.questions.map((q) => (

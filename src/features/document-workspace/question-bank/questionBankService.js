@@ -17,6 +17,35 @@ function normalizeMarks(value) {
   return Number.isFinite(marks) ? Math.round(marks) : null
 }
 
+function normalizeQuestionType(value) {
+  return String(value || '').trim().toLowerCase()
+}
+
+function variantOffset(variantId) {
+  if (variantId === 'set-b') return 1
+  if (variantId === 'set-c') return 2
+  return 0
+}
+
+function rotate(items, offset) {
+  if (!items.length) {
+    return []
+  }
+  const safeOffset = ((offset % items.length) + items.length) % items.length
+  return [...items.slice(safeOffset), ...items.slice(0, safeOffset)]
+}
+
+function uniqueById(items) {
+  const seen = new Set()
+  return items.filter((item) => {
+    if (seen.has(item.id)) {
+      return false
+    }
+    seen.add(item.id)
+    return true
+  })
+}
+
 export function getQuestionBankScopes() {
   return STARTER_QUESTION_BANK_SCOPES.map((scope) => ({ ...scope }))
 }
@@ -39,7 +68,9 @@ export function selectQuestionBankQuestions({
   scopeId,
   count,
   difficulty = '',
+  questionType = '',
   marksPerQuestion = null,
+  variantId = 'set-a',
   excludeIds = [],
 } = {}) {
   const requestedCount = Math.max(0, Math.round(Number(count) || 0))
@@ -49,22 +80,43 @@ export function selectQuestionBankQuestions({
 
   const excluded = new Set(excludeIds)
   const normalizedDifficulty = normalizeDifficulty(difficulty)
+  const normalizedQuestionType = normalizeQuestionType(questionType)
   const normalizedMarks = normalizeMarks(marksPerQuestion)
   const scopedQuestions = findQuestionsForScope(scopeId).filter((question) => !excluded.has(question.id))
-  const difficultyMatches = normalizedDifficulty
-    ? scopedQuestions.filter((question) => question.difficulty === normalizedDifficulty)
-    : scopedQuestions
 
-  if (!difficultyMatches.length) {
+  if (!scopedQuestions.length) {
     return []
   }
 
+  const typeMatches = normalizedQuestionType
+    ? scopedQuestions.filter((question) => normalizeQuestionType(question.questionType) === normalizedQuestionType)
+    : scopedQuestions
+  const difficultyMatches = normalizedDifficulty
+    ? scopedQuestions.filter((question) => question.difficulty === normalizedDifficulty)
+    : scopedQuestions
   const marksMatches = normalizedMarks === null
-    ? difficultyMatches
-    : difficultyMatches.filter((question) => normalizeMarks(question.marks) === normalizedMarks)
-  const candidates = marksMatches.length >= requestedCount ? marksMatches : difficultyMatches
+    ? scopedQuestions
+    : scopedQuestions.filter((question) => normalizeMarks(question.marks) === normalizedMarks)
+  const exactMatches = scopedQuestions.filter((question) => {
+    const typeOk = !normalizedQuestionType || normalizeQuestionType(question.questionType) === normalizedQuestionType
+    const difficultyOk = !normalizedDifficulty || question.difficulty === normalizedDifficulty
+    const marksOk = normalizedMarks === null || normalizeMarks(question.marks) === normalizedMarks
+    return typeOk && difficultyOk && marksOk
+  })
 
-  return candidates.slice(0, requestedCount).map((question) => ({ ...question }))
+  const offset = variantOffset(variantId)
+  const candidates = uniqueById([
+    ...rotate(exactMatches, offset),
+    ...rotate(typeMatches.filter((question) => !normalizedDifficulty || question.difficulty === normalizedDifficulty), offset),
+    ...rotate(typeMatches, offset),
+    ...rotate(marksMatches, offset),
+    ...rotate(difficultyMatches, offset),
+    ...rotate(scopedQuestions, offset),
+  ])
+
+  return candidates
+    .slice(0, requestedCount)
+    .map((question) => ({ ...question }))
 }
 
 export { PLACEHOLDER_ONLY_SCOPE_ID }

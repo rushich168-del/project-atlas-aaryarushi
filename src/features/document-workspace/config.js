@@ -28,6 +28,8 @@ import {
   ARITHMETIC_OPERATION_IDS,
   QUESTION_DIFFICULTY_DISTRIBUTIONS,
   QUESTION_PAPER_PATTERNS,
+  QUESTION_SECTION_PATTERNS,
+  QUESTION_VARIANTS,
   WORKSHEET_DIFFICULTIES,
   WORKSHEET_GENERATED_COLUMNS,
   QUESTION_PAPER_GENERATED_COLUMNS,
@@ -50,6 +52,9 @@ const QUESTION_BANK_SCOPE_OPTIONS = [
   { value: PLACEHOLDER_ONLY_SCOPE_ID, label: 'Placeholder only / custom blueprint' },
   ...getQuestionBankScopes().map((scope) => ({ value: scope.id, label: scope.label })),
 ]
+
+const QUESTION_VARIANT_OPTIONS = QUESTION_VARIANTS.map((variant) => ({ value: variant.id, label: variant.label }))
+const QUESTION_SECTION_PATTERN_OPTIONS = QUESTION_SECTION_PATTERNS.map((pattern) => ({ value: pattern.id, label: pattern.label }))
 
 // Auto Builder configuration for the content-builder products (worksheet, question
 // paper). Config-driven so the UI stays generic; the pure generators live in
@@ -112,11 +117,12 @@ const questionPaperBuilderConfig = {
   previewTitle: 'Question paper preview',
   generatedColumns: QUESTION_PAPER_GENERATED_COLUMNS,
   generateLabel: 'Generate paper preview',
-  note: 'The paper structure, marks and totals are real. Only the listed starter bank contains real questions; all other content uses labelled placeholders.',
+  note: 'Question Set changes selection inside the available starter bank. Section Pattern controls the section structure. Only the listed starter bank contains real questions; unsupported or insufficient content uses labelled placeholders.',
   presets: QUESTION_PAPER_PATTERNS.map((pattern) => ({
     id: pattern.id,
     label: pattern.label,
     values: {
+      sectionPatternId: 'uniform',
       numSections: pattern.sections,
       questionsPerSection: pattern.questionsPerSection,
       marksPerQuestion: pattern.marksPerQuestion,
@@ -136,6 +142,8 @@ const questionPaperBuilderConfig = {
     { id: 'chapterRange', label: 'Chapters', type: 'text', default: 'Arithmetic' },
     { id: 'topicRange', label: 'Topics', type: 'text', default: 'Integers' },
     { id: 'questionBankScopeId', label: 'Question bank content', type: 'select', default: PLACEHOLDER_ONLY_SCOPE_ID, options: QUESTION_BANK_SCOPE_OPTIONS, helper: 'Only the listed Class 6 Mathematics starter bank has real questions. Placeholder-only keeps the existing blueprint flow.', full: true },
+    { id: 'questionVariant', label: 'Question Set', type: 'select', default: 'set-a', options: QUESTION_VARIANT_OPTIONS, helper: 'Set A, B, and C use deterministic selection from the same available bank. No hidden randomness.' },
+    { id: 'sectionPatternId', label: 'Paper Section Pattern', type: 'select', default: 'uniform', options: QUESTION_SECTION_PATTERN_OPTIONS, helper: 'Simple keeps the current fields. Other patterns set section type, count, marks, and difficulty.' },
     { id: 'syllabusNotes', label: 'Paste prescribed syllabus / chapter list / topic scope', type: 'textarea', default: '', full: true, placeholder: 'Optional — guides your setup. The app stores and shows this; it does not generate real content yet.', showIf: { syllabusSource: 'custom' } },
     { id: 'examType', label: 'Exam type', type: 'select', default: 'unit-test', options: EXAM_TYPES.map((type) => ({ value: type.id, label: type.label })) },
     { id: 'duration', label: 'Duration', type: 'text', default: '1 hour' },
