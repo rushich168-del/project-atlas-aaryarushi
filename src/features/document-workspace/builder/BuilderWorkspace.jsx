@@ -18,6 +18,8 @@ const GENERATORS = {
 }
 
 const PREVIEW_ROW_LIMIT = 12
+const MIN_BLUEPRINT_SECTIONS = 3
+const MAX_BLUEPRINT_SECTIONS = 6
 
 const BLUEPRINT_SECTIONS = [
   {
@@ -75,6 +77,63 @@ const BLUEPRINT_SECTIONS = [
       easyCount: 0,
       mediumCount: 1,
       hardCount: 2,
+    },
+  },
+  {
+    key: 'D',
+    title: 'Section D',
+    defaults: {
+      enabled: true,
+      title: 'Section D',
+      instruction: 'Answer all questions.',
+      marks: 4,
+      totalQuestions: 2,
+      mcqCount: 0,
+      fillBlankCount: 0,
+      trueFalseCount: 0,
+      shortAnswerCount: 0,
+      longAnswerCount: 2,
+      easyCount: 0,
+      mediumCount: 1,
+      hardCount: 1,
+    },
+  },
+  {
+    key: 'E',
+    title: 'Section E',
+    defaults: {
+      enabled: true,
+      title: 'Section E',
+      instruction: 'Answer any one question.',
+      marks: 5,
+      totalQuestions: 2,
+      mcqCount: 0,
+      fillBlankCount: 0,
+      trueFalseCount: 0,
+      shortAnswerCount: 0,
+      longAnswerCount: 2,
+      easyCount: 0,
+      mediumCount: 1,
+      hardCount: 1,
+    },
+  },
+  {
+    key: 'F',
+    title: 'Section F',
+    defaults: {
+      enabled: true,
+      title: 'Section F',
+      instruction: 'Higher-order thinking questions.',
+      marks: 5,
+      totalQuestions: 1,
+      mcqCount: 0,
+      fillBlankCount: 0,
+      trueFalseCount: 0,
+      shortAnswerCount: 0,
+      longAnswerCount: 1,
+      easyCount: 0,
+      mediumCount: 0,
+      hardCount: 1,
     },
   },
 ]
@@ -190,18 +249,55 @@ function QuestionBlueprintPanel({ values, onChange }) {
     const id = blueprintField(section.key, field)
     return values[id] ?? section.defaults[field]
   }
+  const rawSectionCount = numberValue(values.teacherBlueprintSectionCount, MIN_BLUEPRINT_SECTIONS)
+  const sectionCount = Math.min(MAX_BLUEPRINT_SECTIONS, Math.max(MIN_BLUEPRINT_SECTIONS, Math.round(rawSectionCount)))
+  const visibleSections = BLUEPRINT_SECTIONS.slice(0, sectionCount)
+
+  function addSection() {
+    if (sectionCount < MAX_BLUEPRINT_SECTIONS) {
+      onChange('teacherBlueprintSectionCount', sectionCount + 1)
+    }
+  }
+
+  function removeLastSection() {
+    if (sectionCount > MIN_BLUEPRINT_SECTIONS) {
+      onChange('teacherBlueprintSectionCount', sectionCount - 1)
+    }
+  }
 
   return (
     <div className="mt-4 rounded-lg border border-teal-200 bg-teal-50/60 p-4">
-      <div>
-        <p className="text-sm font-semibold text-primary">Teacher Section Blueprint</p>
-        <p className="mt-1 text-xs leading-5 text-teal-800">
-          Control up to 3 sections. If counts do not match, Project Atlas normalizes safely and uses labelled placeholders where starter-bank questions are not available.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="text-sm font-semibold text-primary">Teacher Section Blueprint</p>
+          <p className="mt-1 text-xs leading-5 text-teal-800">
+            Add more sections if your paper needs extra parts. If counts do not match, Project Atlas normalizes safely and uses labelled placeholders where starter-bank questions are not available.
+          </p>
+          <p className="mt-1 text-xs font-semibold text-teal-700">Sections: {sectionCount} / {MAX_BLUEPRINT_SECTIONS}</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={addSection}
+            disabled={sectionCount >= MAX_BLUEPRINT_SECTIONS}
+            className="focus-ring inline-flex min-h-8 items-center rounded-md bg-accentTeal px-3 text-xs font-semibold text-white transition hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Add Section
+          </button>
+          {sectionCount > MIN_BLUEPRINT_SECTIONS ? (
+            <button
+              type="button"
+              onClick={removeLastSection}
+              className="focus-ring inline-flex min-h-8 items-center rounded-md border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-600 transition hover:border-amber-400 hover:text-amber-700"
+            >
+              Remove Last
+            </button>
+          ) : null}
+        </div>
       </div>
 
       <div className="mt-3 grid gap-3">
-        {BLUEPRINT_SECTIONS.map((section) => {
+        {visibleSections.map((section) => {
           const enabledId = blueprintField(section.key, 'enabled')
           const enabled = getValue(section, 'enabled') !== false
           const total = numberValue(getValue(section, 'totalQuestions'), section.defaults.totalQuestions)

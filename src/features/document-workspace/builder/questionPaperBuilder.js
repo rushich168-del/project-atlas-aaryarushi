@@ -79,9 +79,53 @@ const BLUEPRINT_SECTION_DEFAULTS = {
     mediumCount: 1,
     hardCount: 2,
   },
+  D: {
+    title: 'Section D',
+    instruction: 'Answer all questions.',
+    marks: 4,
+    totalQuestions: 2,
+    mcqCount: 0,
+    fillBlankCount: 0,
+    trueFalseCount: 0,
+    shortAnswerCount: 0,
+    longAnswerCount: 2,
+    easyCount: 0,
+    mediumCount: 1,
+    hardCount: 1,
+  },
+  E: {
+    title: 'Section E',
+    instruction: 'Answer any one question.',
+    marks: 5,
+    totalQuestions: 2,
+    mcqCount: 0,
+    fillBlankCount: 0,
+    trueFalseCount: 0,
+    shortAnswerCount: 0,
+    longAnswerCount: 2,
+    easyCount: 0,
+    mediumCount: 1,
+    hardCount: 1,
+  },
+  F: {
+    title: 'Section F',
+    instruction: 'Higher-order thinking questions.',
+    marks: 5,
+    totalQuestions: 1,
+    mcqCount: 0,
+    fillBlankCount: 0,
+    trueFalseCount: 0,
+    shortAnswerCount: 0,
+    longAnswerCount: 1,
+    easyCount: 0,
+    mediumCount: 0,
+    hardCount: 1,
+  },
 }
 
-const BLUEPRINT_SECTION_KEYS = ['A', 'B', 'C']
+const MIN_BLUEPRINT_SECTIONS = 3
+const MAX_BLUEPRINT_SECTIONS = 6
+const BLUEPRINT_SECTION_KEYS = ['A', 'B', 'C', 'D', 'E', 'F']
 
 function blueprintField(sectionKey, field) {
   return `section${sectionKey}${field.charAt(0).toUpperCase()}${field.slice(1)}`
@@ -247,7 +291,9 @@ function buildPresetSections(config) {
 }
 
 export function normalizeTeacherBlueprintSections(rawConfig = {}) {
-  const sections = BLUEPRINT_SECTION_KEYS
+  const sectionCount = clampInt(rawConfig.teacherBlueprintSectionCount, MIN_BLUEPRINT_SECTIONS, MAX_BLUEPRINT_SECTIONS, MIN_BLUEPRINT_SECTIONS)
+  const sectionKeys = BLUEPRINT_SECTION_KEYS.slice(0, sectionCount)
+  const sections = sectionKeys
     .filter((sectionKey) => boolValue(rawConfig[blueprintField(sectionKey, 'enabled')], true))
     .map((sectionKey) => {
       const totalQuestions = sectionInt(rawConfig, sectionKey, 'totalQuestions', 1, 50)

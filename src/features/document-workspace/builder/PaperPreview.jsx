@@ -27,7 +27,7 @@ function FieldRow({ children }) {
 
 function PaperShell({ children }) {
   return (
-    <div className="mt-3 overflow-hidden rounded-md border border-slate-200 bg-slate-100 p-3 sm:p-5">
+    <div className="mt-3 max-h-[70vh] overflow-y-auto rounded-md border border-slate-200 bg-slate-100 p-3 sm:p-5">
       <div className="mx-auto max-w-[720px] rounded-sm bg-white px-6 py-7 shadow-md ring-1 ring-slate-200 sm:px-10 sm:py-9">
         {children}
       </div>
