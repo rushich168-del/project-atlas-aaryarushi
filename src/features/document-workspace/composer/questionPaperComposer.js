@@ -40,6 +40,9 @@ export function buildQuestionPaperModel(form = {}, rows = [], blueprint = null) 
       text: row.QuestionText || '',
       marks: row.Marks || '',
       answer: row.Answer || '',
+      source: row.QuestionSource || '',
+      questionBankId: row.QuestionBankId || '',
+      questionType: row.QuestionType || '',
     })),
   }))
   const showAnswerKey = form.includeAnswerKey === true

@@ -46,6 +46,23 @@ function PaperHeader({ institution, title }) {
   )
 }
 
+function SourceBadge({ source }) {
+  if (!source) {
+    return null
+  }
+
+  const label = source === 'question-bank' ? 'Bank' : 'Placeholder'
+  const className = source === 'question-bank'
+    ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+    : 'border-amber-200 bg-amber-50 text-amber-700'
+
+  return (
+    <span className={`ml-2 inline-flex rounded border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${className}`}>
+      {label}
+    </span>
+  )
+}
+
 function WorksheetPaper({ form, rows }) {
   const model = buildWorksheetModel(form, rows)
   const boxed = model.layoutStyle === 'boxed' || model.layoutStyle === 'exam'
@@ -152,6 +169,7 @@ function QuestionPaperPaper({ form, rows, blueprint }) {
               <li key={q.number} className="flex items-baseline justify-between gap-4">
                 <span>
                   <span className="font-medium">{q.number}.</span> {q.text}
+                  <SourceBadge source={q.source} />
                 </span>
                 {model.showMarks && q.marks ? (
                   <span className="shrink-0 font-semibold text-slate-500">[{q.marks}]</span>

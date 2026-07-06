@@ -11,6 +11,11 @@ import {
   QUESTION_PAPER_GENERATED_COLUMNS,
 } from './builderPresets.js'
 import { sectionDisplayName } from './educationPresets.js'
+import {
+  findQuestionBankScope,
+  PLACEHOLDER_ONLY_SCOPE_ID,
+  selectQuestionBankQuestions,
+} from '../question-bank/questionBankService.js'
 
 export const QUESTION_PAPER_COLUMNS = QUESTION_PAPER_GENERATED_COLUMNS
 
@@ -61,10 +66,44 @@ export function normalizeQuestionPaperConfig(rawConfig = {}) {
     questionType,
     difficultyDistribution,
     sectionNamingStyle,
+    questionBankScopeId: text(rawConfig.questionBankScopeId, PLACEHOLDER_ONLY_SCOPE_ID, 120) || PLACEHOLDER_ONLY_SCOPE_ID,
+    board: text(rawConfig.board, ''),
     grade: text(rawConfig.grade, ''),
     subject: text(rawConfig.subject, 'the subject'),
     chapter: text(rawConfig.chapterRange ?? rawConfig.chapter, ''),
     topic: text(rawConfig.topicRange ?? rawConfig.topic, ''),
+  }
+}
+
+function createPlaceholderQuestion(config, scopeLabel) {
+  return {
+    ProductId: 'AR-QUESTION-PRO',
+    Class: config.grade,
+    Board: config.board,
+    Subject: config.subject,
+    Chapter: config.chapter,
+    Topic: config.topic,
+    QuestionText: `Placeholder question - add a real ${config.subject} question for ${scopeLabel}.`,
+    Answer: config.includeAnswerKey ? '[Answer key placeholder]' : '',
+    QuestionBankId: '',
+    QuestionType: config.questionType,
+    QuestionSource: 'placeholder',
+  }
+}
+
+function createQuestionBankQuestion(bankQuestion, config) {
+  return {
+    ProductId: bankQuestion.productId,
+    Class: bankQuestion.grade,
+    Board: bankQuestion.board,
+    Subject: bankQuestion.subject,
+    Chapter: bankQuestion.chapter,
+    Topic: bankQuestion.topic,
+    QuestionText: bankQuestion.question,
+    Answer: config.includeAnswerKey ? bankQuestion.answer : '',
+    QuestionBankId: bankQuestion.id,
+    QuestionType: bankQuestion.questionType,
+    QuestionSource: 'question-bank',
   }
 }
 
@@ -74,8 +113,13 @@ export function generateQuestionPaperRows(rawConfig = {}) {
   const totalQuestions = config.numSections * config.questionsPerSection
   const difficulties = buildDifficultySequence(config.difficultyDistribution, totalQuestions)
   const scopeLabel = config.topic || config.chapter || 'this topic'
+  const selectedScope = findQuestionBankScope(config.questionBankScopeId)
+  const useQuestionBank = Boolean(selectedScope && config.questionBankScopeId !== PLACEHOLDER_ONLY_SCOPE_ID)
   const rows = []
   const difficultyCounts = { Easy: 0, Medium: 0, Hard: 0 }
+  const usedQuestionBankIds = []
+  let questionBankCount = 0
+  let placeholderCount = 0
   let questionIndex = 0
 
   for (let section = 0; section < config.numSections; section += 1) {
@@ -83,17 +127,42 @@ export function generateQuestionPaperRows(rawConfig = {}) {
     for (let q = 0; q < config.questionsPerSection; q += 1) {
       const difficulty = difficulties[questionIndex] || 'Medium'
       difficultyCounts[difficulty] = (difficultyCounts[difficulty] || 0) + 1
+      const bankQuestion = useQuestionBank
+        ? selectQuestionBankQuestions({
+          scopeId: config.questionBankScopeId,
+          count: 1,
+          difficulty,
+          marksPerQuestion: config.marksPerQuestion,
+          excludeIds: usedQuestionBankIds,
+        })[0]
+        : null
+      const questionData = bankQuestion
+        ? createQuestionBankQuestion(bankQuestion, config)
+        : createPlaceholderQuestion(config, scopeLabel)
+
+      if (bankQuestion) {
+        usedQuestionBankIds.push(bankQuestion.id)
+        questionBankCount += 1
+      } else {
+        placeholderCount += 1
+      }
+
       rows.push({
         Section: name,
         QuestionNo: `Q${q + 1}`,
-        Class: config.grade,
-        Subject: config.subject,
-        Chapter: config.chapter,
-        Topic: config.topic,
-        QuestionText: `[Sample placeholder] Add your ${config.subject} ${config.questionType.toLowerCase()} question for ${scopeLabel} here.`,
+        ProductId: questionData.ProductId,
+        Class: questionData.Class,
+        Board: questionData.Board,
+        Subject: questionData.Subject,
+        Chapter: questionData.Chapter,
+        Topic: questionData.Topic,
+        QuestionText: questionData.QuestionText,
         Marks: String(config.marksPerQuestion),
         Difficulty: difficulty,
-        Answer: config.includeAnswerKey ? '[Answer key placeholder]' : '',
+        QuestionType: questionData.QuestionType,
+        QuestionSource: questionData.QuestionSource,
+        QuestionBankId: questionData.QuestionBankId,
+        Answer: questionData.Answer,
       })
       questionIndex += 1
     }
@@ -108,7 +177,15 @@ export function generateQuestionPaperRows(rawConfig = {}) {
     totalMarks: totalQuestions * config.marksPerQuestion,
     difficultySpread: difficultyCounts,
     questionType: config.questionType,
+    questionBankScopeId: config.questionBankScopeId,
+    questionBankLabel: selectedScope?.label || '',
+    questionBankCount,
+    placeholderCount,
   }
 
-  return { columns: QUESTION_PAPER_COLUMNS, rows, blueprint, notice: '' }
+  const notice = useQuestionBank
+    ? `${questionBankCount} question bank question${questionBankCount === 1 ? '' : 's'} used. ${placeholderCount} placeholder question${placeholderCount === 1 ? '' : 's'} added where the starter bank did not have enough matches.`
+    : ''
+
+  return { columns: QUESTION_PAPER_COLUMNS, rows, blueprint, notice }
 }

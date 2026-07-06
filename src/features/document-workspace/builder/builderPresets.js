@@ -62,12 +62,17 @@ export const QUESTION_DIFFICULTY_DISTRIBUTIONS = [
 export const QUESTION_PAPER_GENERATED_COLUMNS = [
   'Section',
   'QuestionNo',
+  'ProductId',
   'Class',
+  'Board',
   'Subject',
   'Chapter',
   'Topic',
   'QuestionText',
   'Marks',
   'Difficulty',
+  'QuestionType',
+  'QuestionSource',
+  'QuestionBankId',
   'Answer',
 ]

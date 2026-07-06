@@ -44,6 +44,12 @@ import {
   WORKSHEET_LAYOUT_STYLES,
   WORKSHEET_QUESTION_LAYOUTS,
 } from './builder/educationPresets.js'
+import { getQuestionBankScopes, PLACEHOLDER_ONLY_SCOPE_ID } from './question-bank/questionBankService.js'
+
+const QUESTION_BANK_SCOPE_OPTIONS = [
+  { value: PLACEHOLDER_ONLY_SCOPE_ID, label: 'Placeholder only / custom blueprint' },
+  ...getQuestionBankScopes().map((scope) => ({ value: scope.id, label: scope.label })),
+]
 
 // Auto Builder configuration for the content-builder products (worksheet, question
 // paper). Config-driven so the UI stays generic; the pure generators live in
@@ -106,7 +112,7 @@ const questionPaperBuilderConfig = {
   previewTitle: 'Question paper preview',
   generatedColumns: QUESTION_PAPER_GENERATED_COLUMNS,
   generateLabel: 'Generate paper preview',
-  note: 'The paper structure, marks and totals are real. Question text is a labelled placeholder you can replace with your own question bank later.',
+  note: 'The paper structure, marks and totals are real. Only the listed starter bank contains real questions; all other content uses labelled placeholders.',
   presets: QUESTION_PAPER_PATTERNS.map((pattern) => ({
     id: pattern.id,
     label: pattern.label,
@@ -122,20 +128,21 @@ const questionPaperBuilderConfig = {
   fields: [
     { id: 'institution', label: 'School / College name', type: 'text', default: '', placeholder: 'e.g. Sunrise Public School', full: true },
     { id: 'title', label: 'Test / Paper title', type: 'text', default: 'Unit Test 1', full: true },
-    { id: 'grade', label: 'Class / grade', type: 'text', default: 'Class 8' },
-    { id: 'subject', label: 'Subject', type: 'text', default: 'Science' },
+    { id: 'grade', label: 'Class / grade', type: 'text', default: 'Class 6' },
+    { id: 'subject', label: 'Subject', type: 'text', default: 'Mathematics' },
     { id: 'date', label: 'Date', type: 'text', default: '', placeholder: 'e.g. 06/07/2026' },
     { id: 'syllabusSource', label: 'Syllabus source', type: 'select', default: 'builtin', options: SYLLABUS_SOURCES.map((source) => ({ value: source.id, label: source.label })) },
     { id: 'board', label: 'Board / syllabus', type: 'text', default: 'CBSE', placeholder: BOARD_EXAMPLES, helper: 'Board/syllabus is for your reference. Full syllabus question banks will come later.' },
-    { id: 'chapterRange', label: 'Chapters', type: 'text', default: '' },
-    { id: 'topicRange', label: 'Topics', type: 'text', default: '' },
+    { id: 'chapterRange', label: 'Chapters', type: 'text', default: 'Arithmetic' },
+    { id: 'topicRange', label: 'Topics', type: 'text', default: 'Integers' },
+    { id: 'questionBankScopeId', label: 'Question bank content', type: 'select', default: PLACEHOLDER_ONLY_SCOPE_ID, options: QUESTION_BANK_SCOPE_OPTIONS, helper: 'Only the listed Class 6 Mathematics starter bank has real questions. Placeholder-only keeps the existing blueprint flow.', full: true },
     { id: 'syllabusNotes', label: 'Paste prescribed syllabus / chapter list / topic scope', type: 'textarea', default: '', full: true, placeholder: 'Optional — guides your setup. The app stores and shows this; it does not generate real content yet.', showIf: { syllabusSource: 'custom' } },
     { id: 'examType', label: 'Exam type', type: 'select', default: 'unit-test', options: EXAM_TYPES.map((type) => ({ value: type.id, label: type.label })) },
     { id: 'duration', label: 'Duration', type: 'text', default: '1 hour' },
     { id: 'numSections', label: 'Number of sections', type: 'number', default: 2, min: 1, max: 10 },
     { id: 'questionsPerSection', label: 'Questions per section', type: 'number', default: 5, min: 1, max: 50 },
     { id: 'marksPerQuestion', label: 'Marks per question', type: 'number', default: 3, min: 1, max: 100 },
-    { id: 'questionType', label: 'Question type', type: 'select', default: 'Short answer', options: PAPER_QUESTION_TYPES.map((type) => ({ value: type, label: type })), helper: 'Placeholder questions can be replaced later with your own question bank.' },
+    { id: 'questionType', label: 'Question type', type: 'select', default: 'Short answer', options: PAPER_QUESTION_TYPES.map((type) => ({ value: type, label: type })), helper: 'Used for placeholders and starter-bank metadata where available.' },
     { id: 'difficultyDistribution', label: 'Difficulty mix', type: 'select', default: 'balanced', options: QUESTION_DIFFICULTY_DISTRIBUTIONS.map((item) => ({ value: item.id, label: item.label })) },
     { id: 'sectionNamingStyle', label: 'Section naming style', type: 'select', default: 'section', options: SECTION_NAMING_STYLES.map((item) => ({ value: item.id, label: item.label })) },
     { id: 'sectionLayout', label: 'Section layout', type: 'select', default: 'continuous', options: SECTION_LAYOUTS.map((item) => ({ value: item.id, label: item.label })) },
