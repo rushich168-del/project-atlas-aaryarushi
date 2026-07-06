@@ -36,6 +36,7 @@ export function buildQuestionPaperModel(form = {}, rows = [], blueprint = null) 
   const sections = groupBySection(rows).map((section) => ({
     name: section.name,
     questionType: section.rows[0]?.QuestionType || '',
+    instruction: section.rows[0]?.SectionInstruction || '',
     questions: section.rows.map((row, index) => ({
       number: index + 1,
       text: row.QuestionText || '',
@@ -121,6 +122,9 @@ export function composeQuestionPaperDocx(form = {}, rows = [], blueprint = null)
       parts.push(blank(80))
     }
     parts.push(sectionHeading(section.name, { size: 13, spacingAfter: 60 }))
+    if (section.instruction) {
+      parts.push(paragraph(section.instruction, { italic: true, spacingAfter: 60 }))
+    }
     section.questions.forEach((q) => {
       const marksSuffix = model.showMarks && q.marks ? `  (${q.marks} marks)` : ''
       parts.push(paragraph(`${q.number}. ${q.text}${marksSuffix}`, { spacingAfter: 100 }))

@@ -58,6 +58,25 @@ export const QUESTION_VARIANTS = [
 
 export const QUESTION_VARIANT_IDS = QUESTION_VARIANTS.map((variant) => variant.id)
 
+export const QUESTION_REFRESH_VARIANTS = [
+  { id: 'refresh-1', label: 'Refresh 1', offset: 0 },
+  { id: 'refresh-2', label: 'Refresh 2', offset: 1 },
+  { id: 'refresh-3', label: 'Refresh 3', offset: 2 },
+  { id: 'refresh-4', label: 'Refresh 4', offset: 3 },
+  { id: 'refresh-5', label: 'Refresh 5', offset: 4 },
+]
+
+export const QUESTION_REFRESH_VARIANT_IDS = QUESTION_REFRESH_VARIANTS.map((variant) => variant.id)
+
+export const QUESTION_BLUEPRINT_MODES = [
+  { id: 'pattern-preset', label: 'Pattern Preset' },
+  { id: 'teacher-blueprint', label: 'Teacher Blueprint' },
+]
+
+export const QUESTION_BLUEPRINT_MODE_IDS = QUESTION_BLUEPRINT_MODES.map((mode) => mode.id)
+
+export const QUESTION_TYPE_OPTIONS = ['MCQ', 'Fill in the blanks', 'True/False', 'Short answer', 'Long answer']
+
 export const QUESTION_SECTION_PATTERNS = [
   {
     id: 'uniform',
@@ -109,6 +128,7 @@ export const QUESTION_DIFFICULTY_DISTRIBUTIONS = [
 // Columns produced by the question paper generator (kept in sync with questionPaperBuilder.js).
 export const QUESTION_PAPER_GENERATED_COLUMNS = [
   'Section',
+  'SectionInstruction',
   'QuestionNo',
   'ProductId',
   'Class',

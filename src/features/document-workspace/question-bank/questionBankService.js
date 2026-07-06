@@ -27,6 +27,14 @@ function variantOffset(variantId) {
   return 0
 }
 
+function refreshOffset(refreshVariant) {
+  const match = String(refreshVariant || '').match(/^refresh-(\d+)$/)
+  if (!match) {
+    return 0
+  }
+  return Math.max(0, Number(match[1]) - 1)
+}
+
 function rotate(items, offset) {
   if (!items.length) {
     return []
@@ -71,6 +79,7 @@ export function selectQuestionBankQuestions({
   questionType = '',
   marksPerQuestion = null,
   variantId = 'set-a',
+  refreshVariant = 'refresh-1',
   excludeIds = [],
 } = {}) {
   const requestedCount = Math.max(0, Math.round(Number(count) || 0))
@@ -91,12 +100,7 @@ export function selectQuestionBankQuestions({
   const typeMatches = normalizedQuestionType
     ? scopedQuestions.filter((question) => normalizeQuestionType(question.questionType) === normalizedQuestionType)
     : scopedQuestions
-  const difficultyMatches = normalizedDifficulty
-    ? scopedQuestions.filter((question) => question.difficulty === normalizedDifficulty)
-    : scopedQuestions
-  const marksMatches = normalizedMarks === null
-    ? scopedQuestions
-    : scopedQuestions.filter((question) => normalizeMarks(question.marks) === normalizedMarks)
+  const typeMarksMatches = typeMatches.filter((question) => normalizedMarks === null || normalizeMarks(question.marks) === normalizedMarks)
   const exactMatches = scopedQuestions.filter((question) => {
     const typeOk = !normalizedQuestionType || normalizeQuestionType(question.questionType) === normalizedQuestionType
     const difficultyOk = !normalizedDifficulty || question.difficulty === normalizedDifficulty
@@ -104,13 +108,11 @@ export function selectQuestionBankQuestions({
     return typeOk && difficultyOk && marksOk
   })
 
-  const offset = variantOffset(variantId)
+  const offset = variantOffset(variantId) + (refreshOffset(refreshVariant) * 3)
   const candidates = uniqueById([
     ...rotate(exactMatches, offset),
-    ...rotate(typeMatches.filter((question) => !normalizedDifficulty || question.difficulty === normalizedDifficulty), offset),
+    ...rotate(typeMarksMatches, offset),
     ...rotate(typeMatches, offset),
-    ...rotate(marksMatches, offset),
-    ...rotate(difficultyMatches, offset),
     ...rotate(scopedQuestions, offset),
   ])
 

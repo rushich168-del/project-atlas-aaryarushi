@@ -7,8 +7,10 @@
 // placeholder. No eval, no network, no DOM.
 
 import {
+  QUESTION_BLUEPRINT_MODE_IDS,
   QUESTION_DIFFICULTY_DISTRIBUTIONS,
   QUESTION_PAPER_GENERATED_COLUMNS,
+  QUESTION_REFRESH_VARIANT_IDS,
   QUESTION_SECTION_PATTERN_IDS,
   QUESTION_SECTION_PATTERNS,
   QUESTION_VARIANT_IDS,
@@ -34,6 +36,90 @@ function text(value, fallback, limit = 80) {
   return String(value ?? fallback ?? '').trim().slice(0, limit)
 }
 
+const BLUEPRINT_SECTION_DEFAULTS = {
+  A: {
+    title: 'Section A',
+    instruction: 'Answer all questions.',
+    marks: 1,
+    totalQuestions: 5,
+    mcqCount: 2,
+    fillBlankCount: 2,
+    trueFalseCount: 1,
+    shortAnswerCount: 0,
+    longAnswerCount: 0,
+    easyCount: 3,
+    mediumCount: 2,
+    hardCount: 0,
+  },
+  B: {
+    title: 'Section B',
+    instruction: 'Answer all questions.',
+    marks: 2,
+    totalQuestions: 4,
+    mcqCount: 0,
+    fillBlankCount: 0,
+    trueFalseCount: 0,
+    shortAnswerCount: 4,
+    longAnswerCount: 0,
+    easyCount: 1,
+    mediumCount: 2,
+    hardCount: 1,
+  },
+  C: {
+    title: 'Section C',
+    instruction: 'Answer all questions.',
+    marks: 3,
+    totalQuestions: 3,
+    mcqCount: 0,
+    fillBlankCount: 0,
+    trueFalseCount: 0,
+    shortAnswerCount: 0,
+    longAnswerCount: 3,
+    easyCount: 0,
+    mediumCount: 1,
+    hardCount: 2,
+  },
+}
+
+const BLUEPRINT_SECTION_KEYS = ['A', 'B', 'C']
+
+function blueprintField(sectionKey, field) {
+  return `section${sectionKey}${field.charAt(0).toUpperCase()}${field.slice(1)}`
+}
+
+function boolValue(value, fallback) {
+  return value === undefined ? fallback : value !== false
+}
+
+function sectionInt(rawConfig, sectionKey, field, lo, hi) {
+  const defaults = BLUEPRINT_SECTION_DEFAULTS[sectionKey]
+  return clampInt(rawConfig[blueprintField(sectionKey, field)], lo, hi, defaults[field])
+}
+
+function sectionText(rawConfig, sectionKey, field, limit = 120) {
+  const defaults = BLUEPRINT_SECTION_DEFAULTS[sectionKey]
+  return text(rawConfig[blueprintField(sectionKey, field)], defaults[field], limit)
+}
+
+function expandCounts(items, total, fallback) {
+  const output = []
+  items.forEach((item) => {
+    const count = Math.max(0, Math.round(Number(item.count) || 0))
+    for (let i = 0; i < count; i += 1) {
+      output.push(item.value)
+    }
+  })
+
+  if (output.length >= total) {
+    return output.slice(0, total)
+  }
+
+  while (output.length < total) {
+    output.push(fallback)
+  }
+
+  return output
+}
 
 // Deterministic difficulty spread from a named distribution's integer weights.
 function buildDifficultySequence(distributionId, total) {
@@ -62,6 +148,8 @@ export function normalizeQuestionPaperConfig(rawConfig = {}) {
   const sectionNamingStyle = rawConfig.sectionNamingStyle === 'part' ? 'part' : 'section'
   const sectionPatternId = QUESTION_SECTION_PATTERN_IDS.includes(rawConfig.sectionPatternId) ? rawConfig.sectionPatternId : 'uniform'
   const questionVariant = QUESTION_VARIANT_IDS.includes(rawConfig.questionVariant) ? rawConfig.questionVariant : 'set-a'
+  const refreshVariant = QUESTION_REFRESH_VARIANT_IDS.includes(rawConfig.refreshVariant) ? rawConfig.refreshVariant : 'refresh-1'
+  const blueprintMode = QUESTION_BLUEPRINT_MODE_IDS.includes(rawConfig.blueprintMode) ? rawConfig.blueprintMode : 'pattern-preset'
 
   return {
     numSections,
@@ -73,6 +161,9 @@ export function normalizeQuestionPaperConfig(rawConfig = {}) {
     sectionNamingStyle,
     sectionPatternId,
     questionVariant,
+    refreshVariant,
+    blueprintMode,
+    rawConfig,
     questionBankScopeId: text(rawConfig.questionBankScopeId, PLACEHOLDER_ONLY_SCOPE_ID, 120) || PLACEHOLDER_ONLY_SCOPE_ID,
     board: text(rawConfig.board, ''),
     grade: text(rawConfig.grade, ''),
@@ -129,6 +220,7 @@ function buildUniformSections(config) {
     return {
       name: sectionDisplayName(index, config.sectionNamingStyle),
       questionType: config.questionType,
+      instruction: 'Answer all questions.',
       count: config.questionsPerSection,
       marksPerQuestion: config.marksPerQuestion,
       difficulties: sectionDifficulties,
@@ -146,6 +238,7 @@ function buildPresetSections(config) {
   return pattern.sections.map((section) => ({
     name: section.name,
     questionType: section.questionType,
+    instruction: 'Answer all questions.',
     count: section.count,
     marksPerQuestion: section.marksPerQuestion,
     difficulties: Array.from({ length: section.count }, () => section.difficulty),
@@ -153,7 +246,44 @@ function buildPresetSections(config) {
   }))
 }
 
+export function normalizeTeacherBlueprintSections(rawConfig = {}) {
+  const sections = BLUEPRINT_SECTION_KEYS
+    .filter((sectionKey) => boolValue(rawConfig[blueprintField(sectionKey, 'enabled')], true))
+    .map((sectionKey) => {
+      const totalQuestions = sectionInt(rawConfig, sectionKey, 'totalQuestions', 1, 50)
+      const questionTypes = expandCounts([
+        { value: 'MCQ', count: sectionInt(rawConfig, sectionKey, 'mcqCount', 0, 50) },
+        { value: 'Fill in the blanks', count: sectionInt(rawConfig, sectionKey, 'fillBlankCount', 0, 50) },
+        { value: 'True/False', count: sectionInt(rawConfig, sectionKey, 'trueFalseCount', 0, 50) },
+        { value: 'Short answer', count: sectionInt(rawConfig, sectionKey, 'shortAnswerCount', 0, 50) },
+        { value: 'Long answer', count: sectionInt(rawConfig, sectionKey, 'longAnswerCount', 0, 50) },
+      ], totalQuestions, 'Short answer')
+      const difficulties = expandCounts([
+        { value: 'Easy', count: sectionInt(rawConfig, sectionKey, 'easyCount', 0, 50) },
+        { value: 'Medium', count: sectionInt(rawConfig, sectionKey, 'mediumCount', 0, 50) },
+        { value: 'Hard', count: sectionInt(rawConfig, sectionKey, 'hardCount', 0, 50) },
+      ], totalQuestions, 'Medium')
+
+      return {
+        name: sectionText(rawConfig, sectionKey, 'title'),
+        instruction: sectionText(rawConfig, sectionKey, 'instruction', 200),
+        count: totalQuestions,
+        marksPerQuestion: sectionInt(rawConfig, sectionKey, 'marks', 1, 100),
+        questionTypes,
+        difficulties,
+        patternId: 'teacher-blueprint',
+      }
+    })
+
+  return sections.length ? sections : normalizeTeacherBlueprintSections({
+    sectionAEnabled: true,
+  })
+}
+
 function buildSections(config) {
+  if (config.blueprintMode === 'teacher-blueprint') {
+    return normalizeTeacherBlueprintSections(config.rawConfig)
+  }
   return config.sectionPatternId === 'uniform' ? buildUniformSections(config) : buildPresetSections(config)
 }
 
@@ -173,21 +303,24 @@ export function generateQuestionPaperRows(rawConfig = {}) {
   sections.forEach((sectionConfig) => {
     for (let q = 0; q < sectionConfig.count; q += 1) {
       const difficulty = sectionConfig.difficulties[q] || 'Medium'
+      const questionType = sectionConfig.questionTypes?.[q] || sectionConfig.questionType || 'Short answer'
       difficultyCounts[difficulty] = (difficultyCounts[difficulty] || 0) + 1
       const bankQuestion = useQuestionBank
         ? selectQuestionBankQuestions({
           scopeId: config.questionBankScopeId,
           count: 1,
           difficulty,
-          questionType: sectionConfig.questionType,
+          questionType,
           marksPerQuestion: sectionConfig.marksPerQuestion,
           variantId: config.questionVariant,
+          refreshVariant: config.refreshVariant,
           excludeIds: usedQuestionBankIds,
         })[0]
         : null
+      const rowSectionConfig = { ...sectionConfig, questionType }
       const questionData = bankQuestion
         ? createQuestionBankQuestion(bankQuestion, config)
-        : createPlaceholderQuestion(config, sectionConfig, scopeLabel)
+        : createPlaceholderQuestion(config, rowSectionConfig, scopeLabel)
 
       if (bankQuestion) {
         usedQuestionBankIds.push(bankQuestion.id)
@@ -198,6 +331,7 @@ export function generateQuestionPaperRows(rawConfig = {}) {
 
       rows.push({
         Section: sectionConfig.name,
+        SectionInstruction: sectionConfig.instruction,
         QuestionNo: `Q${q + 1}`,
         ProductId: questionData.ProductId,
         Class: questionData.Class,
@@ -229,10 +363,13 @@ export function generateQuestionPaperRows(rawConfig = {}) {
     difficultySpread: difficultyCounts,
     questionType: config.questionType,
     questionVariant: config.questionVariant,
+    refreshVariant: config.refreshVariant,
+    blueprintMode: config.blueprintMode,
     sectionPatternId: config.sectionPatternId,
     sections: sections.map((section) => ({
       name: section.name,
-      questionType: section.questionType,
+      instruction: section.instruction,
+      questionType: section.questionType || 'Mixed',
       count: section.count,
       marksPerQuestion: section.marksPerQuestion,
     })),
@@ -243,7 +380,7 @@ export function generateQuestionPaperRows(rawConfig = {}) {
   }
 
   const notice = useQuestionBank
-    ? `${questionBankCount} question bank question${questionBankCount === 1 ? '' : 's'} used from ${config.questionVariant.toUpperCase().replace('-', ' ')}. ${placeholderCount} placeholder question${placeholderCount === 1 ? '' : 's'} added where the starter bank did not have enough matches.`
+    ? `${questionBankCount} question bank question${questionBankCount === 1 ? '' : 's'} used from ${config.questionVariant.toUpperCase().replace('-', ' ')} / ${config.refreshVariant.replace('-', ' ')}. ${placeholderCount} placeholder question${placeholderCount === 1 ? '' : 's'} added where the starter bank did not have enough matches.`
     : ''
 
   return { columns: QUESTION_PAPER_COLUMNS, rows, blueprint, notice }

@@ -166,6 +166,9 @@ function QuestionPaperPaper({ form, rows, blueprint }) {
           {section.questionType ? (
             <p className="mt-0.5 text-center text-[11px] font-semibold text-slate-500">{section.questionType}</p>
           ) : null}
+          {section.instruction ? (
+            <p className="mt-1 text-[12px] italic leading-5 text-slate-600">{section.instruction}</p>
+          ) : null}
           <div className="mt-1 border-b border-slate-300" />
           <ol className="mt-2 list-none text-[13px] leading-8 text-slate-800">
             {section.questions.map((q) => (

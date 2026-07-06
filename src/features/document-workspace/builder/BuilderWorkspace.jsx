@@ -19,6 +19,66 @@ const GENERATORS = {
 
 const PREVIEW_ROW_LIMIT = 12
 
+const BLUEPRINT_SECTIONS = [
+  {
+    key: 'A',
+    title: 'Section A',
+    defaults: {
+      enabled: true,
+      title: 'Section A',
+      instruction: 'Answer all questions.',
+      marks: 1,
+      totalQuestions: 5,
+      mcqCount: 2,
+      fillBlankCount: 2,
+      trueFalseCount: 1,
+      shortAnswerCount: 0,
+      longAnswerCount: 0,
+      easyCount: 3,
+      mediumCount: 2,
+      hardCount: 0,
+    },
+  },
+  {
+    key: 'B',
+    title: 'Section B',
+    defaults: {
+      enabled: true,
+      title: 'Section B',
+      instruction: 'Answer all questions.',
+      marks: 2,
+      totalQuestions: 4,
+      mcqCount: 0,
+      fillBlankCount: 0,
+      trueFalseCount: 0,
+      shortAnswerCount: 4,
+      longAnswerCount: 0,
+      easyCount: 1,
+      mediumCount: 2,
+      hardCount: 1,
+    },
+  },
+  {
+    key: 'C',
+    title: 'Section C',
+    defaults: {
+      enabled: true,
+      title: 'Section C',
+      instruction: 'Answer all questions.',
+      marks: 3,
+      totalQuestions: 3,
+      mcqCount: 0,
+      fillBlankCount: 0,
+      trueFalseCount: 0,
+      shortAnswerCount: 0,
+      longAnswerCount: 3,
+      easyCount: 0,
+      mediumCount: 1,
+      hardCount: 2,
+    },
+  },
+]
+
 function defaultsFromFields(fields) {
   return fields.reduce((values, field) => {
     values[field.id] = field.default
@@ -98,6 +158,108 @@ function FieldControl({ field, value, onChange }) {
       )}
       {helper}
     </label>
+  )
+}
+
+function blueprintField(sectionKey, field) {
+  return `section${sectionKey}${field.charAt(0).toUpperCase()}${field.slice(1)}`
+}
+
+function numberValue(value, fallback = 0) {
+  const num = Number(value)
+  return Number.isFinite(num) ? num : fallback
+}
+
+function BlueprintInput({ label, value, type = 'number', onChange, min = 0 }) {
+  return (
+    <label className="grid gap-1">
+      <span className="text-[11px] font-semibold uppercase tracking-[0.06em] text-slate-500">{label}</span>
+      <input
+        type={type}
+        min={type === 'number' ? min : undefined}
+        value={value ?? ''}
+        onChange={(event) => onChange(event.target.value)}
+        className="min-h-8 rounded-md border border-slate-200 bg-white px-2.5 text-sm font-semibold text-primary outline-none focus:border-accentBlue"
+      />
+    </label>
+  )
+}
+
+function QuestionBlueprintPanel({ values, onChange }) {
+  const getValue = (section, field) => {
+    const id = blueprintField(section.key, field)
+    return values[id] ?? section.defaults[field]
+  }
+
+  return (
+    <div className="mt-4 rounded-lg border border-teal-200 bg-teal-50/60 p-4">
+      <div>
+        <p className="text-sm font-semibold text-primary">Teacher Section Blueprint</p>
+        <p className="mt-1 text-xs leading-5 text-teal-800">
+          Control up to 3 sections. If counts do not match, Project Atlas normalizes safely and uses labelled placeholders where starter-bank questions are not available.
+        </p>
+      </div>
+
+      <div className="mt-3 grid gap-3">
+        {BLUEPRINT_SECTIONS.map((section) => {
+          const enabledId = blueprintField(section.key, 'enabled')
+          const enabled = getValue(section, 'enabled') !== false
+          const total = numberValue(getValue(section, 'totalQuestions'), section.defaults.totalQuestions)
+          const typeTotal = ['mcqCount', 'fillBlankCount', 'trueFalseCount', 'shortAnswerCount', 'longAnswerCount']
+            .reduce((sum, field) => sum + numberValue(getValue(section, field)), 0)
+          const difficultyTotal = ['easyCount', 'mediumCount', 'hardCount']
+            .reduce((sum, field) => sum + numberValue(getValue(section, field)), 0)
+
+          return (
+            <div key={section.key} className="rounded-md border border-slate-200 bg-white p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <label className="inline-flex items-center gap-2 text-sm font-semibold text-primary">
+                  <input
+                    type="checkbox"
+                    checked={enabled}
+                    onChange={(event) => onChange(enabledId, event.target.checked)}
+                    className="h-4 w-4 accent-accentTeal"
+                  />
+                  {section.title}
+                </label>
+                <span className="text-xs font-semibold text-slate-500">{total} questions · {total * numberValue(getValue(section, 'marks'), section.defaults.marks)} marks</span>
+              </div>
+
+              {enabled ? (
+                <>
+                  <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                    <BlueprintInput label="Section title" type="text" value={getValue(section, 'title')} onChange={(value) => onChange(blueprintField(section.key, 'title'), value)} />
+                    <BlueprintInput label="Instruction" type="text" value={getValue(section, 'instruction')} onChange={(value) => onChange(blueprintField(section.key, 'instruction'), value)} />
+                    <BlueprintInput label="Marks/question" value={getValue(section, 'marks')} onChange={(value) => onChange(blueprintField(section.key, 'marks'), value)} min={1} />
+                    <BlueprintInput label="Total questions" value={getValue(section, 'totalQuestions')} onChange={(value) => onChange(blueprintField(section.key, 'totalQuestions'), value)} min={1} />
+                  </div>
+
+                  <div className="mt-3 grid gap-2 sm:grid-cols-5">
+                    <BlueprintInput label="MCQ" value={getValue(section, 'mcqCount')} onChange={(value) => onChange(blueprintField(section.key, 'mcqCount'), value)} />
+                    <BlueprintInput label="Fill blanks" value={getValue(section, 'fillBlankCount')} onChange={(value) => onChange(blueprintField(section.key, 'fillBlankCount'), value)} />
+                    <BlueprintInput label="True/False" value={getValue(section, 'trueFalseCount')} onChange={(value) => onChange(blueprintField(section.key, 'trueFalseCount'), value)} />
+                    <BlueprintInput label="Short" value={getValue(section, 'shortAnswerCount')} onChange={(value) => onChange(blueprintField(section.key, 'shortAnswerCount'), value)} />
+                    <BlueprintInput label="Long" value={getValue(section, 'longAnswerCount')} onChange={(value) => onChange(blueprintField(section.key, 'longAnswerCount'), value)} />
+                  </div>
+
+                  <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                    <BlueprintInput label="Easy" value={getValue(section, 'easyCount')} onChange={(value) => onChange(blueprintField(section.key, 'easyCount'), value)} />
+                    <BlueprintInput label="Medium" value={getValue(section, 'mediumCount')} onChange={(value) => onChange(blueprintField(section.key, 'mediumCount'), value)} />
+                    <BlueprintInput label="Hard" value={getValue(section, 'hardCount')} onChange={(value) => onChange(blueprintField(section.key, 'hardCount'), value)} />
+                  </div>
+
+                  {typeTotal !== total || difficultyTotal !== total ? (
+                    <p className="mt-2 text-xs font-medium text-amber-700">
+                      Type count ({typeTotal}) and difficulty count ({difficultyTotal}) should match total questions ({total}). The generator will normalize this section safely.
+                    </p>
+                  ) : null}
+                </>
+              ) : null}
+            </div>
+          )
+        })}
+      </div>
+    </div>
   )
 }
 
@@ -219,6 +381,10 @@ export default function BuilderWorkspace({ config, state, actions, onUseInWorksp
             </div>
           ))}
         </div>
+
+        {isPaper && formValues.blueprintMode === 'teacher-blueprint' ? (
+          <QuestionBlueprintPanel values={formValues} onChange={handleField} />
+        ) : null}
 
         {builder.note ? (
           <div className="mt-4 flex items-start gap-2 rounded-md border border-blue-200 bg-blue-50 p-3">

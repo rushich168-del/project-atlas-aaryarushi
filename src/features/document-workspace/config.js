@@ -26,8 +26,10 @@ import { getStorageError } from '../../utils/errorMessages.js'
 import {
   ARITHMETIC_OPERATIONS,
   ARITHMETIC_OPERATION_IDS,
+  QUESTION_BLUEPRINT_MODES,
   QUESTION_DIFFICULTY_DISTRIBUTIONS,
   QUESTION_PAPER_PATTERNS,
+  QUESTION_REFRESH_VARIANTS,
   QUESTION_SECTION_PATTERNS,
   QUESTION_VARIANTS,
   WORKSHEET_DIFFICULTIES,
@@ -54,6 +56,8 @@ const QUESTION_BANK_SCOPE_OPTIONS = [
 ]
 
 const QUESTION_VARIANT_OPTIONS = QUESTION_VARIANTS.map((variant) => ({ value: variant.id, label: variant.label }))
+const QUESTION_REFRESH_VARIANT_OPTIONS = QUESTION_REFRESH_VARIANTS.map((variant) => ({ value: variant.id, label: variant.label }))
+const QUESTION_BLUEPRINT_MODE_OPTIONS = QUESTION_BLUEPRINT_MODES.map((mode) => ({ value: mode.id, label: mode.label }))
 const QUESTION_SECTION_PATTERN_OPTIONS = QUESTION_SECTION_PATTERNS.map((pattern) => ({ value: pattern.id, label: pattern.label }))
 
 // Auto Builder configuration for the content-builder products (worksheet, question
@@ -117,11 +121,12 @@ const questionPaperBuilderConfig = {
   previewTitle: 'Question paper preview',
   generatedColumns: QUESTION_PAPER_GENERATED_COLUMNS,
   generateLabel: 'Generate paper preview',
-  note: 'Question Set changes selection inside the available starter bank. Section Pattern controls the section structure. Only the listed starter bank contains real questions; unsupported or insufficient content uses labelled placeholders.',
+  note: 'Pattern Preset uses ready-made section patterns. Teacher Blueprint lets you control up to 3 sections. Refresh Variant changes selected questions where enough starter-bank content exists; unsupported or insufficient content uses labelled placeholders.',
   presets: QUESTION_PAPER_PATTERNS.map((pattern) => ({
     id: pattern.id,
     label: pattern.label,
     values: {
+      blueprintMode: 'pattern-preset',
       sectionPatternId: 'uniform',
       numSections: pattern.sections,
       questionsPerSection: pattern.questionsPerSection,
@@ -143,7 +148,9 @@ const questionPaperBuilderConfig = {
     { id: 'topicRange', label: 'Topics', type: 'text', default: 'Integers' },
     { id: 'questionBankScopeId', label: 'Question bank content', type: 'select', default: PLACEHOLDER_ONLY_SCOPE_ID, options: QUESTION_BANK_SCOPE_OPTIONS, helper: 'Only the listed Class 6 Mathematics starter bank has real questions. Placeholder-only keeps the existing blueprint flow.', full: true },
     { id: 'questionVariant', label: 'Question Set', type: 'select', default: 'set-a', options: QUESTION_VARIANT_OPTIONS, helper: 'Set A, B, and C use deterministic selection from the same available bank. No hidden randomness.' },
-    { id: 'sectionPatternId', label: 'Paper Section Pattern', type: 'select', default: 'uniform', options: QUESTION_SECTION_PATTERN_OPTIONS, helper: 'Simple keeps the current fields. Other patterns set section type, count, marks, and difficulty.' },
+    { id: 'refreshVariant', label: 'Refresh Variant', type: 'select', default: 'refresh-1', options: QUESTION_REFRESH_VARIANT_OPTIONS, helper: 'Same settings and same refresh produce the same paper. Change refresh to rotate available questions.' },
+    { id: 'blueprintMode', label: 'Blueprint Mode', type: 'select', default: 'pattern-preset', options: QUESTION_BLUEPRINT_MODE_OPTIONS, helper: 'Pattern Preset uses ready-made structures. Teacher Blueprint enables controlled section editing.' },
+    { id: 'sectionPatternId', label: 'Paper Section Pattern', type: 'select', default: 'uniform', options: QUESTION_SECTION_PATTERN_OPTIONS, helper: 'Simple keeps the current fields. Other patterns set section type, count, marks, and difficulty.', showIf: { blueprintMode: 'pattern-preset' } },
     { id: 'syllabusNotes', label: 'Paste prescribed syllabus / chapter list / topic scope', type: 'textarea', default: '', full: true, placeholder: 'Optional — guides your setup. The app stores and shows this; it does not generate real content yet.', showIf: { syllabusSource: 'custom' } },
     { id: 'examType', label: 'Exam type', type: 'select', default: 'unit-test', options: EXAM_TYPES.map((type) => ({ value: type.id, label: type.label })) },
     { id: 'duration', label: 'Duration', type: 'text', default: '1 hour' },
