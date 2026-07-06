@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { AlertTriangle, ArrowRight, ChevronDown, Download, FileText, Info, PencilLine, Settings2, Sparkles, Table2 } from 'lucide-react'
 import { generateWorksheetRows } from './worksheetBuilder.js'
-import { generateQuestionPaperRows } from './questionPaperBuilder.js'
+import { analyzeQuestionPaperBlueprint, generateQuestionPaperRows } from './questionPaperBuilder.js'
 import { buildWorkbookFile, downloadWorkbook } from './buildWorkbook.js'
 import PaperPreview from './PaperPreview.jsx'
 import { composeWorksheetDocx } from '../composer/worksheetComposer.js'
@@ -244,7 +244,7 @@ function BlueprintInput({ label, value, type = 'number', onChange, min = 0 }) {
   )
 }
 
-function QuestionBlueprintPanel({ values, onChange }) {
+function QuestionBlueprintPanel({ values, onChange, analysis }) {
   const getValue = (section, field) => {
     const id = blueprintField(section.key, field)
     return values[id] ?? section.defaults[field]
@@ -296,6 +296,43 @@ function QuestionBlueprintPanel({ values, onChange }) {
         </div>
       </div>
 
+      {analysis ? (
+        <div className="mt-3 rounded-md border border-teal-200 bg-white p-3">
+          <div className="grid gap-2 text-xs sm:grid-cols-4">
+            <span className="rounded-md bg-slate-50 px-2.5 py-2 font-semibold text-slate-700">
+              {analysis.totalQuestions} questions
+            </span>
+            <span className="rounded-md bg-slate-50 px-2.5 py-2 font-semibold text-slate-700">
+              {analysis.totalMarks} marks
+            </span>
+            <span className="rounded-md bg-blue-50 px-2.5 py-2 font-semibold text-blue-700">
+              Est. real: {analysis.estimatedRealQuestionCount}
+            </span>
+            <span className="rounded-md bg-amber-50 px-2.5 py-2 font-semibold text-amber-700">
+              Est. placeholders: {analysis.estimatedPlaceholderCount}
+            </span>
+          </div>
+          {analysis.blockingWarnings.length ? (
+            <div className="mt-2 rounded-md border border-rose-200 bg-rose-50 px-3 py-2">
+              {analysis.blockingWarnings.map((warning) => (
+                <p key={warning} className="text-xs font-medium leading-5 text-rose-700">{warning}</p>
+              ))}
+            </div>
+          ) : null}
+          {analysis.warnings.length ? (
+            <div className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2">
+              <p className="text-xs font-semibold text-amber-800">Teacher heads-up</p>
+              {analysis.warnings.slice(0, 4).map((warning) => (
+                <p key={warning} className="mt-1 text-xs leading-5 text-amber-800">{warning}</p>
+              ))}
+              {analysis.warnings.length > 4 ? (
+                <p className="mt-1 text-xs font-medium text-amber-700">More section notes are shown inside the section cards below.</p>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
       <div className="mt-3 grid gap-3">
         {visibleSections.map((section) => {
           const enabledId = blueprintField(section.key, 'enabled')
@@ -305,6 +342,7 @@ function QuestionBlueprintPanel({ values, onChange }) {
             .reduce((sum, field) => sum + numberValue(getValue(section, field)), 0)
           const difficultyTotal = ['easyCount', 'mediumCount', 'hardCount']
             .reduce((sum, field) => sum + numberValue(getValue(section, field)), 0)
+          const sectionSummary = analysis?.sectionSummaries.find((item) => item.key === section.key)
 
           return (
             <div key={section.key} className="rounded-md border border-slate-200 bg-white p-3">
@@ -323,6 +361,15 @@ function QuestionBlueprintPanel({ values, onChange }) {
 
               {enabled ? (
                 <>
+                  {sectionSummary ? (
+                    <div className="mt-2 flex flex-wrap gap-2 text-[11px] font-semibold">
+                      <span className="rounded bg-slate-100 px-2 py-1 text-slate-600">{sectionSummary.totalQuestions} q</span>
+                      <span className="rounded bg-slate-100 px-2 py-1 text-slate-600">{sectionSummary.totalMarks} marks</span>
+                      <span className="rounded bg-blue-50 px-2 py-1 text-blue-700">Est. real {sectionSummary.estimatedRealQuestionCount}</span>
+                      <span className="rounded bg-amber-50 px-2 py-1 text-amber-700">Est. placeholders {sectionSummary.estimatedPlaceholderCount}</span>
+                    </div>
+                  ) : null}
+
                   <div className="mt-3 grid gap-2 sm:grid-cols-2">
                     <BlueprintInput label="Section title" type="text" value={getValue(section, 'title')} onChange={(value) => onChange(blueprintField(section.key, 'title'), value)} />
                     <BlueprintInput label="Instruction" type="text" value={getValue(section, 'instruction')} onChange={(value) => onChange(blueprintField(section.key, 'instruction'), value)} />
@@ -344,10 +391,15 @@ function QuestionBlueprintPanel({ values, onChange }) {
                     <BlueprintInput label="Hard" value={getValue(section, 'hardCount')} onChange={(value) => onChange(blueprintField(section.key, 'hardCount'), value)} />
                   </div>
 
-                  {typeTotal !== total || difficultyTotal !== total ? (
-                    <p className="mt-2 text-xs font-medium text-amber-700">
-                      Type count ({typeTotal}) and difficulty count ({difficultyTotal}) should match total questions ({total}). The generator will normalize this section safely.
-                    </p>
+                  {sectionSummary?.warnings.length ? (
+                    <div className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2">
+                      {sectionSummary.warnings.map((warning) => (
+                        <p key={warning} className="text-xs font-medium leading-5 text-amber-800">{warning}</p>
+                      ))}
+                      {typeTotal !== total || difficultyTotal !== total ? (
+                        <p className="mt-1 text-xs font-medium leading-5 text-amber-700">Project Atlas will normalize this section safely.</p>
+                      ) : null}
+                    </div>
                   ) : null}
                 </>
               ) : null}
@@ -375,6 +427,10 @@ export default function BuilderWorkspace({ config, state, actions, onUseInWorksp
   // Live preview — regenerates from the current form. Deterministic + cheap, so the
   // paper updates as the teacher types (only pattern/range/count reshuffle questions).
   const result = useMemo(() => generate(formValues), [generate, formValues])
+  const blueprintAnalysis = useMemo(
+    () => (isPaper ? analyzeQuestionPaperBlueprint(formValues) : null),
+    [formValues, isPaper],
+  )
   const visibleFields = builder.fields.filter((field) => isFieldVisible(field, formValues))
 
   // Persist the form to the workspace so edits survive navigation / restore and are
@@ -479,7 +535,7 @@ export default function BuilderWorkspace({ config, state, actions, onUseInWorksp
         </div>
 
         {isPaper && formValues.blueprintMode === 'teacher-blueprint' ? (
-          <QuestionBlueprintPanel values={formValues} onChange={handleField} />
+          <QuestionBlueprintPanel values={formValues} onChange={handleField} analysis={blueprintAnalysis} />
         ) : null}
 
         {builder.note ? (
@@ -530,6 +586,15 @@ export default function BuilderWorkspace({ config, state, actions, onUseInWorksp
             })}
           </div>
         </div>
+
+        {isPaper && result?.blueprint ? (
+          <div className="mt-3 grid gap-2 rounded-md border border-blue-200 bg-blue-50 p-3 text-xs font-semibold text-blue-800 sm:grid-cols-4">
+            <span>Total questions: {result.blueprint.totalQuestions}</span>
+            <span>Total marks: {result.blueprint.totalMarks}</span>
+            <span>Real bank questions: {result.blueprint.questionBankCount ?? 0}</span>
+            <span>Placeholders: {result.blueprint.placeholderCount ?? 0}</span>
+          </div>
+        ) : null}
 
         {activeNotice ? (
           <div className="mt-3 flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 p-3">

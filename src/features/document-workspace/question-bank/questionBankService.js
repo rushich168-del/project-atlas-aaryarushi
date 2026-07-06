@@ -121,4 +121,56 @@ export function selectQuestionBankQuestions({
     .map((question) => ({ ...question }))
 }
 
+export function estimateQuestionAvailability({
+  scopeId,
+  difficulty = '',
+  questionType = '',
+  marksPerQuestion = null,
+  excludeIds = [],
+} = {}) {
+  const excluded = new Set(excludeIds)
+  const normalizedDifficulty = normalizeDifficulty(difficulty)
+  const normalizedQuestionType = normalizeQuestionType(questionType)
+  const normalizedMarks = normalizeMarks(marksPerQuestion)
+  const scopedQuestions = findQuestionsForScope(scopeId).filter((question) => !excluded.has(question.id))
+
+  if (!scopedQuestions.length) {
+    return {
+      exactCount: 0,
+      typeMarksCount: 0,
+      typeCount: 0,
+      scopeCount: 0,
+      estimatedAvailable: 0,
+      candidateIds: [],
+    }
+  }
+
+  const typeMatches = normalizedQuestionType
+    ? scopedQuestions.filter((question) => normalizeQuestionType(question.questionType) === normalizedQuestionType)
+    : scopedQuestions
+  const typeMarksMatches = typeMatches.filter((question) => normalizedMarks === null || normalizeMarks(question.marks) === normalizedMarks)
+  const exactMatches = scopedQuestions.filter((question) => {
+    const typeOk = !normalizedQuestionType || normalizeQuestionType(question.questionType) === normalizedQuestionType
+    const difficultyOk = !normalizedDifficulty || question.difficulty === normalizedDifficulty
+    const marksOk = normalizedMarks === null || normalizeMarks(question.marks) === normalizedMarks
+    return typeOk && difficultyOk && marksOk
+  })
+
+  const candidates = uniqueById([
+    ...exactMatches,
+    ...typeMarksMatches,
+    ...typeMatches,
+    ...scopedQuestions,
+  ])
+
+  return {
+    exactCount: exactMatches.length,
+    typeMarksCount: typeMarksMatches.length,
+    typeCount: typeMatches.length,
+    scopeCount: scopedQuestions.length,
+    estimatedAvailable: candidates.length,
+    candidateIds: candidates.map((question) => question.id),
+  }
+}
+
 export { PLACEHOLDER_ONLY_SCOPE_ID }

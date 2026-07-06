@@ -121,7 +121,7 @@ const questionPaperBuilderConfig = {
   previewTitle: 'Question paper preview',
   generatedColumns: QUESTION_PAPER_GENERATED_COLUMNS,
   generateLabel: 'Generate paper preview',
-  note: 'Pattern Preset uses ready-made section patterns. Teacher Blueprint lets you control up to 3 sections. Refresh Variant changes selected questions where enough starter-bank content exists; unsupported or insufficient content uses labelled placeholders.',
+  note: 'Pattern Preset uses ready-made section patterns. Teacher Blueprint lets you control up to 6 sections. Refresh Variant changes selected questions where enough starter-bank content exists; unsupported or insufficient content uses labelled placeholders.',
   presets: QUESTION_PAPER_PATTERNS.map((pattern) => ({
     id: pattern.id,
     label: pattern.label,

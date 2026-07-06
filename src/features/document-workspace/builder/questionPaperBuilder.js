@@ -17,6 +17,7 @@ import {
 } from './builderPresets.js'
 import { sectionDisplayName } from './educationPresets.js'
 import {
+  estimateQuestionAvailability,
   findQuestionBankScope,
   PLACEHOLDER_ONLY_SCOPE_ID,
   selectQuestionBankQuestions,
@@ -126,6 +127,8 @@ const BLUEPRINT_SECTION_DEFAULTS = {
 const MIN_BLUEPRINT_SECTIONS = 3
 const MAX_BLUEPRINT_SECTIONS = 6
 const BLUEPRINT_SECTION_KEYS = ['A', 'B', 'C', 'D', 'E', 'F']
+const QUESTION_TYPE_COUNT_FIELDS = ['mcqCount', 'fillBlankCount', 'trueFalseCount', 'shortAnswerCount', 'longAnswerCount']
+const DIFFICULTY_COUNT_FIELDS = ['easyCount', 'mediumCount', 'hardCount']
 
 function blueprintField(sectionKey, field) {
   return `section${sectionKey}${field.charAt(0).toUpperCase()}${field.slice(1)}`
@@ -321,9 +324,7 @@ export function normalizeTeacherBlueprintSections(rawConfig = {}) {
       }
     })
 
-  return sections.length ? sections : normalizeTeacherBlueprintSections({
-    sectionAEnabled: true,
-  })
+  return sections
 }
 
 function buildSections(config) {
@@ -331,6 +332,189 @@ function buildSections(config) {
     return normalizeTeacherBlueprintSections(config.rawConfig)
   }
   return config.sectionPatternId === 'uniform' ? buildUniformSections(config) : buildPresetSections(config)
+}
+
+function countSectionFields(rawConfig, sectionKey, fields) {
+  return fields.reduce((sum, field) => sum + sectionInt(rawConfig, sectionKey, field, 0, 50), 0)
+}
+
+function analyzeSectionAvailability(section, config, useQuestionBank, usedQuestionBankIds) {
+  let estimatedRealQuestionCount = 0
+  const targets = []
+
+  for (let q = 0; q < section.count; q += 1) {
+    const difficulty = section.difficulties[q] || 'Medium'
+    const questionType = section.questionTypes?.[q] || section.questionType || 'Short answer'
+    targets.push({ difficulty, questionType, marksPerQuestion: section.marksPerQuestion })
+
+    if (!useQuestionBank) {
+      continue
+    }
+
+    const availability = estimateQuestionAvailability({
+      scopeId: config.questionBankScopeId,
+      difficulty,
+      questionType,
+      marksPerQuestion: section.marksPerQuestion,
+      excludeIds: usedQuestionBankIds,
+    })
+
+    if (availability.estimatedAvailable > 0) {
+      estimatedRealQuestionCount += 1
+      usedQuestionBankIds.push(availability.candidateIds[0])
+    }
+  }
+
+  return {
+    targets,
+    estimatedRealQuestionCount,
+    estimatedPlaceholderCount: Math.max(0, section.count - estimatedRealQuestionCount),
+  }
+}
+
+function createPatternSectionSummary(section, config, useQuestionBank, usedQuestionBankIds) {
+  const availability = analyzeSectionAvailability(section, config, useQuestionBank, usedQuestionBankIds)
+  const totalMarks = section.count * section.marksPerQuestion
+  const warnings = availability.estimatedPlaceholderCount > 0 && useQuestionBank
+    ? [`Only ${availability.estimatedRealQuestionCount} usable real question${availability.estimatedRealQuestionCount === 1 ? '' : 's'} are estimated for ${section.name}. Remaining questions may use labelled placeholders.`]
+    : []
+
+  return {
+    key: section.name,
+    title: section.name,
+    enabled: true,
+    totalQuestions: section.count,
+    marksPerQuestion: section.marksPerQuestion,
+    totalMarks,
+    questionTypeTotal: section.count,
+    difficultyTotal: section.count,
+    estimatedRealQuestionCount: availability.estimatedRealQuestionCount,
+    estimatedPlaceholderCount: availability.estimatedPlaceholderCount,
+    warnings,
+  }
+}
+
+function createTeacherSectionSummary(rawConfig, sectionKey, config, useQuestionBank, usedQuestionBankIds) {
+  const enabled = boolValue(rawConfig[blueprintField(sectionKey, 'enabled')], true)
+  const totalQuestions = sectionInt(rawConfig, sectionKey, 'totalQuestions', 1, 50)
+  const marksPerQuestion = sectionInt(rawConfig, sectionKey, 'marks', 1, 100)
+  const title = sectionText(rawConfig, sectionKey, 'title')
+  const questionTypeTotal = countSectionFields(rawConfig, sectionKey, QUESTION_TYPE_COUNT_FIELDS)
+  const difficultyTotal = countSectionFields(rawConfig, sectionKey, DIFFICULTY_COUNT_FIELDS)
+  const totalMarks = enabled ? totalQuestions * marksPerQuestion : 0
+  const warnings = []
+
+  if (enabled && questionTypeTotal !== totalQuestions) {
+    warnings.push(`${title} has ${totalQuestions} question${totalQuestions === 1 ? '' : 's'}, but question type counts add up to ${questionTypeTotal}.`)
+  }
+
+  if (enabled && difficultyTotal !== totalQuestions) {
+    warnings.push(`${title} has ${totalQuestions} question${totalQuestions === 1 ? '' : 's'}, but difficulty counts add up to ${difficultyTotal}.`)
+  }
+
+  if (!enabled) {
+    return {
+      key: sectionKey,
+      title,
+      enabled,
+      totalQuestions: 0,
+      marksPerQuestion,
+      totalMarks: 0,
+      questionTypeTotal,
+      difficultyTotal,
+      estimatedRealQuestionCount: 0,
+      estimatedPlaceholderCount: 0,
+      warnings,
+    }
+  }
+
+  const [section] = normalizeTeacherBlueprintSections({
+    ...rawConfig,
+    teacherBlueprintSectionCount: 1,
+    sectionAEnabled: true,
+    sectionATitle: title,
+    sectionAInstruction: sectionText(rawConfig, sectionKey, 'instruction', 200),
+    sectionAMarks: marksPerQuestion,
+    sectionATotalQuestions: totalQuestions,
+    sectionAMcqCount: sectionInt(rawConfig, sectionKey, 'mcqCount', 0, 50),
+    sectionAFillBlankCount: sectionInt(rawConfig, sectionKey, 'fillBlankCount', 0, 50),
+    sectionATrueFalseCount: sectionInt(rawConfig, sectionKey, 'trueFalseCount', 0, 50),
+    sectionAShortAnswerCount: sectionInt(rawConfig, sectionKey, 'shortAnswerCount', 0, 50),
+    sectionALongAnswerCount: sectionInt(rawConfig, sectionKey, 'longAnswerCount', 0, 50),
+    sectionAEasyCount: sectionInt(rawConfig, sectionKey, 'easyCount', 0, 50),
+    sectionAMediumCount: sectionInt(rawConfig, sectionKey, 'mediumCount', 0, 50),
+    sectionAHardCount: sectionInt(rawConfig, sectionKey, 'hardCount', 0, 50),
+  })
+  const availability = analyzeSectionAvailability(section, config, useQuestionBank, usedQuestionBankIds)
+
+  if (availability.estimatedPlaceholderCount > 0 && useQuestionBank) {
+    warnings.push(`Only ${availability.estimatedRealQuestionCount} usable real question${availability.estimatedRealQuestionCount === 1 ? '' : 's'} are estimated for ${title}. Remaining questions may use labelled placeholders.`)
+  }
+
+  return {
+    key: sectionKey,
+    title,
+    enabled,
+    totalQuestions,
+    marksPerQuestion,
+    totalMarks,
+    questionTypeTotal,
+    difficultyTotal,
+    estimatedRealQuestionCount: availability.estimatedRealQuestionCount,
+    estimatedPlaceholderCount: availability.estimatedPlaceholderCount,
+    warnings,
+  }
+}
+
+export function analyzeQuestionPaperBlueprint(rawConfig = {}) {
+  const config = normalizeQuestionPaperConfig(rawConfig)
+  const selectedScope = findQuestionBankScope(config.questionBankScopeId)
+  const useQuestionBank = Boolean(selectedScope && config.questionBankScopeId !== PLACEHOLDER_ONLY_SCOPE_ID)
+  const usedQuestionBankIds = []
+  const warnings = []
+  const blockingWarnings = []
+  let sectionSummaries = []
+
+  if (config.blueprintMode === 'teacher-blueprint') {
+    const sectionCount = clampInt(rawConfig.teacherBlueprintSectionCount, MIN_BLUEPRINT_SECTIONS, MAX_BLUEPRINT_SECTIONS, MIN_BLUEPRINT_SECTIONS)
+    sectionSummaries = BLUEPRINT_SECTION_KEYS
+      .slice(0, sectionCount)
+      .map((sectionKey) => createTeacherSectionSummary(rawConfig, sectionKey, config, useQuestionBank, usedQuestionBankIds))
+  } else {
+    sectionSummaries = buildSections(config).map((section) => createPatternSectionSummary(section, config, useQuestionBank, usedQuestionBankIds))
+  }
+
+  sectionSummaries.forEach((section) => {
+    warnings.push(...section.warnings)
+  })
+
+  const enabledSections = sectionSummaries.filter((section) => section.enabled && section.totalQuestions > 0)
+  if (!enabledSections.length) {
+    blockingWarnings.push('No enabled section has questions. Add at least one question to generate a paper.')
+  }
+
+  const totalQuestions = enabledSections.reduce((sum, section) => sum + section.totalQuestions, 0)
+  const totalMarks = enabledSections.reduce((sum, section) => sum + section.totalMarks, 0)
+  const estimatedRealQuestionCount = enabledSections.reduce((sum, section) => sum + section.estimatedRealQuestionCount, 0)
+  const estimatedPlaceholderCount = enabledSections.reduce((sum, section) => sum + section.estimatedPlaceholderCount, 0)
+
+  if (!useQuestionBank && totalQuestions > 0) {
+    warnings.push('This setup is using placeholder-only content. Generated questions will be clearly labelled placeholders.')
+  }
+
+  return {
+    totalQuestions,
+    totalMarks,
+    sectionSummaries,
+    warnings,
+    blockingWarnings,
+    canGenerate: blockingWarnings.length === 0,
+    estimatedRealQuestionCount,
+    estimatedPlaceholderCount,
+    questionBankScopeId: config.questionBankScopeId,
+    questionBankLabel: selectedScope?.label || '',
+    isEstimated: true,
+  }
 }
 
 // Generate the blueprint rows. Returns { columns, rows, blueprint }.
