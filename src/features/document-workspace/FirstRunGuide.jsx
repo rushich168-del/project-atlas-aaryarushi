@@ -10,8 +10,8 @@ const FALLBACK = {
   outputLabel: 'documents',
 }
 
-export default function FirstRunGuide({ slug, config }) {
-  const [open, setOpen] = useState(true)
+export default function FirstRunGuide({ slug, config, defaultOpen = true }) {
+  const [open, setOpen] = useState(defaultOpen)
   const starter = getSampleStarter(slug)
   const templateLabel = starter?.templateLabel || FALLBACK.templateLabel
   const excelLabel = starter?.excelLabel || FALLBACK.excelLabel

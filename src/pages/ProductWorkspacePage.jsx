@@ -390,5 +390,5 @@ export default function ProductWorkspacePage({ slug }) {
     return <GuidedWorkspaceStarter product={product} category={category} catalogState={catalogState} />
   }
 
-  return <WorkspaceLayout product={product} config={config} catalogState={catalogState} />
+  return <WorkspaceLayout key={product.slug} product={product} config={config} catalogState={catalogState} />
 }

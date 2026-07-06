@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { AlertCircle, CheckCircle2, Download, FileSpreadsheet, FileText, Loader2, ListChecks, Wand2 } from 'lucide-react'
+import { AlertCircle, CheckCircle2, Download, FileSpreadsheet, FileText, Loader2, ListChecks, Wand2, X } from 'lucide-react'
 import { detectDocxPlaceholders } from '../../core/atlas/index.js'
 import {
   parseExcelColumns,
@@ -41,9 +41,10 @@ function UploadMessage({ error }) {
   )
 }
 
-function SelectedFileCard({ title, record, file, emptyText }) {
+function SelectedFileCard({ title, record, file, emptyText, onRemove }) {
   const fileName = record?.file_name || file?.name
-  const status = record || file ? 'Ready' : 'Missing'
+  const sizeText = file?.size || record?.displaySize || ''
+  const stored = Boolean(record)
 
   if (!record && !file) {
     return (
@@ -55,47 +56,93 @@ function SelectedFileCard({ title, record, file, emptyText }) {
 
   return (
     <div className="mt-5 rounded-lg border border-emerald-200 bg-emerald-50 p-4">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <p className="text-sm font-semibold text-emerald-800">{fileName}</p>
-          <p className="mt-1 text-xs font-medium text-emerald-700">{title} stored in Supabase</p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <p className="break-words text-sm font-semibold text-emerald-800">{fileName}</p>
+          <p className="mt-1 text-xs font-medium text-emerald-700">
+            {sizeText ? `${sizeText} · ` : ''}{stored ? `${title} stored in Supabase` : 'Selected in this session'}
+          </p>
         </div>
-        <span className="rounded-md border border-emerald-200 bg-white px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.08em] text-emerald-700">
-          {status}
-        </span>
+        <div className="flex shrink-0 items-center gap-2">
+          <span className="rounded-md border border-emerald-200 bg-white px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.08em] text-emerald-700">
+            Ready
+          </span>
+          {onRemove ? (
+            <button
+              type="button"
+              onClick={onRemove}
+              className="focus-ring inline-flex min-h-8 items-center justify-center gap-1 rounded-md border border-emerald-200 bg-white px-2.5 text-xs font-semibold text-emerald-800 transition hover:border-emerald-300 hover:bg-emerald-100"
+            >
+              <X size={13} aria-hidden="true" />
+              Remove
+            </button>
+          ) : null}
+        </div>
       </div>
     </div>
   )
 }
 
-function FileUploadControl({ title, description, acceptLabel, accept, loading, selectedFile, record, error, onFile, emptyText }) {
+function FileUploadControl({ title, description, acceptLabel, accept, loading, selectedFile, record, error, onFile, emptyText, onRemove }) {
+  const [dragActive, setDragActive] = useState(false)
+  const hasFile = Boolean(record || selectedFile)
+
+  function handleDrop(event) {
+    event.preventDefault()
+    setDragActive(false)
+
+    if (loading) {
+      return
+    }
+
+    const file = event.dataTransfer?.files?.[0]
+    if (file) {
+      onFile(file)
+    }
+  }
+
   return (
     <div className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
       <h3 className="text-xl font-semibold text-primary">{title}</h3>
       <p className="mt-2 text-sm leading-6 text-slate-600">{description}</p>
       <p className="mt-2 text-xs leading-5 text-slate-500">
-        Files are remembered while you stay in this session. After a full browser refresh, please upload them again.
+        Your selection and mapping are saved for this product while you stay signed in on this tab.
       </p>
-      <label className="focus-ring mt-5 inline-flex min-h-10 cursor-pointer items-center justify-center gap-2 rounded-md bg-accentTeal px-3.5 text-sm font-semibold text-white transition hover:bg-teal-800">
-        {loading ? <Loader2 size={17} className="animate-spin" aria-hidden="true" /> : null}
-        {loading ? 'Uploading' : 'Choose file'}
-        <input
-          type="file"
-          accept={accept}
-          disabled={loading}
-          onChange={(event) => {
-            const file = event.target.files?.[0]
-            if (file) {
-              onFile(file)
-            }
-            event.target.value = ''
-          }}
-          className="sr-only"
-        />
-      </label>
-      <p className="mt-3 text-xs font-semibold uppercase tracking-[0.08em] text-slate-400">{acceptLabel}</p>
+      <div
+        onDragOver={(event) => {
+          event.preventDefault()
+          if (!loading) setDragActive(true)
+        }}
+        onDragLeave={() => setDragActive(false)}
+        onDrop={handleDrop}
+        className={`mt-5 flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed px-4 py-6 text-center transition ${
+          dragActive ? 'border-accentTeal bg-teal-50' : 'border-slate-300 bg-slate-50'
+        }`}
+      >
+        <p className="text-sm font-semibold text-slate-600">
+          {dragActive ? 'Drop the file to upload' : 'Drag & drop your file here, or'}
+        </p>
+        <label className="focus-ring inline-flex min-h-10 cursor-pointer items-center justify-center gap-2 rounded-md bg-accentTeal px-3.5 text-sm font-semibold text-white transition hover:bg-teal-800">
+          {loading ? <Loader2 size={17} className="animate-spin" aria-hidden="true" /> : null}
+          {loading ? 'Uploading' : hasFile ? 'Replace file' : 'Choose file'}
+          <input
+            type="file"
+            accept={accept}
+            disabled={loading}
+            onChange={(event) => {
+              const file = event.target.files?.[0]
+              if (file) {
+                onFile(file)
+              }
+              event.target.value = ''
+            }}
+            className="sr-only"
+          />
+        </label>
+        <p className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-400">{acceptLabel}</p>
+      </div>
       <UploadMessage error={error} />
-      <SelectedFileCard title={title} record={record} file={selectedFile} emptyText={emptyText} />
+      <SelectedFileCard title={title} record={record} file={selectedFile} emptyText={emptyText} onRemove={hasFile ? onRemove : undefined} />
     </div>
   )
 }
@@ -144,10 +191,31 @@ export function TemplateStep({ state, actions, workspace, config }) {
     }
   }
 
+  function handleRemoveTemplate() {
+    // Local re-selection only: drop the reference to the uploaded template so the
+    // user can pick another one. This does NOT delete any stored file or History.
+    actions.updateState({
+      templateFile: null,
+      templateRecord: null,
+      detectedPlaceholders: [],
+      invalidPlaceholders: [],
+      placeholderKeys: [],
+      placeholderDuplicateCounts: {},
+      placeholderDetectionError: '',
+      draftRecord: null,
+      draftDirty: true,
+      generationComplete: false,
+      generatedDocx: null,
+      generatedDocumentRecord: null,
+      generationError: '',
+      outputError: '',
+    })
+  }
+
+  const templateReady = Boolean(state.templateRecord)
+
   return (
     <div className="grid min-w-0 gap-5">
-      <FirstRunGuide slug={config.productSlug} config={config} />
-      <SampleStarterPanel slug={config.productSlug} config={config} />
       <FileUploadControl
         title={config.copy?.templateTitle || 'Upload your certificate template'}
         description={config.copy?.templateDescription || 'Choose the approved DOCX template for this certificate batch. Placeholder fields will be detected after upload.'}
@@ -158,8 +226,11 @@ export function TemplateStep({ state, actions, workspace, config }) {
         record={state.templateRecord}
         error={state.templateUploadError}
         onFile={handleTemplateFile}
+        onRemove={handleRemoveTemplate}
         emptyText={config.copy?.templateEmptyText || 'No DOCX template uploaded yet.'}
       />
+      <SampleStarterPanel slug={config.productSlug} config={config} defaultOpen={!templateReady} />
+      <FirstRunGuide slug={config.productSlug} config={config} defaultOpen={!templateReady} />
     </div>
   )
 }
@@ -218,6 +289,27 @@ export function ExcelStep({ state, actions, workspace, config }) {
 
   const excelEmptyText = config.copy?.excelEmptyText || 'No Excel file uploaded yet.'
 
+  function handleRemoveExcel() {
+    // Local re-selection only: drop the parsed rows/columns and the upload
+    // reference so the user can pick another file. Nothing stored is deleted.
+    actions.updateState({
+      excelFile: null,
+      uploadRecord: null,
+      detectedColumns: [],
+      previewRows: [],
+      excelRows: [],
+      previewRowIndex: 0,
+      rowCount: 0,
+      draftRecord: null,
+      draftDirty: true,
+      generationComplete: false,
+      generatedDocx: null,
+      generatedDocumentRecord: null,
+      generationError: '',
+      outputError: '',
+    })
+  }
+
   return (
     <div className="grid min-w-0 gap-5">
       <FileUploadControl
@@ -230,6 +322,7 @@ export function ExcelStep({ state, actions, workspace, config }) {
         record={state.uploadRecord}
         error={state.excelUploadError}
         onFile={handleExcelFile}
+        onRemove={handleRemoveExcel}
         emptyText={excelEmptyText}
       />
 
@@ -889,8 +982,8 @@ export function GenerateStep({ state, actions, config }) {
   return (
     <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
       <p className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-400">Step 5</p>
-      <h3 className="mt-1 text-xl font-semibold text-primary">Generate DOCX files</h3>
-      <p className="mt-2 text-sm leading-6 text-slate-600">Generate one DOCX from the preview row, or generate batch DOCX files from valid Excel rows.</p>
+      <h3 className="mt-1 text-xl font-semibold text-primary">{config.copy?.generateTitle || 'Generate DOCX files'}</h3>
+      <p className="mt-2 text-sm leading-6 text-slate-600">{config.copy?.generateDescription || 'Generate one DOCX from the preview row, or generate batch DOCX files from valid Excel rows.'}</p>
       <div className="mt-5 rounded-lg border border-slate-200 bg-lightBg p-4">
         <div className="grid gap-3 sm:grid-cols-[1.1fr_1fr]">
           <label className="cursor-pointer rounded-lg border border-slate-200 bg-white p-4 transition focus-within:border-accentBlue focus-within:ring-2 focus-within:ring-blue-100">

@@ -3,9 +3,9 @@ import { AlertCircle, ChevronDown, ChevronUp, Download, FileSpreadsheet, FileTex
 import { getSampleStarter } from './sampleStarters.js'
 import { buildSampleTemplateBlob, buildSampleWorkbookBlob, downloadBlob } from './sampleFileGenerators.js'
 
-export default function SampleStarterPanel({ slug, config }) {
+export default function SampleStarterPanel({ slug, config, defaultOpen = true }) {
   const starter = getSampleStarter(slug)
-  const [open, setOpen] = useState(true)
+  const [open, setOpen] = useState(defaultOpen)
   const [error, setError] = useState('')
   const starterPack = config?.starterPack || null
   const isContentBuilder = config?.workspacePattern === 'content-builder'
