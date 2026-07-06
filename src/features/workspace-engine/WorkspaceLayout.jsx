@@ -348,7 +348,7 @@ export default function WorkspaceLayout({ product, config, catalogState }) {
             <div className="min-w-0">
               <p className="text-sm font-semibold text-teal-900">
                 {workspaceState.builderConfig
-                  ? 'Generated content is ready. Upload or choose a Word layout to create the final DOCX.'
+                  ? 'Generated content is ready. Upload your Word template only if you want a custom layout.'
                   : 'Upload a Word template and your Excel content to create the DOCX.'}
               </p>
               <p className="text-xs text-teal-700">Your generated {config.builder?.builderType === 'question-paper' ? 'question paper' : 'worksheet'} rows are preserved — return to the builder any time.</p>

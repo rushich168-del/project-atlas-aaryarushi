@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { AlertTriangle, ArrowRight, Download, FileText, Info, PencilLine, Sparkles, Table2 } from 'lucide-react'
+import { AlertTriangle, ArrowRight, ChevronDown, Download, FileText, Info, PencilLine, Settings2, Sparkles, Table2 } from 'lucide-react'
 import { generateWorksheetRows } from './worksheetBuilder.js'
 import { generateQuestionPaperRows } from './questionPaperBuilder.js'
 import { buildWorkbookFile, downloadWorkbook } from './buildWorkbook.js'
@@ -42,17 +42,24 @@ function slugForFile(value, fallback) {
 }
 
 function FieldControl({ field, value, onChange }) {
+  const helper = field.helper ? (
+    <span className="text-[11px] font-normal leading-4 text-slate-400">{field.helper}</span>
+  ) : null
+
   if (field.type === 'toggle') {
     return (
-      <label className="flex min-h-9 items-center justify-between gap-3 rounded-md border border-slate-200 bg-white px-3 py-2">
-        <span className="text-sm font-semibold text-slate-700">{field.label}</span>
-        <input
-          type="checkbox"
-          checked={Boolean(value)}
-          onChange={(event) => onChange(field.id, event.target.checked)}
-          className="h-4 w-4 accent-accentTeal"
-        />
-      </label>
+      <div className="grid gap-1">
+        <label className="flex min-h-9 items-center justify-between gap-3 rounded-md border border-slate-200 bg-white px-3 py-2">
+          <span className="text-sm font-semibold text-slate-700">{field.label}</span>
+          <input
+            type="checkbox"
+            checked={Boolean(value)}
+            onChange={(event) => onChange(field.id, event.target.checked)}
+            className="h-4 w-4 accent-accentTeal"
+          />
+        </label>
+        {helper}
+      </div>
     )
   }
 
@@ -89,6 +96,7 @@ function FieldControl({ field, value, onChange }) {
           className="min-h-9 rounded-md border border-slate-200 bg-white px-3 text-sm font-semibold text-primary outline-none focus:border-accentBlue"
         />
       )}
+      {helper}
     </label>
   )
 }
@@ -103,6 +111,7 @@ export default function BuilderWorkspace({ config, state, actions, onUseInWorksp
   }))
   const [previewMode, setPreviewMode] = useState('paper')
   const [using, setUsing] = useState(false)
+  const [showAdvanced, setShowAdvanced] = useState(false)
   const formRef = useRef(null)
 
   // Live preview — regenerates from the current form. Deterministic + cheap, so the
@@ -311,50 +320,72 @@ export default function BuilderWorkspace({ config, state, actions, onUseInWorksp
         ) : null}
 
         {hasRows ? (
-          <div className="mt-4 flex flex-wrap gap-2.5">
-            <button
-              type="button"
-              onClick={handleDownloadDocx}
-              className="focus-ring inline-flex min-h-10 items-center justify-center gap-2 rounded-md bg-accentTeal px-3.5 text-sm font-semibold text-white transition hover:bg-teal-800"
-            >
-              <FileText size={16} aria-hidden="true" />
-              {docxLabel}
-            </button>
-            <button
-              type="button"
-              onClick={handleDownloadExcel}
-              className="focus-ring inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-3.5 text-sm font-semibold text-primary transition hover:border-accentBlue hover:text-accentBlue"
-            >
-              <Download size={16} aria-hidden="true" />
-              Download Excel
-            </button>
-            <button
-              type="button"
-              onClick={handleEditInBuilder}
-              className="focus-ring inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-3.5 text-sm font-semibold text-slate-600 transition hover:border-accentBlue hover:text-accentBlue xl:hidden"
-            >
-              <PencilLine size={16} aria-hidden="true" />
-              Edit in Builder
-            </button>
-            {onUseInWorkspace ? (
+          <>
+            {/* Primary teacher path: download the finished document. */}
+            <div className="mt-4 flex flex-wrap items-center gap-2.5">
               <button
                 type="button"
-                onClick={handleContinueToLayout}
-                disabled={using}
-                className="focus-ring inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-3.5 text-sm font-semibold text-slate-600 transition hover:border-accentBlue hover:text-accentBlue disabled:opacity-60"
+                onClick={handleDownloadDocx}
+                className="focus-ring inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-accentTeal px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-800"
               >
-                {using ? 'Loading…' : 'Continue to DOCX Layout'}
-                <ArrowRight size={15} aria-hidden="true" />
+                <FileText size={17} aria-hidden="true" />
+                {docxLabel}
               </button>
-            ) : null}
-          </div>
-        ) : null}
+              <button
+                type="button"
+                onClick={handleDownloadExcel}
+                className="focus-ring inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-3.5 text-sm font-semibold text-slate-600 transition hover:border-accentBlue hover:text-accentBlue"
+              >
+                <Download size={16} aria-hidden="true" />
+                Download Excel
+              </button>
+              <button
+                type="button"
+                onClick={handleEditInBuilder}
+                className="focus-ring inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-3.5 text-sm font-semibold text-slate-600 transition hover:border-accentBlue hover:text-accentBlue xl:hidden"
+              >
+                <PencilLine size={16} aria-hidden="true" />
+                Edit in Builder
+              </button>
+            </div>
+            <p className="mt-2 text-xs text-slate-500">
+              <span className="font-semibold">{docxLabel}</span> gives you the finished document — ready to print or edit in Word.
+            </p>
 
-        {hasRows ? (
-          <p className="mt-2 text-xs text-slate-500">
-            <span className="font-semibold">Download {isPaper ? 'Question Paper' : 'Worksheet'} DOCX</span> gives you the finished document.
-            {' '}Continue to DOCX Layout is optional — for teachers who want to map this content onto their own Word template.
-          </p>
+            {/* Advanced (collapsed): map this content onto the teacher's own Word template. */}
+            {onUseInWorkspace ? (
+              <div className="mt-4 rounded-md border border-slate-200 bg-slate-50">
+                <button
+                  type="button"
+                  onClick={() => setShowAdvanced((open) => !open)}
+                  aria-expanded={showAdvanced}
+                  className="focus-ring flex w-full items-center justify-between gap-2 rounded-md px-3.5 py-2.5 text-left text-xs font-semibold text-slate-600 transition hover:text-primary"
+                >
+                  <span className="inline-flex items-center gap-2">
+                    <Settings2 size={14} aria-hidden="true" />
+                    Advanced: use my own Word template
+                  </span>
+                  <ChevronDown size={15} aria-hidden="true" className={`transition-transform ${showAdvanced ? 'rotate-180' : ''}`} />
+                </button>
+                {showAdvanced ? (
+                  <div className="border-t border-slate-200 px-3.5 py-3">
+                    <p className="text-xs leading-5 text-slate-500">
+                      Only use this if you want to map this content into your own Word template. Most teachers can just download the DOCX above.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={handleContinueToLayout}
+                      disabled={using}
+                      className="focus-ring mt-2.5 inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-3.5 text-sm font-semibold text-slate-700 transition hover:border-accentBlue hover:text-accentBlue disabled:opacity-60"
+                    >
+                      {using ? 'Loading…' : 'Advanced: use my own Word template'}
+                      <ArrowRight size={15} aria-hidden="true" />
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+          </>
         ) : null}
       </div>
     </section>

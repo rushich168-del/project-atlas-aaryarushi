@@ -7,9 +7,13 @@
 import {
   blank,
   buildDocxBlob,
-  labelValue,
+  centeredTitle,
+  keyValueRow,
+  pageBreak,
   paragraph,
+  rule,
   run,
+  twoColumnTable,
 } from './documentLayout.js'
 
 // Shared structure used by both the DOCX composer and the on-screen paper preview
@@ -38,6 +42,7 @@ export function buildWorksheetModel(form = {}, rows = []) {
     layoutStyle: form.layoutStyle || 'exam',
     questionLayout: form.questionLayout || 'one',
     answerSpace,
+    answerKeyLocation: form.answerKeyLocation === 'newpage' ? 'newpage' : 'end',
     showAnswerKey,
     questions,
   }
@@ -45,22 +50,39 @@ export function buildWorksheetModel(form = {}, rows = []) {
 
 export function composeWorksheetDocx(form = {}, rows = []) {
   const model = buildWorksheetModel(form, rows)
+  // Layout style makes a basic, real difference in the DOCX: 'simple' keeps a plain
+  // header; 'boxed'/'exam' add rule lines that frame the header block.
+  const framed = model.layoutStyle === 'boxed' || model.layoutStyle === 'exam'
   const parts = []
 
+  // 1) School / College name centered (if given). 2) Worksheet title centered.
   if (model.institution) {
-    parts.push(paragraph(model.institution, { align: 'center', bold: true, size: 16, spacingAfter: 40 }))
+    parts.push(centeredTitle(model.institution, { size: 16, spacingAfter: 40 }))
   }
-  parts.push(paragraph(model.title, { align: 'center', bold: true, size: 14, spacingAfter: 80, border: true }))
+  parts.push(centeredTitle(model.title, { size: 14, spacingAfter: 40 }))
 
-  // Detail lines — pack two per line where it reads naturally.
-  parts.push(labelValue('Class', model.grade))
-  parts.push(labelValue('Section', model.section))
-  parts.push(labelValue('Name', model.studentName))
-  parts.push(labelValue('Roll No', model.rollNo))
-  parts.push(labelValue('Subject', model.subject))
-  if (model.chapter) parts.push(labelValue('Chapter', model.chapter))
-  if (model.topic) parts.push(labelValue('Topic', model.topic))
-  parts.push(labelValue('Date', model.date))
+  // 3) Horizontal rule.
+  parts.push(rule({ spacingAfter: 80 }))
+
+  // 4) Compact detail rows (matches the preview grid, not a long vertical list).
+  //    Empty Section / Name / Roll No / Date show fill-in lines automatically.
+  parts.push(keyValueRow([
+    { label: 'Class', value: model.grade },
+    { label: 'Section', value: model.section },
+    { label: 'Name', value: model.studentName },
+    { label: 'Roll No', value: model.rollNo },
+  ]))
+  parts.push(keyValueRow([
+    { label: 'Subject', value: model.subject },
+    { label: 'Chapter', value: model.chapter },
+    { label: 'Topic', value: model.topic },
+    { label: 'Date', value: model.date },
+  ], { spacingAfter: framed ? 40 : 80 }))
+
+  // Close the framed header with a rule line under the details block.
+  if (framed) {
+    parts.push(rule({ spacingAfter: 80 }))
+  }
 
   if (model.instructions) {
     parts.push(blank(40))
@@ -70,21 +92,46 @@ export function composeWorksheetDocx(form = {}, rows = []) {
   parts.push(blank(40))
   parts.push(paragraph('Questions', { bold: true, size: 12, spacingAfter: 80 }))
 
-  model.questions.forEach((q) => {
-    parts.push(paragraph(`${q.number}. ${q.text}`, { spacingAfter: model.answerSpace === 'working' ? 40 : 80 }))
-    if (model.answerSpace === 'working') {
-      // Add two blank ruled-ish lines of working space.
-      parts.push(blank(160))
-      parts.push(blank(160))
+  const working = model.answerSpace === 'working'
+  // Cell/paragraph content for one question (plus a writing line when working space).
+  const questionBlock = (q) => {
+    const q1 = paragraph(`${q.number}. ${q.text}`, { spacingAfter: working ? 40 : 80 })
+    if (!working) {
+      return q1
     }
-  })
+    // A dashed-ish writing line under the question (bottom-bordered empty paragraph).
+    return q1 + paragraph('', { spacingAfter: 120, border: true })
+  }
+
+  if (model.questionLayout === 'two') {
+    // Two visible columns; Word paginates the table naturally on long worksheets.
+    parts.push(twoColumnTable(model.questions.map(questionBlock)))
+    parts.push(blank(40))
+  } else {
+    model.questions.forEach((q) => {
+      parts.push(questionBlock(q))
+    })
+  }
 
   if (model.showAnswerKey) {
-    parts.push(blank(80))
+    // P1/P2: answer key on a new page when requested, else separated by a rule.
+    if (model.answerKeyLocation === 'newpage') {
+      parts.push(pageBreak())
+    } else {
+      parts.push(blank(80))
+    }
     parts.push(paragraph('Answer Key', { bold: true, size: 12, spacingAfter: 80, border: true }))
-    model.questions.forEach((q) => {
-      parts.push(paragraph(`${q.number}. ${q.answer || '—'}`, { spacingAfter: 40 }))
-    })
+
+    // Compact two-column key for two-column layouts or many questions.
+    const twoColKey = model.questionLayout === 'two' || model.questions.length > 8
+    if (twoColKey) {
+      parts.push(twoColumnTable(model.questions.map((q) => paragraph(`${q.number}. ${q.answer || '—'}`, { spacingAfter: 20 }))))
+      parts.push(blank(20))
+    } else {
+      model.questions.forEach((q) => {
+        parts.push(paragraph(`${q.number}. ${q.answer || '—'}`, { spacingAfter: 40 }))
+      })
+    }
   }
 
   return buildDocxBlob(parts.join(''))

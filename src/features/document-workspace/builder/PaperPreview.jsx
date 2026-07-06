@@ -5,13 +5,24 @@ import { buildQuestionPaperModel } from '../composer/questionPaperComposer.js'
 // the SAME model builders the DOCX composer uses, so on-screen preview and the
 // downloaded .docx stay in sync. Presentational only.
 
-function DetailLine({ label, value }) {
+// One inline "Label: value" cell. Empty values render a dotted fill-in line so a
+// printed sheet has a blank to write on.
+function Field({ label, value }) {
   return (
-    <p className="text-[13px] leading-6 text-slate-800">
-      <span className="font-semibold">{label}:</span>{' '}
-      {value ? value : <span className="inline-block min-w-[120px] border-b border-dotted border-slate-400 align-baseline">&nbsp;</span>}
-    </p>
+    <span className="inline-flex items-baseline gap-1 text-[13px] leading-6 text-slate-800">
+      <span className="font-semibold">{label}:</span>
+      {value ? (
+        <span>{value}</span>
+      ) : (
+        <span className="inline-block min-w-[90px] border-b border-dotted border-slate-400">&nbsp;</span>
+      )}
+    </span>
   )
+}
+
+// A row of fields separated by clean spacing; wraps on narrow screens.
+function FieldRow({ children }) {
+  return <div className="flex flex-wrap gap-x-6 gap-y-1">{children}</div>
 }
 
 function PaperShell({ children }) {
@@ -24,6 +35,17 @@ function PaperShell({ children }) {
   )
 }
 
+function PaperHeader({ institution, title }) {
+  return (
+    <header className="text-center">
+      {institution ? (
+        <h2 className="text-lg font-bold uppercase tracking-wide text-slate-900">{institution}</h2>
+      ) : null}
+      <h3 className={`text-base font-bold text-slate-900 ${institution ? 'mt-0.5' : ''}`}>{title}</h3>
+    </header>
+  )
+}
+
 function WorksheetPaper({ form, rows }) {
   const model = buildWorksheetModel(form, rows)
   const boxed = model.layoutStyle === 'boxed' || model.layoutStyle === 'exam'
@@ -31,20 +53,21 @@ function WorksheetPaper({ form, rows }) {
   return (
     <PaperShell>
       <div className={boxed ? 'border border-slate-300 p-4' : ''}>
-        {model.institution ? (
-          <h2 className="text-center text-lg font-bold uppercase tracking-wide text-slate-900">{model.institution}</h2>
-        ) : null}
-        <h3 className="mt-1 text-center text-base font-bold text-slate-900">{model.title}</h3>
-        <div className="mt-2 border-b border-slate-300" />
-        <div className="mt-3 grid grid-cols-1 gap-x-8 gap-y-0.5 sm:grid-cols-2">
-          <DetailLine label="Class" value={model.grade} />
-          <DetailLine label="Section" value={model.section} />
-          <DetailLine label="Name" value={model.studentName} />
-          <DetailLine label="Roll No" value={model.rollNo} />
-          <DetailLine label="Subject" value={model.subject} />
-          {model.chapter ? <DetailLine label="Chapter" value={model.chapter} /> : null}
-          {model.topic ? <DetailLine label="Topic" value={model.topic} /> : null}
-          <DetailLine label="Date" value={model.date} />
+        <PaperHeader institution={model.institution} title={model.title} />
+        <div className="my-3 border-b-2 border-slate-800" />
+        <div className="space-y-1.5">
+          <FieldRow>
+            <Field label="Class" value={model.grade} />
+            <Field label="Section" value={model.section} />
+            <Field label="Name" value={model.studentName} />
+            <Field label="Roll No" value={model.rollNo} />
+          </FieldRow>
+          <FieldRow>
+            <Field label="Subject" value={model.subject} />
+            {model.chapter ? <Field label="Chapter" value={model.chapter} /> : null}
+            {model.topic ? <Field label="Topic" value={model.topic} /> : null}
+            <Field label="Date" value={model.date} />
+          </FieldRow>
         </div>
       </div>
 
@@ -54,22 +77,31 @@ function WorksheetPaper({ form, rows }) {
         </p>
       ) : null}
 
-      <p className="mt-4 text-sm font-bold text-slate-900">Questions</p>
+      <p className="mt-5 text-sm font-bold text-slate-900">Questions</p>
       <ol
-        className={`mt-2 list-none text-[13px] leading-7 text-slate-800 ${model.questionLayout === 'two' ? 'sm:columns-2 sm:gap-8' : ''}`}
+        className={`mt-2 list-none text-[13px] text-slate-800 ${
+          model.questionLayout === 'two' ? 'sm:columns-2 sm:gap-10' : ''
+        } ${model.answerSpace === 'working' ? 'leading-6' : 'leading-8'}`}
       >
         {model.questions.map((q) => (
-          <li key={q.number} className="break-inside-avoid">
-            {q.number}. {q.text}
-            {model.answerSpace === 'working' ? <span className="my-1 block h-6 border-b border-dotted border-slate-300" /> : null}
+          <li key={q.number} className="mb-1 break-inside-avoid">
+            <span className="font-medium">{q.number}.</span> {q.text}
+            {model.answerSpace === 'working' ? (
+              <span className="mb-3 mt-2 block h-8 border-b border-dashed border-slate-300" />
+            ) : null}
           </li>
         ))}
       </ol>
 
       {model.showAnswerKey ? (
-        <div className="mt-5 border-t border-slate-300 pt-3">
-          <p className="text-sm font-bold text-slate-900">Answer Key</p>
-          <ol className="mt-2 list-none text-[13px] leading-6 text-slate-700 sm:columns-2">
+        <div className="mt-6 border-t-2 border-slate-300 pt-3">
+          <p className="text-sm font-bold text-slate-900">
+            Answer Key
+            {model.answerKeyLocation === 'newpage' ? (
+              <span className="ml-2 text-[11px] font-medium text-slate-400">· prints on a new page</span>
+            ) : null}
+          </p>
+          <ol className="mt-2 list-none text-[13px] leading-6 text-slate-600 sm:columns-2 sm:gap-10">
             {model.questions.map((q) => (
               <li key={q.number} className="break-inside-avoid">{q.number}. {q.answer || '—'}</li>
             ))}
@@ -85,23 +117,20 @@ function QuestionPaperPaper({ form, rows, blueprint }) {
 
   return (
     <PaperShell>
-      {model.institution ? (
-        <h2 className="text-center text-lg font-bold uppercase tracking-wide text-slate-900">{model.institution}</h2>
-      ) : null}
-      <h3 className="mt-1 text-center text-base font-bold text-slate-900">{model.title}</h3>
-      <div className="mt-2 border-b border-slate-300" />
-      <div className="mt-3 grid grid-cols-1 gap-x-8 gap-y-0.5 sm:grid-cols-2">
-        <DetailLine label="Class" value={model.grade} />
-        <DetailLine label="Subject" value={model.subject} />
-        {model.examType ? <DetailLine label="Exam Type" value={model.examType} /> : null}
-        <DetailLine label="Time" value={model.duration} />
-        <DetailLine label="Total Marks" value={model.totalMarks === '' ? '' : String(model.totalMarks)} />
-        <DetailLine label="Date" value={model.date} />
-      </div>
+      <PaperHeader institution={model.institution} title={model.title} />
+      <div className="my-3 border-b-2 border-slate-800" />
+      <FieldRow>
+        <Field label="Class" value={model.grade} />
+        <Field label="Subject" value={model.subject} />
+        {model.examType ? <Field label="Exam" value={model.examType} /> : null}
+        <Field label="Time" value={model.duration} />
+        <Field label="Total Marks" value={model.totalMarks === '' ? '' : String(model.totalMarks)} />
+        <Field label="Date" value={model.date} />
+      </FieldRow>
 
       {model.generalInstructions.length ? (
-        <div className="mt-4">
-          <p className="text-sm font-bold text-slate-900">General Instructions</p>
+        <div className="mt-4 rounded-sm bg-slate-50 px-4 py-3">
+          <p className="text-[13px] font-bold text-slate-900">General Instructions</p>
           <ol className="mt-1 list-decimal pl-5 text-[13px] leading-6 text-slate-800">
             {model.generalInstructions.map((line, index) => (
               <li key={index}>{line}</li>
@@ -110,14 +139,23 @@ function QuestionPaperPaper({ form, rows, blueprint }) {
         </div>
       ) : null}
 
+      {model.sectionLayout === 'newpage' ? (
+        <p className="mt-3 text-[11px] font-medium text-slate-400">Each section starts on a new page in the DOCX.</p>
+      ) : null}
+
       {model.sections.map((section) => (
         <div key={section.name} className="mt-5">
-          <p className="border-b border-slate-300 pb-1 text-sm font-bold text-slate-900">{section.name}</p>
-          <ol className="mt-2 list-none text-[13px] leading-7 text-slate-800">
+          <p className="text-center text-sm font-bold uppercase tracking-wide text-slate-900">{section.name}</p>
+          <div className="mt-1 border-b border-slate-300" />
+          <ol className="mt-2 list-none text-[13px] leading-8 text-slate-800">
             {section.questions.map((q) => (
-              <li key={q.number}>
-                {q.number}. {q.text}
-                {model.showMarks && q.marks ? <span className="font-semibold text-slate-500"> ({q.marks} marks)</span> : null}
+              <li key={q.number} className="flex items-baseline justify-between gap-4">
+                <span>
+                  <span className="font-medium">{q.number}.</span> {q.text}
+                </span>
+                {model.showMarks && q.marks ? (
+                  <span className="shrink-0 font-semibold text-slate-500">[{q.marks}]</span>
+                ) : null}
               </li>
             ))}
           </ol>
@@ -125,12 +163,15 @@ function QuestionPaperPaper({ form, rows, blueprint }) {
       ))}
 
       {model.showAnswerKey ? (
-        <div className="mt-5 border-t border-slate-300 pt-3">
-          <p className="text-sm font-bold text-slate-900">Answer Key</p>
+        <div className="mt-6 border-t-2 border-slate-300 pt-3">
+          <p className="text-sm font-bold text-slate-900">
+            Answer Key
+            <span className="ml-2 text-[11px] font-medium text-slate-400">· prints on a new page</span>
+          </p>
           {model.sections.map((section) => (
             <div key={section.name} className="mt-2">
               <p className="text-[13px] font-semibold text-slate-700">{section.name}</p>
-              <ol className="list-none text-[13px] leading-6 text-slate-700">
+              <ol className="list-none text-[13px] leading-6 text-slate-600">
                 {section.questions.map((q) => (
                   <li key={q.number}>{q.number}. {q.answer || '[Answer key placeholder]'}</li>
                 ))}

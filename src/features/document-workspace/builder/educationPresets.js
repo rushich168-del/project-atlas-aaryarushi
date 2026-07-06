@@ -55,6 +55,17 @@ export const SECTION_NAMING_STYLES = [
   { id: 'part', label: 'Part I / II / III' },
 ]
 
+// v2.86 patch 2 — pagination options.
+export const ANSWER_KEY_LOCATIONS = [
+  { id: 'end', label: 'End of worksheet' },
+  { id: 'newpage', label: 'New page' },
+]
+
+export const SECTION_LAYOUTS = [
+  { id: 'continuous', label: 'Continuous' },
+  { id: 'newpage', label: 'Start each section on new page' },
+]
+
 const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X']
 
 // Display name for the Nth (0-based) section given the chosen naming style.

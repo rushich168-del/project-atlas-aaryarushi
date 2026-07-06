@@ -8,9 +8,12 @@
 import {
   blank,
   buildDocxBlob,
-  labelValue,
+  centeredTitle,
+  keyValueRow,
+  pageBreak,
   paragraph,
-  run,
+  rule,
+  sectionHeading,
 } from './documentLayout.js'
 
 function groupBySection(rows) {
@@ -58,6 +61,7 @@ export function buildQuestionPaperModel(form = {}, rows = [], blueprint = null) 
     totalMarks: blueprint?.totalMarks ?? '',
     showMarks,
     showAnswerKey,
+    sectionLayout: form.sectionLayout === 'newpage' ? 'newpage' : 'continuous',
     generalInstructions,
     sections,
   }
@@ -75,18 +79,28 @@ export function composeQuestionPaperDocx(form = {}, rows = [], blueprint = null)
   const model = buildQuestionPaperModel(form, rows, blueprint)
   const parts = []
 
+  // 1) School / College name centered (if given). 2) Test / Paper title centered.
   if (model.institution) {
-    parts.push(paragraph(model.institution, { align: 'center', bold: true, size: 16, spacingAfter: 40 }))
+    parts.push(centeredTitle(model.institution, { size: 16, spacingAfter: 40 }))
   }
-  parts.push(paragraph(model.title, { align: 'center', bold: true, size: 14, spacingAfter: 80, border: true }))
+  parts.push(centeredTitle(model.title, { size: 14, spacingAfter: 40 }))
 
-  parts.push(labelValue('Class', model.grade))
-  parts.push(labelValue('Subject', model.subject))
-  if (model.examType) parts.push(labelValue('Exam Type', examTypeLabel(model.examType)))
-  parts.push(labelValue('Time', model.duration))
-  parts.push(labelValue('Total Marks', model.totalMarks === '' ? '' : String(model.totalMarks)))
-  parts.push(labelValue('Date', model.date))
+  // 3) Horizontal rule.
+  parts.push(rule({ spacingAfter: 80 }))
 
+  // 4) Compact detail rows (matches the preview grid).
+  parts.push(keyValueRow([
+    { label: 'Class', value: model.grade },
+    { label: 'Subject', value: model.subject },
+    { label: 'Exam', value: model.examType ? examTypeLabel(model.examType) : '' },
+  ]))
+  parts.push(keyValueRow([
+    { label: 'Time', value: model.duration },
+    { label: 'Total Marks', value: model.totalMarks === '' ? '' : String(model.totalMarks) },
+    { label: 'Date', value: model.date },
+  ], { spacingAfter: 80 }))
+
+  // 5) General instructions, clearly separated.
   if (model.generalInstructions.length) {
     parts.push(blank(40))
     parts.push(paragraph('General Instructions', { bold: true, size: 12, spacingAfter: 40 }))
@@ -95,17 +109,23 @@ export function composeQuestionPaperDocx(form = {}, rows = [], blueprint = null)
     })
   }
 
-  model.sections.forEach((section) => {
-    parts.push(blank(80))
-    parts.push(paragraph(section.name, { bold: true, size: 13, spacingAfter: 80, border: true }))
+  // 6) Sections: centered + bold heading. Optionally start each on a new page.
+  model.sections.forEach((section, index) => {
+    if (index > 0 && model.sectionLayout === 'newpage') {
+      parts.push(pageBreak())
+    } else {
+      parts.push(blank(80))
+    }
+    parts.push(sectionHeading(section.name, { size: 13, spacingAfter: 60 }))
     section.questions.forEach((q) => {
       const marksSuffix = model.showMarks && q.marks ? `  (${q.marks} marks)` : ''
-      parts.push(paragraph(`${q.number}. ${q.text}${marksSuffix}`, { spacingAfter: 80 }))
+      parts.push(paragraph(`${q.number}. ${q.text}${marksSuffix}`, { spacingAfter: 100 }))
     })
   })
 
   if (model.showAnswerKey) {
-    parts.push(blank(80))
+    // Answer key clearly separated on its own page after all questions.
+    parts.push(pageBreak())
     parts.push(paragraph('Answer Key', { bold: true, size: 12, spacingAfter: 80, border: true }))
     model.sections.forEach((section) => {
       parts.push(paragraph(section.name, { bold: true, spacingAfter: 40 }))
