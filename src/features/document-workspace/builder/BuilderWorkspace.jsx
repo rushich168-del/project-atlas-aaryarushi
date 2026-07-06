@@ -436,7 +436,7 @@ export default function BuilderWorkspace({ config, state, actions, onUseInWorksp
   return (
     <section className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,400px)_minmax(0,1fr)]">
       {/* Left: teacher setup form */}
-      <div ref={formRef} className="min-w-0 rounded-lg border border-slate-200 bg-white p-5 shadow-sm scroll-mt-24">
+      <div ref={formRef} className="min-w-0 max-h-[70vh] overflow-y-auto rounded-lg border border-slate-200 bg-white p-5 shadow-sm scroll-mt-24">
         <div className="flex items-start gap-3">
           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-blue-100 text-accentBlue">
             <Sparkles size={18} aria-hidden="true" />
