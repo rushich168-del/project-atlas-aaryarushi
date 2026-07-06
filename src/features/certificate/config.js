@@ -99,11 +99,16 @@ function getValidationResult(state) {
 export const certificateWorkspaceConfig = {
   id: 'certificate',
   productSlug: 'ar-cert-pro',
+  workspacePattern: 'data-template',
   eyebrow: 'AR-CERT-PRO SaaS Workspace',
   title: 'Certificate Workspace',
   description:
     'Generate one DOCX certificate at a time from a saved draft and the selected Excel preview row.',
   placeholderHelp: 'Example: {{name}} matches the Name column, {{course}} matches the Course column, and {{certificate_id}} matches the Certificate ID column.',
+  copy: {
+    templateEmptyText: 'No certificate DOCX template uploaded yet.',
+    excelEmptyText: 'No participant Excel uploaded yet.',
+  },
   templateFields: [
     { id: 'name', label: 'Recipient name', placeholder: '{{name}}', required: true, type: 'text', defaultValue: '', sample: 'Aarya Rushi' },
     { id: 'course', label: 'Course name', placeholder: '{{course}}', required: true, type: 'text', defaultValue: '', sample: 'Office Automation Foundations' },

@@ -41,14 +41,14 @@ function UploadMessage({ error }) {
   )
 }
 
-function SelectedFileCard({ title, record, file }) {
+function SelectedFileCard({ title, record, file, emptyText }) {
   const fileName = record?.file_name || file?.name
   const status = record || file ? 'Ready' : 'Missing'
 
   if (!record && !file) {
     return (
       <div className="mt-5 rounded-lg border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600">
-        {title.includes('Template') ? 'No template uploaded yet.' : 'No Excel file uploaded yet.'}
+        {emptyText || 'No file uploaded yet.'}
       </div>
     )
   }
@@ -68,7 +68,7 @@ function SelectedFileCard({ title, record, file }) {
   )
 }
 
-function FileUploadControl({ title, description, acceptLabel, accept, loading, selectedFile, record, error, onFile }) {
+function FileUploadControl({ title, description, acceptLabel, accept, loading, selectedFile, record, error, onFile, emptyText }) {
   return (
     <div className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
       <h3 className="text-xl font-semibold text-primary">{title}</h3>
@@ -95,7 +95,7 @@ function FileUploadControl({ title, description, acceptLabel, accept, loading, s
       </label>
       <p className="mt-3 text-xs font-semibold uppercase tracking-[0.08em] text-slate-400">{acceptLabel}</p>
       <UploadMessage error={error} />
-      <SelectedFileCard title={title} record={record} file={selectedFile} />
+      <SelectedFileCard title={title} record={record} file={selectedFile} emptyText={emptyText} />
     </div>
   )
 }
@@ -145,9 +145,9 @@ export function TemplateStep({ state, actions, workspace, config }) {
   }
 
   return (
-    <div className="grid gap-5">
-      <FirstRunGuide slug={config.productSlug} />
-      <SampleStarterPanel slug={config.productSlug} />
+    <div className="grid min-w-0 gap-5">
+      <FirstRunGuide slug={config.productSlug} config={config} />
+      <SampleStarterPanel slug={config.productSlug} config={config} />
       <FileUploadControl
         title={config.copy?.templateTitle || 'Upload your certificate template'}
         description={config.copy?.templateDescription || 'Choose the approved DOCX template for this certificate batch. Placeholder fields will be detected after upload.'}
@@ -158,6 +158,7 @@ export function TemplateStep({ state, actions, workspace, config }) {
         record={state.templateRecord}
         error={state.templateUploadError}
         onFile={handleTemplateFile}
+        emptyText={config.copy?.templateEmptyText || 'No DOCX template uploaded yet.'}
       />
     </div>
   )
@@ -215,8 +216,10 @@ export function ExcelStep({ state, actions, workspace, config }) {
     }
   }
 
+  const excelEmptyText = config.copy?.excelEmptyText || 'No Excel file uploaded yet.'
+
   return (
-    <div className="grid gap-5">
+    <div className="grid min-w-0 gap-5">
       <FileUploadControl
         title={config.copy?.excelTitle || 'Upload your Excel data'}
         description={config.copy?.excelDescription || 'Choose the spreadsheet with student or participant rows. Column headers are detected in the browser.'}
@@ -227,6 +230,7 @@ export function ExcelStep({ state, actions, workspace, config }) {
         record={state.uploadRecord}
         error={state.excelUploadError}
         onFile={handleExcelFile}
+        emptyText={excelEmptyText}
       />
 
       <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
@@ -237,7 +241,7 @@ export function ExcelStep({ state, actions, workspace, config }) {
             <p><span className="font-semibold text-primary">Columns:</span> {state.detectedColumns.length}</p>
           </div>
         ) : (
-          'No Excel file uploaded yet.'
+          excelEmptyText
         )}
       </div>
 
@@ -247,7 +251,7 @@ export function ExcelStep({ state, actions, workspace, config }) {
           <p className="mt-1 text-sm text-slate-500">These columns are available for field mapping.</p>
           <div className="mt-4 flex flex-wrap gap-2">
             {state.detectedColumns.map((column) => (
-              <span key={column} className="rounded-md border border-slate-200 bg-lightBg px-3 py-2 text-sm font-semibold text-slate-600">
+              <span key={column} className="max-w-full break-words rounded-md border border-slate-200 bg-lightBg px-3 py-2 text-sm font-semibold text-slate-600">
                 {column}
               </span>
             ))}
@@ -337,7 +341,7 @@ export function MappingStep({ state, actions, config }) {
           ) : (
             <div className="mt-3 flex flex-wrap gap-2">
               {state.placeholderKeys.map((key) => (
-                <span key={key} className="rounded-md border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600">
+                <span key={key} className="max-w-full break-words rounded-md border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600">
                   {`{{${key}}}`} {state.placeholderDuplicateCounts[key] > 1 ? `x${state.placeholderDuplicateCounts[key]}` : ''}
                 </span>
               ))}

@@ -213,9 +213,13 @@ export default function WorkspaceLayout({ product, config, catalogState }) {
           />
         </div>
 
-        <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
-          <StepRenderer step={activeStepConfig} state={workspaceState} actions={actions} config={config} workspace={workspace} />
-          <ReadinessChecklist items={readinessItems} />
+        <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1fr)_300px]">
+          <div className="min-w-0">
+            <StepRenderer step={activeStepConfig} state={workspaceState} actions={actions} config={config} workspace={workspace} />
+          </div>
+          <div className="min-w-0 xl:max-w-[320px]">
+            <ReadinessChecklist items={readinessItems} />
+          </div>
         </div>
 
         <WorkspaceFooter

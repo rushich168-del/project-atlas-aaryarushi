@@ -19,13 +19,17 @@ export default function WorkspaceHeader({ product, config, activeStep, readiness
           <h2 className="mt-5 text-3xl font-semibold text-primary">{config.title}</h2>
           <p className="mt-3 max-w-3xl leading-7 text-slate-600">{config.description}</p>
           <div className="mt-4 flex flex-wrap gap-2">
-            <span className="rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.08em] text-slate-600">Template</span>
-            <span className="rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.08em] text-slate-600">Excel data</span>
+            <span className="rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.08em] text-slate-600">{config.workspacePattern === 'content-builder' ? 'Layout template' : 'Template'}</span>
+            <span className="rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.08em] text-slate-600">{config.workspacePattern === 'content-builder' ? 'Structured content' : 'Excel data'}</span>
             <span className="rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.08em] text-slate-600">{config.outputLabel || 'DOCX output'}</span>
             <span className="rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.08em] text-slate-600">{config.supportedOutput || 'DOCX'} only</span>
           </div>
           <div className="mt-4 rounded-md border border-blue-200 bg-blue-50 p-3">
-            <p className="text-sm font-semibold text-blue-800">Use {'{{ColumnName}}'} placeholders in your Word template.</p>
+            <p className="text-sm font-semibold text-blue-800">
+              {config.workspacePattern === 'content-builder'
+                ? 'The document is generated automatically from your structured Excel content.'
+                : `Use {{ColumnName}} placeholders in your Word template.`}
+            </p>
             <p className="mt-1 text-sm leading-6 text-blue-800">{config.placeholderHelp || 'Example: {{Name}} matches the Name column in Excel.'}</p>
           </div>
         </div>

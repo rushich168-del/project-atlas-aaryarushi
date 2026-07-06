@@ -10,25 +10,39 @@ const FALLBACK = {
   outputLabel: 'documents',
 }
 
-export default function FirstRunGuide({ slug }) {
+export default function FirstRunGuide({ slug, config }) {
   const [open, setOpen] = useState(true)
   const starter = getSampleStarter(slug)
   const templateLabel = starter?.templateLabel || FALLBACK.templateLabel
   const excelLabel = starter?.excelLabel || FALLBACK.excelLabel
   const outputLabel = starter?.outputLabel || FALLBACK.outputLabel
   const isTextOnly = slug === 'ar-idcard-pro' || Boolean(starter?.note)
+  const isContentBuilder = config?.workspacePattern === 'content-builder'
 
-  const steps = [
-    `Download the sample ${excelLabel} and ${templateLabel} (buttons below).`,
-    'Edit the sample files with your real data — keep the placeholder names.',
-    `Upload your ${templateLabel} (.docx).`,
-    `Upload your ${excelLabel} (.xlsx).`,
-    'Check the detected fields and column mapping.',
-    'Preview one row to confirm it looks right.',
-    `Generate ${outputLabel} as DOCX.`,
-  ]
+  const steps = isContentBuilder
+    ? [
+        `Download the sample ${excelLabel} and ${templateLabel} (buttons below).`,
+        'Fill the structured content Excel with your real data — keep the field names.',
+        `Upload your layout template (.docx) that defines how the ${outputLabel.toLowerCase()} looks.`,
+        `Upload your structured ${excelLabel} (.xlsx).`,
+        'Review how the structured content maps into the document.',
+        `Preview the generated ${outputLabel.replace(/s$/, '').toLowerCase()} to confirm the structure.`,
+        `Generate ${outputLabel} as DOCX — built automatically from your content.`,
+      ]
+    : [
+        `Download the sample ${excelLabel} and ${templateLabel} (buttons below).`,
+        'Edit the sample files with your real data — keep the placeholder names.',
+        `Upload your ${templateLabel} (.docx).`,
+        `Upload your ${excelLabel} (.xlsx).`,
+        'Check the detected fields and column mapping.',
+        'Preview one row to confirm it looks right.',
+        `Generate ${outputLabel} as DOCX.`,
+      ]
 
   const warnings = [
+    ...(isContentBuilder
+      ? [<>The document is generated automatically from your structured Excel content.</>]
+      : []),
     <>Use <span className="font-mono">{'{{ColumnName}}'}</span> placeholders only.</>,
     'Excel column names must match the template placeholders.',
     'Output is DOCX only.',

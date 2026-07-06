@@ -3,10 +3,12 @@ import { AlertCircle, ChevronDown, ChevronUp, Download, FileSpreadsheet, FileTex
 import { getSampleStarter } from './sampleStarters.js'
 import { buildSampleTemplateBlob, buildSampleWorkbookBlob, downloadBlob } from './sampleFileGenerators.js'
 
-export default function SampleStarterPanel({ slug }) {
+export default function SampleStarterPanel({ slug, config }) {
   const starter = getSampleStarter(slug)
   const [open, setOpen] = useState(true)
   const [error, setError] = useState('')
+  const starterPack = config?.starterPack || null
+  const isContentBuilder = config?.workspacePattern === 'content-builder'
 
   // Defensive fallback: an unknown or unsupported product slug must not crash the
   // workspace. Show a clear message and stop.
@@ -56,7 +58,7 @@ export default function SampleStarterPanel({ slug }) {
           </span>
           <span>
             <span className="block text-xs font-semibold uppercase tracking-[0.08em] text-accentBlue">Sample starter pack</span>
-            <span className="block text-base font-semibold text-primary">Use this sample structure</span>
+            <span className="block text-base font-semibold text-primary">{starterPack?.title || 'Use this sample structure'}</span>
           </span>
         </span>
         {open ? <ChevronUp size={18} className="text-slate-500" aria-hidden="true" /> : <ChevronDown size={18} className="text-slate-500" aria-hidden="true" />}
@@ -65,9 +67,16 @@ export default function SampleStarterPanel({ slug }) {
       {open ? (
         <div className="border-t border-blue-200 px-5 py-5">
           <p className="text-sm leading-6 text-slate-600">
-            The {starter.productName} workspace fills your Word template from Excel columns. Use the placeholders and columns below,
-            or download a ready-made sample to start quickly. Downloaded files are generated locally in your browser.
+            {starterPack?.description
+              || `The ${starter.productName} workspace fills your Word template from Excel columns. Use the placeholders and columns below, or download a ready-made sample to start quickly. Downloaded files are generated locally in your browser.`}
           </p>
+
+          {starterPack?.callout ? (
+            <div className="mt-4 flex items-start gap-3 rounded-md border border-blue-200 bg-blue-50 p-3">
+              <Info className="mt-0.5 shrink-0 text-accentBlue" size={16} aria-hidden="true" />
+              <p className="text-sm font-semibold leading-6 text-blue-800">{starterPack.callout}</p>
+            </div>
+          ) : null}
 
           {starter.note ? (
             <div className="mt-4 flex items-start gap-3 rounded-md border border-amber-200 bg-amber-50 p-3">
@@ -76,37 +85,68 @@ export default function SampleStarterPanel({ slug }) {
             </div>
           ) : null}
 
-          <div className="mt-5 grid gap-4 lg:grid-cols-2">
-            <div className="rounded-md border border-slate-200 bg-white p-4">
-              <div className="flex items-center gap-2">
-                <FileText size={16} className="text-accentBlue" aria-hidden="true" />
-                <p className="text-sm font-semibold text-primary">Word placeholders</p>
+          {isContentBuilder && starterPack ? (
+            <div className="mt-5 grid gap-4 lg:grid-cols-2">
+              <div className="rounded-md border border-slate-200 bg-white p-4">
+                <div className="flex items-center gap-2">
+                  <FileText size={16} className="text-accentBlue" aria-hidden="true" />
+                  <p className="text-sm font-semibold text-primary">{starterPack.metadataLabel || 'Document metadata'}</p>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {(starterPack.metadataFields || []).map((field) => (
+                    <span key={field} className="max-w-full break-words rounded-md border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-xs font-semibold text-blue-800">
+                      {field}
+                    </span>
+                  ))}
+                </div>
               </div>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {starter.placeholders.map((placeholder) => (
-                  <span key={placeholder} className="rounded-md border border-blue-200 bg-blue-50 px-2.5 py-1.5 font-mono text-xs font-semibold text-blue-800">
-                    {placeholder}
-                  </span>
-                ))}
+              <div className="rounded-md border border-slate-200 bg-white p-4">
+                <div className="flex items-center gap-2">
+                  <FileSpreadsheet size={16} className="text-accentTeal" aria-hidden="true" />
+                  <p className="text-sm font-semibold text-primary">{starterPack.contentLabel || 'Content fields'}</p>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {(starterPack.contentFields || []).map((field) => (
+                    <span key={field} className="max-w-full break-words rounded-md border border-teal-200 bg-teal-50 px-2.5 py-1.5 text-xs font-semibold text-teal-800">
+                      {field}
+                    </span>
+                  ))}
+                </div>
               </div>
             </div>
-            <div className="rounded-md border border-slate-200 bg-white p-4">
-              <div className="flex items-center gap-2">
-                <FileSpreadsheet size={16} className="text-accentTeal" aria-hidden="true" />
-                <p className="text-sm font-semibold text-primary">Excel columns</p>
+          ) : (
+            <div className="mt-5 grid gap-4 lg:grid-cols-2">
+              <div className="rounded-md border border-slate-200 bg-white p-4">
+                <div className="flex items-center gap-2">
+                  <FileText size={16} className="text-accentBlue" aria-hidden="true" />
+                  <p className="text-sm font-semibold text-primary">Word placeholders</p>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {starter.placeholders.map((placeholder) => (
+                    <span key={placeholder} className="max-w-full break-words rounded-md border border-blue-200 bg-blue-50 px-2.5 py-1.5 font-mono text-xs font-semibold text-blue-800">
+                      {placeholder}
+                    </span>
+                  ))}
+                </div>
               </div>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {starter.columns.map((column) => (
-                  <span key={column} className="rounded-md border border-teal-200 bg-teal-50 px-2.5 py-1.5 text-xs font-semibold text-teal-800">
-                    {column}
-                  </span>
-                ))}
+              <div className="rounded-md border border-slate-200 bg-white p-4">
+                <div className="flex items-center gap-2">
+                  <FileSpreadsheet size={16} className="text-accentTeal" aria-hidden="true" />
+                  <p className="text-sm font-semibold text-primary">Excel columns</p>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {starter.columns.map((column) => (
+                    <span key={column} className="max-w-full break-words rounded-md border border-teal-200 bg-teal-50 px-2.5 py-1.5 text-xs font-semibold text-teal-800">
+                      {column}
+                    </span>
+                  ))}
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
           <div className="mt-5">
-            <p className="text-sm font-semibold text-primary">Example rows</p>
+            <p className="text-sm font-semibold text-primary">{isContentBuilder ? 'Example generated rows' : 'Example rows'}</p>
             <div className="mt-3 overflow-x-auto rounded-md border border-slate-200">
               <table className="min-w-full border-collapse text-left text-sm">
                 <thead>
