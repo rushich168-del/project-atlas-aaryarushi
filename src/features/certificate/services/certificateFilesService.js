@@ -60,7 +60,17 @@ function ensureBaseUploadContext({ organizationId, productId, file, userId }) {
 
 function validateSize(file) {
   if (file.size > MAX_FILE_SIZE) {
-    throw new Error('File is too large. Maximum size is 10 MB.')
+    // Typed + specific so the UI reports the real size and never confuses this
+    // with unrelated storage/database failures.
+    const error = new Error(`File is too large (${formatBytes(file.size)}). Maximum size is 10 MB.`)
+    error.code = 'FILE_TOO_LARGE'
+    throw error
+  }
+
+  if (file.size === 0) {
+    const error = new Error('This file is empty (0 bytes). Please choose the downloaded sample file again.')
+    error.code = 'FILE_EMPTY'
+    throw error
   }
 }
 

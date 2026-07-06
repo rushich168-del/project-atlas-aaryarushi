@@ -49,7 +49,7 @@ export default function SampleStarterPanel({ slug, config, defaultOpen = true })
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
-        className="focus-ring flex w-full items-center justify-between gap-3 rounded-lg px-5 py-4 text-left"
+        className="focus-ring flex w-full items-center justify-between gap-3 rounded-lg px-5 py-3 text-left"
         aria-expanded={open}
       >
         <span className="flex items-center gap-3">
@@ -65,7 +65,16 @@ export default function SampleStarterPanel({ slug, config, defaultOpen = true })
       </button>
 
       {open ? (
-        <div className="border-t border-blue-200 px-5 py-5">
+        <div className="border-t border-blue-200 px-5 py-4">
+          {isContentBuilder ? (
+            <div className="mb-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-semibold text-accentBlue">
+              <span className="rounded-md bg-blue-100 px-2 py-1">1 Layout</span>
+              <span aria-hidden="true">→</span>
+              <span className="rounded-md bg-blue-100 px-2 py-1">2 Content</span>
+              <span aria-hidden="true">→</span>
+              <span className="rounded-md bg-blue-100 px-2 py-1">3 Generate</span>
+            </div>
+          ) : null}
           <p className="text-sm leading-6 text-slate-600">
             {starterPack?.description
               || `The ${starter.productName} workspace fills your Word template from Excel columns. Use the placeholders and columns below, or download a ready-made sample to start quickly. Downloaded files are generated locally in your browser.`}

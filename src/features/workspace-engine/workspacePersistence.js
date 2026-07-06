@@ -36,6 +36,8 @@ export const PERSISTED_KEYS = [
   'excelRows',
   'previewRowIndex',
   'rowCount',
+  'builderMode',
+  'builderConfig',
   'fieldMapping',
   'draftRecord',
   'draftDirty',

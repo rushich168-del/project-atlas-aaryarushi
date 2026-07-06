@@ -2,10 +2,7 @@ import { useState } from 'react'
 import { AlertCircle, CheckCircle2, Download, FileSpreadsheet, FileText, Loader2, ListChecks, Wand2, X } from 'lucide-react'
 import { detectDocxPlaceholders } from '../../core/atlas/index.js'
 import {
-  parseExcelColumns,
-  uploadCertificateInput,
   uploadCertificateTemplate,
-  validateExcelFile,
   validateTemplateFile,
 } from './services/certificateFilesService.js'
 import { createBatchDocxZip, downloadGeneratedCertificateDocx } from './services/certificateOutputsService.js'
@@ -15,6 +12,7 @@ import { navigateTo } from '../../utils/routes.js'
 import EmailPreparationPanel from '../../components/email/EmailPreparationPanel.jsx'
 import SampleStarterPanel from '../document-workspace/SampleStarterPanel.jsx'
 import FirstRunGuide from '../document-workspace/FirstRunGuide.jsx'
+import { uploadAndApplyExcel } from '../document-workspace/excelUploadHandler.js'
 
 function normalizeName(value) {
   return String(value || '')
@@ -48,14 +46,14 @@ function SelectedFileCard({ title, record, file, emptyText, onRemove }) {
 
   if (!record && !file) {
     return (
-      <div className="mt-5 rounded-lg border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600">
+      <div className="mt-3 rounded-md border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-600">
         {emptyText || 'No file uploaded yet.'}
       </div>
     )
   }
 
   return (
-    <div className="mt-5 rounded-lg border border-emerald-200 bg-emerald-50 p-4">
+    <div className="mt-3 rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <p className="break-words text-sm font-semibold text-emerald-800">{fileName}</p>
@@ -102,12 +100,9 @@ function FileUploadControl({ title, description, acceptLabel, accept, loading, s
   }
 
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
-      <h3 className="text-xl font-semibold text-primary">{title}</h3>
-      <p className="mt-2 text-sm leading-6 text-slate-600">{description}</p>
-      <p className="mt-2 text-xs leading-5 text-slate-500">
-        Your selection and mapping are saved for this product while you stay signed in on this tab.
-      </p>
+    <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+      <h3 className="text-lg font-semibold text-primary">{title}</h3>
+      <p className="mt-1 text-sm leading-6 text-slate-600">{description}</p>
       <div
         onDragOver={(event) => {
           event.preventDefault()
@@ -115,15 +110,15 @@ function FileUploadControl({ title, description, acceptLabel, accept, loading, s
         }}
         onDragLeave={() => setDragActive(false)}
         onDrop={handleDrop}
-        className={`mt-5 flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed px-4 py-6 text-center transition ${
+        className={`mt-3 flex flex-wrap items-center justify-center gap-x-3 gap-y-1.5 rounded-lg border-2 border-dashed px-4 py-4 text-center transition ${
           dragActive ? 'border-accentTeal bg-teal-50' : 'border-slate-300 bg-slate-50'
         }`}
       >
-        <p className="text-sm font-semibold text-slate-600">
-          {dragActive ? 'Drop the file to upload' : 'Drag & drop your file here, or'}
-        </p>
-        <label className="focus-ring inline-flex min-h-10 cursor-pointer items-center justify-center gap-2 rounded-md bg-accentTeal px-3.5 text-sm font-semibold text-white transition hover:bg-teal-800">
-          {loading ? <Loader2 size={17} className="animate-spin" aria-hidden="true" /> : null}
+        <span className="text-sm font-semibold text-slate-600">
+          {dragActive ? 'Drop the file to upload' : 'Drag & drop, or'}
+        </span>
+        <label className="focus-ring inline-flex min-h-9 cursor-pointer items-center justify-center gap-2 rounded-md bg-accentTeal px-3.5 text-sm font-semibold text-white transition hover:bg-teal-800">
+          {loading ? <Loader2 size={16} className="animate-spin" aria-hidden="true" /> : null}
           {loading ? 'Uploading' : hasFile ? 'Replace file' : 'Choose file'}
           <input
             type="file"
@@ -139,7 +134,7 @@ function FileUploadControl({ title, description, acceptLabel, accept, loading, s
             className="sr-only"
           />
         </label>
-        <p className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-400">{acceptLabel}</p>
+        <span className="w-full text-xs font-semibold uppercase tracking-[0.08em] text-slate-400">{acceptLabel} · saved for this product on this tab</span>
       </div>
       <UploadMessage error={error} />
       <SelectedFileCard title={title} record={record} file={selectedFile} emptyText={emptyText} onRemove={hasFile ? onRemove : undefined} />
@@ -215,7 +210,7 @@ export function TemplateStep({ state, actions, workspace, config }) {
   const templateReady = Boolean(state.templateRecord)
 
   return (
-    <div className="grid min-w-0 gap-5">
+    <div className="grid min-w-0 gap-4">
       <FileUploadControl
         title={config.copy?.templateTitle || 'Upload your certificate template'}
         description={config.copy?.templateDescription || 'Choose the approved DOCX template for this certificate batch. Placeholder fields will be detected after upload.'}
@@ -236,55 +231,10 @@ export function TemplateStep({ state, actions, workspace, config }) {
 }
 
 export function ExcelStep({ state, actions, workspace, config }) {
-  async function handleExcelFile(file) {
-    actions.updateState({ uploadingExcel: true, excelUploadError: '' })
-
-    try {
-      validateExcelFile(file)
-      const { detectedColumns, rowCount, previewRows, excelRows } = await parseExcelColumns(file)
-      const uploadRecord = await uploadCertificateInput({
-        organizationId: workspace.organization?.id,
-        productId: workspace.product?.organizationId ? workspace.product.id : null,
-        productSlug: workspace.product?.slug || config.productSlug,
-        file,
-        detectedColumns,
-        rowCount,
-        userId: workspace.user?.id,
-      })
-
-      actions.updateState({
-        excelFile: { name: file.name, size: uploadRecord.displaySize },
-        uploadRecord,
-        detectedColumns,
-        previewRows,
-        excelRows,
-        previewRowIndex: 0,
-        rowCount,
-        fieldMapping: config.createEmptyFieldMapping ? config.createEmptyFieldMapping() : {
-          name: '',
-          course: '',
-          date: '',
-          certificate_id: '',
-          trainer: '',
-        },
-        draftRecord: null,
-        draftDirty: true,
-        generationComplete: false,
-        generatedDocx: null,
-        generatedDocumentRecord: null,
-        generationError: '',
-        outputError: '',
-        persistingOutput: false,
-        batchValidation: null,
-        batchJob: null,
-        batchOutputs: [],
-        batchError: '',
-        batchComplete: false,
-        uploadingExcel: false,
-      })
-    } catch (error) {
-      actions.updateState({ uploadingExcel: false, excelUploadError: getUploadError(error, 'excel') })
-    }
+  // Delegates to the shared upload/parse handler so the builder-first "Use in
+  // workspace" action and this classic upload step run identical logic.
+  function handleExcelFile(file) {
+    return uploadAndApplyExcel({ file, config, workspace, actions })
   }
 
   const excelEmptyText = config.copy?.excelEmptyText || 'No Excel file uploaded yet.'
@@ -311,7 +261,7 @@ export function ExcelStep({ state, actions, workspace, config }) {
   }
 
   return (
-    <div className="grid min-w-0 gap-5">
+    <div className="grid min-w-0 gap-4">
       <FileUploadControl
         title={config.copy?.excelTitle || 'Upload your Excel data'}
         description={config.copy?.excelDescription || 'Choose the spreadsheet with student or participant rows. Column headers are detected in the browser.'}
@@ -390,7 +340,7 @@ export function MappingStep({ state, actions, config }) {
   const missingRequiredFields = validation.missingMappings
 
   return (
-    <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+    <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-400">Step 3</p>
@@ -557,7 +507,7 @@ export function PreviewStep({ state, actions, config }) {
   const rowReady = mergeResult.valid
 
   return (
-    <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+    <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-400">Step 4</p>
@@ -599,7 +549,7 @@ export function PreviewStep({ state, actions, config }) {
             </div>
           </div>
 
-          <div className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
             <div className="text-center">
               <p className="text-sm font-semibold uppercase tracking-[0.16em] text-accentBlue">{config.copy?.previewCardEyebrow || 'Document preview'}</p>
             </div>
@@ -980,7 +930,7 @@ export function GenerateStep({ state, actions, config }) {
   }
 
   return (
-    <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+    <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
       <p className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-400">Step 5</p>
       <h3 className="mt-1 text-xl font-semibold text-primary">{config.copy?.generateTitle || 'Generate DOCX files'}</h3>
       <p className="mt-2 text-sm leading-6 text-slate-600">{config.copy?.generateDescription || 'Generate one DOCX from the preview row, or generate batch DOCX files from valid Excel rows.'}</p>
@@ -1103,7 +1053,7 @@ export function DownloadsStep({ state }) {
   ]
 
   return (
-    <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+    <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
       <h3 className="text-xl font-semibold text-primary">Download center</h3>
       <p className="mt-2 text-sm leading-6 text-slate-600">The generated DOCX is stored privately when persistence succeeds. Local fallback remains available after a storage or database error.</p>
       <div className="mt-5 grid gap-3 md:grid-cols-3">

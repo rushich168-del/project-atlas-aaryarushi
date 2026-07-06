@@ -56,7 +56,7 @@ export default function FirstRunGuide({ slug, config, defaultOpen = true }) {
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
-        className="focus-ring flex w-full items-center justify-between gap-3 rounded-lg px-5 py-4 text-left"
+        className="focus-ring flex w-full items-center justify-between gap-3 rounded-lg px-5 py-3 text-left"
         aria-expanded={open}
       >
         <span className="flex items-center gap-3">
