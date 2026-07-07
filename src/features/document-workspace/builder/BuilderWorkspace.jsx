@@ -34,6 +34,20 @@ const PREVIEW_ROW_LIMIT = 12
 const MIN_BLUEPRINT_SECTIONS = 3
 const MAX_BLUEPRINT_SECTIONS = 6
 
+// v2.95.1 — The clean, paste-first left panel for "I already have questions" +
+// Section-wise paper (before an editable paper is created). Only these fields
+// show, in this order — no Paper Setup / blueprint / pattern / starter-bank fields.
+const PASTE_FIRST_FIELD_IDS = [
+  'questionSourceMode',
+  'institution',
+  'title',
+  'grade',
+  'subject',
+  'examType',
+  'duration',
+  'teacherPastedMaterial',
+]
+
 const BLUEPRINT_SECTIONS = [
   {
     key: 'A',
@@ -475,6 +489,17 @@ export default function BuilderWorkspace({ config, state, actions, onUseInWorksp
   const effectiveResult = editableResult || result
   const effectiveForm = editableActive ? editableModelToForm(editableModel, formValues) : formValues
 
+  // v2.95.1 — Paste-first: prepared-paper flow before an editable paper exists.
+  // The left panel shows only the clean paste-first fields and a "Create Editable
+  // Paper" button; the right panel shows an empty "paste to begin" state instead
+  // of the old generated placeholder preview.
+  const pasteFirstActive = preparedActive && !editableActive
+  const pasteFirstFields = pasteFirstActive
+    ? PASTE_FIRST_FIELD_IDS
+      .map((id) => builder.fields.find((field) => field.id === id))
+      .filter((field) => field && isFieldVisible(field, formValues))
+    : []
+
   // Leaving the prepared-paper flow (e.g. switching question source) discards the
   // stale editable model so it can't silently drive a different mode's preview.
   useEffect(() => {
@@ -586,8 +611,16 @@ export default function BuilderWorkspace({ config, state, actions, onUseInWorksp
             <Sparkles size={18} aria-hidden="true" />
           </span>
           <div className="min-w-0">
-            <h3 className="text-lg font-semibold text-primary">{builder.title || 'Build automatically'}</h3>
-            <p className="mt-1 text-sm leading-6 text-slate-600">{builder.description}</p>
+            <h3 className="text-lg font-semibold text-primary">
+              {editableActive ? 'Edit your question paper' : pasteFirstActive ? 'Paste your question paper' : (builder.title || 'Build automatically')}
+            </h3>
+            <p className="mt-1 text-sm leading-6 text-slate-600">
+              {editableActive
+                ? 'Edit the header, sections and questions directly, then download the DOCX.'
+                : pasteFirstActive
+                  ? 'Add your paper details and paste your section-wise paper, then create an editable paper you can edit directly.'
+                  : builder.description}
+            </p>
           </div>
         </div>
 
@@ -628,6 +661,16 @@ export default function BuilderWorkspace({ config, state, actions, onUseInWorksp
             onAddSection={handleAddSection}
             onRemoveSection={handleRemoveSection}
           />
+        ) : pasteFirstActive ? (
+          // v2.95.1 — Clean paste-first fields only. No Paper Setup / blueprint /
+          // pattern / starter-bank fields before the editable paper is created.
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            {pasteFirstFields.map((field) => (
+              <div key={field.id} className={field.full || field.type === 'textarea' ? 'sm:col-span-2' : ''}>
+                <FieldControl field={field} value={formValues[field.id]} onChange={handleField} />
+              </div>
+            ))}
+          </div>
         ) : (
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             {simpleFields.map((field) => (
@@ -642,6 +685,7 @@ export default function BuilderWorkspace({ config, state, actions, onUseInWorksp
           <QuestionBlueprintPanel values={formValues} onChange={handleField} analysis={blueprintAnalysis} />
         ) : null}
 
+        {/* Advanced stays collapsed but reachable (e.g. to switch to plain-list). */}
         {!editableActive && hasAdvanced ? (
           <div className="mt-4 rounded-md border border-slate-200 bg-slate-50">
             <button
@@ -753,6 +797,37 @@ export default function BuilderWorkspace({ config, state, actions, onUseInWorksp
 
       {/* Right: live paper preview + actions */}
       <div ref={previewRef} className="min-w-0 rounded-lg border border-slate-200 bg-white p-5 shadow-sm scroll-mt-24">
+        {pasteFirstActive ? (
+          // v2.95.1 — Before the editable paper is created, show a clean empty
+          // state. No old generated placeholder preview / totals / placeholder rows.
+          <div>
+            <p className="text-sm font-semibold text-primary">Editable paper preview</p>
+            <div className="mt-4 rounded-md border border-dashed border-slate-300 bg-slate-50 p-6 text-center">
+              <span className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-blue-100 text-accentBlue">
+                <FileText size={20} aria-hidden="true" />
+              </span>
+              <p className="mt-3 text-sm font-semibold text-slate-600">
+                Paste your question paper and click Create Editable Paper.
+              </p>
+              <p className="mt-1 text-xs leading-5 text-slate-500">
+                Your editable paper will appear here.
+              </p>
+            </div>
+            <ol className="mt-4 grid gap-2.5">
+              {[
+                { n: 1, label: 'Paste your section-wise paper' },
+                { n: 2, label: 'Edit sections and questions' },
+                { n: 3, label: 'Download DOCX' },
+              ].map((step) => (
+                <li key={step.n} className="flex items-center gap-3 rounded-md border border-slate-200 bg-white px-3 py-2.5">
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accentTeal text-xs font-bold text-white">{step.n}</span>
+                  <span className="text-sm font-semibold text-slate-700">{step.label}</span>
+                </li>
+              ))}
+            </ol>
+          </div>
+        ) : (
+        <>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="min-w-0">
             <p className="text-sm font-semibold text-primary">{builder.previewTitle || 'Preview'}</p>
@@ -955,6 +1030,8 @@ export default function BuilderWorkspace({ config, state, actions, onUseInWorksp
             ) : null}
           </>
         ) : null}
+        </>
+        )}
       </div>
     </section>
   )
