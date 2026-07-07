@@ -1,12 +1,15 @@
 import { Info, Plus, Trash2 } from 'lucide-react'
-import { QUESTION_TYPE_OPTIONS } from './builderPresets.js'
+import { EDITABLE_QUESTION_TYPE_OPTIONS } from './editablePaperModel.js'
 
-// Project Atlas v2.95 — Editable Question Paper editor (presentational).
+// Project Atlas v2.96 — Editable Question Paper editor (presentational).
 //
-// Renders the editable model as the actual paper: a paper-details card plus one
-// card per section, each with inline question editing. All state lives in the
-// parent (BuilderWorkspace) via the on* callbacks; this component only draws it.
-// No storage, no network, no generation — the teacher's text is edited as-is.
+// Renders the editable model as the actual paper the teacher is preparing:
+//   A. Paper details card (header fields)
+//   B. General instruction points (add / edit / delete)
+//   C. Section cards with inline question editing
+//   D. Add section
+// All state lives in the parent (BuilderWorkspace) via the on* callbacks; this
+// component only draws it. No storage, no network — teacher text is edited as-is.
 
 function TextField({ label, value, placeholder, onChange, full }) {
   return (
@@ -26,7 +29,7 @@ function TextField({ label, value, placeholder, onChange, full }) {
 function PaperDetailsCard({ header, onHeaderChange }) {
   return (
     <div className="rounded-lg border border-slate-200 bg-slate-50/70 p-4">
-      <p className="text-sm font-semibold text-primary">Paper details</p>
+      <p className="text-sm font-semibold text-primary">Paper header</p>
       <p className="mt-1 text-xs leading-5 text-slate-500">These appear at the top of the question paper.</p>
       <div className="mt-3 grid gap-3 sm:grid-cols-2">
         <TextField label="School / College name" value={header.institution} placeholder="e.g. Sunrise Public School" onChange={(value) => onHeaderChange('institution', value)} full />
@@ -35,8 +38,53 @@ function PaperDetailsCard({ header, onHeaderChange }) {
         <TextField label="Subject" value={header.subject} placeholder="e.g. Mathematics" onChange={(value) => onHeaderChange('subject', value)} />
         <TextField label="Exam type" value={header.examType} placeholder="e.g. Unit Test" onChange={(value) => onHeaderChange('examType', value)} />
         <TextField label="Duration" value={header.duration} placeholder="e.g. 1 hour" onChange={(value) => onHeaderChange('duration', value)} />
-        <TextField label="General instructions" value={header.instructions} placeholder="e.g. Answer all questions." onChange={(value) => onHeaderChange('instructions', value)} full />
+        <TextField label="Date" value={header.date} placeholder="e.g. 06/07/2026" onChange={(value) => onHeaderChange('date', value)} />
       </div>
+    </div>
+  )
+}
+
+function InstructionsCard({ instructions, onAddInstruction, onUpdateInstruction, onRemoveInstruction }) {
+  return (
+    <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+      <p className="text-sm font-semibold text-primary">General instructions</p>
+      <p className="mt-1 text-xs leading-5 text-slate-500">Shown as numbered points below the paper header.</p>
+      <div className="mt-3 grid gap-2">
+        {instructions.length ? (
+          instructions.map((line, index) => (
+            <div key={index} className="flex items-center gap-2">
+              <span className="w-6 shrink-0 text-right text-sm font-semibold text-slate-400">{index + 1}.</span>
+              <input
+                type="text"
+                value={line}
+                placeholder="Instruction point…"
+                onChange={(event) => onUpdateInstruction(index, event.target.value)}
+                className="min-h-8 min-w-0 flex-1 rounded-md border border-slate-200 bg-white px-2.5 text-sm text-primary outline-none focus:border-accentBlue"
+              />
+              <button
+                type="button"
+                onClick={() => onRemoveInstruction(index)}
+                aria-label="Delete instruction"
+                className="focus-ring inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-500 transition hover:border-rose-300 hover:text-rose-600"
+              >
+                <Trash2 size={14} aria-hidden="true" />
+              </button>
+            </div>
+          ))
+        ) : (
+          <p className="rounded-md border border-dashed border-slate-300 bg-slate-50 px-3 py-2.5 text-center text-xs text-slate-500">
+            No instruction points. Add one below.
+          </p>
+        )}
+      </div>
+      <button
+        type="button"
+        onClick={onAddInstruction}
+        className="focus-ring mt-3 inline-flex min-h-9 items-center gap-1.5 rounded-md border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-600 transition hover:border-accentBlue hover:text-accentBlue"
+      >
+        <Plus size={14} aria-hidden="true" />
+        Add instruction point
+      </button>
     </div>
   )
 }
@@ -78,7 +126,7 @@ function SectionCard({
             onChange={(event) => onSectionChange(section.id, 'questionType', event.target.value)}
             className="min-h-8 rounded-md border border-slate-200 bg-white px-2.5 text-sm font-semibold text-primary outline-none focus:border-accentBlue"
           >
-            {QUESTION_TYPE_OPTIONS.map((type) => (
+            {EDITABLE_QUESTION_TYPE_OPTIONS.map((type) => (
               <option key={type} value={type}>{type}</option>
             ))}
           </select>
@@ -154,6 +202,9 @@ export default function EditableQuestionPaper({
   notice,
   showAnswerField = false,
   onHeaderChange,
+  onAddInstruction,
+  onUpdateInstruction,
+  onRemoveInstruction,
   onSectionChange,
   onQuestionChange,
   onAddQuestion,
@@ -166,7 +217,7 @@ export default function EditableQuestionPaper({
   }
 
   return (
-    <div className="mt-4 grid gap-4">
+    <div className="grid gap-4">
       {notice ? (
         <div className="flex items-start gap-2 rounded-md border border-blue-200 bg-blue-50 p-3">
           <Info size={15} className="mt-0.5 shrink-0 text-accentBlue" aria-hidden="true" />
@@ -175,6 +226,13 @@ export default function EditableQuestionPaper({
       ) : null}
 
       <PaperDetailsCard header={model.header} onHeaderChange={onHeaderChange} />
+
+      <InstructionsCard
+        instructions={model.instructions || []}
+        onAddInstruction={onAddInstruction}
+        onUpdateInstruction={onUpdateInstruction}
+        onRemoveInstruction={onRemoveInstruction}
+      />
 
       {model.sections.map((section, index) => (
         <SectionCard

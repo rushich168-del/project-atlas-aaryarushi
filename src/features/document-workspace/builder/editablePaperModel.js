@@ -1,10 +1,10 @@
-// Project Atlas v2.95 — Editable question paper model (pure, browser-safe).
+// Project Atlas v2.96 — Editable question paper model (pure, browser-safe).
 //
-// Bridges the v2.94 prepared-paper parser into an in-memory model a teacher can
-// edit directly, and converts that model BACK into the same generated-row shape
-// the existing PaperPreview + question paper DOCX composer already consume. That
-// keeps preview and download in sync with the teacher's edits WITHOUT changing
-// the composer or the preview.
+// Backs the AR-QUESTION-PRO Paper Editor Canvas. A teacher edits the paper header,
+// general-instruction points, sections and questions directly; this module converts
+// that model BACK into the same generated-row + blueprint shape the existing
+// PaperPreview and DOCX composer already consume, so preview and download stay in
+// sync with edits.
 //
 // Deliberately minimal + honest:
 //   - No storage, no Supabase, no network, no secrets. State lives in the browser.
@@ -13,13 +13,42 @@
 //   - IDs come from a simple incrementing counter and are used ONLY as React keys.
 //     They are never persisted anywhere.
 
-import { QUESTION_PAPER_GENERATED_COLUMNS, QUESTION_TYPE_OPTIONS } from './builderPresets.js'
+import { QUESTION_PAPER_GENERATED_COLUMNS } from './builderPresets.js'
 import { parsePreparedQuestionPaper, parseTeacherPastedQuestions } from '../question-bank/teacherMaterialSource.js'
 
 const SOURCE_LABEL = 'Your question'
 const QUESTION_SOURCE = 'teacher-material'
 const DEFAULT_QUESTION_TYPE = 'Short answer'
 const DEFAULT_INSTRUCTION = 'Answer all questions.'
+
+// v2.96 — expanded, editor-only question type list. Kept separate from the parser's
+// detection list so importing a pasted paper (which only detects a subset) still
+// yields valid types, and adding types here never affects the parser/generator.
+export const EDITABLE_QUESTION_TYPE_OPTIONS = [
+  'MCQ',
+  'Fill in the blanks',
+  'True/False',
+  'Very short answer',
+  'Short answer',
+  'Long answer',
+  'Case study',
+  'Numerical / Problem',
+]
+
+// Default general-instruction points for a new paper.
+export const DEFAULT_INSTRUCTIONS = [
+  'Answer all questions.',
+  'Marks are shown against each question.',
+]
+
+// Preview styles offered by the canvas (preview-only in v2.96; DOCX unaffected).
+export const PREVIEW_STYLES = [
+  { id: 'classic', label: 'Classic Exam' },
+  { id: 'compact', label: 'Compact' },
+  { id: 'formal', label: 'Formal Board' },
+]
+export const PREVIEW_STYLE_IDS = PREVIEW_STYLES.map((style) => style.id)
+export const DEFAULT_PREVIEW_STYLE = 'classic'
 
 let idCounter = 0
 function nextId(prefix) {
@@ -48,7 +77,7 @@ function makeQuestion(text = '', answer = '') {
 }
 
 function makeSection({ title, instruction, questionType, marksPerQuestion, questions } = {}) {
-  const type = QUESTION_TYPE_OPTIONS.includes(questionType) ? questionType : DEFAULT_QUESTION_TYPE
+  const type = EDITABLE_QUESTION_TYPE_OPTIONS.includes(questionType) ? questionType : DEFAULT_QUESTION_TYPE
   const marks = Number(marksPerQuestion)
   return {
     id: nextId('s'),
@@ -68,7 +97,7 @@ function headerFromForm(form = {}) {
     subject: str(form.subject).trim(),
     examType: str(form.examType).trim(),
     duration: str(form.duration).trim(),
-    instructions: str(form.instructions).trim(),
+    date: str(form.date).trim(),
   }
 }
 
@@ -83,19 +112,39 @@ function preparedNotice(parsed) {
   const plural = (n) => (n === 1 ? '' : 's')
   const s = parsed.sections.length
   const q = parsed.totalQuestions
-  let notice = `Detected ${s} section${plural(s)} and ${q} question${plural(q)} from your prepared paper. Edit anything below — your question text is used exactly as pasted.`
+  let notice = `Imported ${s} section${plural(s)} and ${q} question${plural(q)} from your pasted paper. Edit anything below — your question text is used exactly as pasted.`
   if (parsed.warnings.length) {
     notice += ` ${parsed.warnings.slice(0, 2).join(' ')}`
   }
   return notice
 }
 
-// Build an editable model from the current builder form. Structure comes from the
-// v2.94 prepared-paper parser; if no SECTION headers are present, every line is
-// kept as one question in a single Section A (teacher text is never lost).
+// A blank starter paper so the teacher can begin editing immediately — one
+// Section A with a single empty question and the default instruction points.
+export function createEmptyEditableModel(form = {}) {
+  return {
+    header: headerFromForm(form),
+    instructions: [...DEFAULT_INSTRUCTIONS],
+    sections: [makeSection({
+      title: 'Section A',
+      instruction: DEFAULT_INSTRUCTION,
+      questionType: DEFAULT_QUESTION_TYPE,
+      marksPerQuestion: 2,
+      questions: [{ text: '' }],
+    })],
+    source: 'empty',
+    notice: '',
+  }
+}
+
+// Build an editable model from a pasted paper (the "Import into editor" action).
+// Structure comes from the v2.94 prepared-paper parser; if no SECTION headers are
+// present, every line is kept as one question in a single Section A (teacher text
+// is never lost). Instruction points always start from the sensible defaults.
 export function createEditableModelFromForm(form = {}) {
   const pasted = typeof form.teacherPastedMaterial === 'string' ? form.teacherPastedMaterial : ''
   const header = headerFromForm(form)
+  const instructions = [...DEFAULT_INSTRUCTIONS]
   const parsed = parsePreparedQuestionPaper(pasted)
 
   if (parsed.ok && parsed.sections.length) {
@@ -106,7 +155,7 @@ export function createEditableModelFromForm(form = {}) {
       marksPerQuestion: section.marks,
       questions: section.questions.map((q) => ({ text: q.text })),
     }))
-    return { header, sections, source: 'prepared-paper', notice: preparedNotice(parsed) }
+    return { header, instructions, sections, source: 'prepared-paper', notice: preparedNotice(parsed) }
   }
 
   // Fallback: no SECTION headings — keep every question line in a single section.
@@ -115,13 +164,13 @@ export function createEditableModelFromForm(form = {}) {
     title: 'Section A',
     instruction: DEFAULT_INSTRUCTION,
     questionType: DEFAULT_QUESTION_TYPE,
-    marksPerQuestion: 1,
-    questions: plain.map((q) => ({ text: q.text })),
+    marksPerQuestion: 2,
+    questions: plain.length ? plain.map((q) => ({ text: q.text })) : [{ text: '' }],
   })]
   const notice = plain.length
-    ? 'No SECTION headers found — your questions were placed in a single Section A. Add sections and set marks/type below, or start over and add headers like "SECTION A | 1 MARK | MCQ".'
-    : 'No questions detected yet. An empty Section A was added so you can start typing, or start over and paste your paper first.'
-  return { header, sections, source: 'plain-list', notice }
+    ? 'No SECTION headers found — your questions were placed in a single Section A. Add sections and set marks/type below, or add headers like "SECTION A | 1 MARK | MCQ" and import again.'
+    : 'No questions detected in the pasted text. An empty Section A was kept so you can start typing.'
+  return { header, instructions, sections, source: 'plain-list', notice }
 }
 
 // --- Immutable updater helpers (each returns a NEW model for React state) ------
@@ -140,6 +189,25 @@ export function updateHeaderField(model, field, value) {
   return { ...model, header: { ...model.header, [field]: str(value) } }
 }
 
+// --- Instruction points (general instructions) --------------------------------
+
+export function addInstruction(model) {
+  return { ...model, instructions: [...(model.instructions || []), ''] }
+}
+
+export function updateInstruction(model, index, value) {
+  return {
+    ...model,
+    instructions: (model.instructions || []).map((line, i) => (i === index ? str(value) : line)),
+  }
+}
+
+export function removeInstruction(model, index) {
+  return { ...model, instructions: (model.instructions || []).filter((_, i) => i !== index) }
+}
+
+// --- Sections + questions ------------------------------------------------------
+
 export function updateSectionField(model, sectionId, field, value) {
   return mapSections(model, sectionId, (section) => {
     if (field === 'marksPerQuestion') {
@@ -148,7 +216,7 @@ export function updateSectionField(model, sectionId, field, value) {
       return { ...section, marksPerQuestion: next }
     }
     if (field === 'questionType') {
-      return { ...section, questionType: QUESTION_TYPE_OPTIONS.includes(value) ? value : section.questionType }
+      return { ...section, questionType: EDITABLE_QUESTION_TYPE_OPTIONS.includes(value) ? value : section.questionType }
     }
     if (field === 'title' || field === 'instruction') {
       return { ...section, [field]: str(value) }
@@ -184,11 +252,12 @@ export function deleteQuestion(model, sectionId, questionId) {
 }
 
 export function addSection(model) {
+  // Safe defaults for a new section: next letter, Short answer, 2 marks, one blank Q.
   const section = makeSection({
     title: nextSectionTitle(model.sections.length),
     instruction: DEFAULT_INSTRUCTION,
     questionType: DEFAULT_QUESTION_TYPE,
-    marksPerQuestion: 1,
+    marksPerQuestion: 2,
     questions: [{ text: '' }],
   })
   return { ...model, sections: [...model.sections, section] }
@@ -236,6 +305,10 @@ export function editableModelToRows(model) {
   return rows
 }
 
+function cleanInstructions(model) {
+  return (model.instructions || []).map((line) => str(line).trim()).filter(Boolean)
+}
+
 export function editableModelToBlueprint(model) {
   const totalQuestions = model.sections.reduce((sum, section) => sum + section.questions.length, 0)
   const totalMarks = model.sections.reduce((sum, section) => sum + (marksOf(section) * section.questions.length), 0)
@@ -254,6 +327,9 @@ export function editableModelToBlueprint(model) {
     questionBankCount: 0,
     placeholderCount: 0,
     teacherMaterialCount: totalQuestions,
+    // The composer + preview read general instructions from here when present, so
+    // the teacher's edited instruction points flow into both.
+    generalInstructions: cleanInstructions(model),
     sections: model.sections.map((section) => ({
       name: section.title,
       instruction: section.instruction,
@@ -276,6 +352,8 @@ export function buildEditableResult(model) {
 
 // Merge the editable header back over the builder form so the composer + preview
 // (which read the paper header from the form, not the rows) reflect header edits.
+// Instruction points are carried via the blueprint, so form.instructions is cleared
+// to avoid the composer's legacy single-line append.
 export function editableModelToForm(model, baseForm = {}) {
   return {
     ...baseForm,
@@ -285,6 +363,7 @@ export function editableModelToForm(model, baseForm = {}) {
     subject: model.header.subject,
     examType: model.header.examType,
     duration: model.header.duration,
-    instructions: model.header.instructions,
+    date: model.header.date,
+    instructions: '',
   }
 }

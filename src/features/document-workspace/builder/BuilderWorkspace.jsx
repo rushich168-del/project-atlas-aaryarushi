@@ -1,19 +1,25 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { AlertTriangle, ArrowRight, ChevronDown, Download, FileText, Info, PencilLine, RotateCcw, Settings2, Sparkles, Table2 } from 'lucide-react'
+import { AlertTriangle, ArrowRight, ChevronDown, Download, Eye, FileText, Info, PencilLine, RotateCcw, Settings2, Sparkles, Table2 } from 'lucide-react'
 import { generateWorksheetRows } from './worksheetBuilder.js'
 import { analyzeQuestionPaperBlueprint, generateQuestionPaperRows } from './questionPaperBuilder.js'
 import { buildWorkbookFile, downloadWorkbook } from './buildWorkbook.js'
 import PaperPreview from './PaperPreview.jsx'
 import EditableQuestionPaper from './EditableQuestionPaper.jsx'
 import {
+  addInstruction as addInstructionToModel,
   addQuestion as addQuestionToModel,
   addSection as addSectionToModel,
   buildEditableResult,
   createEditableModelFromForm,
+  createEmptyEditableModel,
+  DEFAULT_PREVIEW_STYLE,
   deleteQuestion as deleteQuestionFromModel,
   editableModelToForm,
+  PREVIEW_STYLES,
+  removeInstruction as removeInstructionFromModel,
   removeSection as removeSectionFromModel,
   updateHeaderField,
+  updateInstruction as updateInstructionInModel,
   updateQuestionField,
   updateSectionField,
 } from './editablePaperModel.js'
@@ -450,9 +456,21 @@ export default function BuilderWorkspace({ config, state, actions, onUseInWorksp
   const [using, setUsing] = useState(false)
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false)
-  // v2.95 — Editable Question Paper: an in-memory paper the teacher edits directly.
-  // Null until they click "Create Editable Paper". Lives only in the browser.
-  const [editableModel, setEditableModel] = useState(null)
+  // v2.96 — Paper Editor Canvas: the editable paper the teacher edits directly.
+  // For the AR-QUESTION-PRO main flow it is created up-front so the editor is the
+  // first thing shown (no setup grid). Lives only in the browser.
+  const [editableModel, setEditableModel] = useState(() => {
+    const initial = { ...defaultsFromFields(builder.fields), ...(state.builderConfig || {}) }
+    const isEditorFirst = builder.builderType === 'question-paper'
+      && initial.questionSourceMode === 'pasted-material'
+      && (initial.pastedInputMode ?? 'prepared-paper') === 'prepared-paper'
+    return isEditorFirst ? createEmptyEditableModel(initial) : null
+  })
+  // Canvas view: 'edit' to prepare the paper, 'preview' to see the final paper.
+  const [paperMode, setPaperMode] = useState('edit')
+  const [previewStyle, setPreviewStyle] = useState(DEFAULT_PREVIEW_STYLE)
+  const [showImport, setShowImport] = useState(false)
+  const [showCanvasAdvanced, setShowCanvasAdvanced] = useState(false)
   const formRef = useRef(null)
   const previewRef = useRef(null)
 
@@ -478,10 +496,13 @@ export default function BuilderWorkspace({ config, state, actions, onUseInWorksp
   const hasAdvanced = advancedFields.length > 0 || showPaperPresetsInAdvanced
   const showBlueprintPanel = isPaper && formValues.blueprintMode === 'teacher-blueprint' && !preparedActive
 
-  // v2.95 — When an editable paper exists (prepared-paper flow only), it becomes
-  // the single source for preview + download. Rows/blueprint come from the model
-  // and header edits are merged over the form, so the composer/preview are unchanged.
-  const editableActive = preparedActive && Boolean(editableModel)
+  // v2.96 — For the AR-QUESTION-PRO main flow (pasted-material + prepared-paper),
+  // the Paper Editor Canvas replaces the classic setup grid entirely. Other
+  // question sources (reference / starter bank / plain-list) keep the classic layout.
+  const editorFirst = preparedActive
+  // When an editable paper exists it is the single source for preview + download.
+  // Rows/blueprint come from the model; header edits merge over the form.
+  const editableActive = editorFirst && Boolean(editableModel)
   const editableResult = useMemo(
     () => (editableActive ? buildEditableResult(editableModel) : null),
     [editableActive, editableModel],
@@ -500,14 +521,17 @@ export default function BuilderWorkspace({ config, state, actions, onUseInWorksp
       .filter((field) => field && isFieldVisible(field, formValues))
     : []
 
-  // Leaving the prepared-paper flow (e.g. switching question source) discards the
-  // stale editable model so it can't silently drive a different mode's preview.
+  // Keep the editable model in step with the flow: create an empty paper when the
+  // editor-first flow becomes active, discard it when leaving so a stale model
+  // can't drive another mode's preview.
   useEffect(() => {
-    if (!preparedActive && editableModel) {
+    if (editorFirst && !editableModel) {
+      setEditableModel(createEmptyEditableModel(formValues))
+    } else if (!editorFirst && editableModel) {
       setEditableModel(null)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [preparedActive])
+  }, [editorFirst])
 
   // Persist the form to the workspace so edits survive navigation / restore and are
   // available to the "Continue to DOCX Layout" handoff. Runs on form change only.
@@ -549,7 +573,24 @@ export default function BuilderWorkspace({ config, state, actions, onUseInWorksp
     formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
+  // v2.96 — Canvas: import a pasted section-wise paper into the editor (replacing
+  // the current model), then collapse the import panel and switch to Edit mode.
+  function handleImportIntoEditor() {
+    setEditableModel(createEditableModelFromForm(formValues))
+    setShowImport(false)
+    setPaperMode('edit')
+  }
+
+  // Start a fresh blank paper in the canvas.
+  function handleNewBlankPaper() {
+    setEditableModel(createEmptyEditableModel(formValues))
+    setPaperMode('edit')
+  }
+
   const handleHeaderChange = (field, value) => setEditableModel((model) => (model ? updateHeaderField(model, field, value) : model))
+  const handleAddInstruction = () => setEditableModel((model) => (model ? addInstructionToModel(model) : model))
+  const handleUpdateInstruction = (index, value) => setEditableModel((model) => (model ? updateInstructionInModel(model, index, value) : model))
+  const handleRemoveInstruction = (index) => setEditableModel((model) => (model ? removeInstructionFromModel(model, index) : model))
   const handleSectionChange = (sectionId, field, value) => setEditableModel((model) => (model ? updateSectionField(model, sectionId, field, value) : model))
   const handleQuestionChange = (sectionId, questionId, field, value) => setEditableModel((model) => (model ? updateQuestionField(model, sectionId, questionId, field, value) : model))
   const handleAddQuestion = (sectionId) => setEditableModel((model) => (model ? addQuestionToModel(model, sectionId) : model))
@@ -601,6 +642,243 @@ export default function BuilderWorkspace({ config, state, actions, onUseInWorksp
   const previewRows = effectiveResult ? effectiveResult.rows.slice(0, PREVIEW_ROW_LIMIT) : []
   const activeNotice = editableActive ? '' : (result?.notice || '')
   const docxLabel = isPaper ? 'Download Question Paper DOCX' : 'Download Worksheet DOCX'
+
+  // v2.96 — AR-QUESTION-PRO main flow: the Paper Editor Canvas. Editor-first, no
+  // setup grid, no placeholder preview. Other question sources fall through to the
+  // classic layout below.
+  if (editorFirst) {
+    const canvasResult = editableModel ? effectiveResult : null
+    const canvasHasRows = Boolean(canvasResult && canvasResult.rows.length)
+    const sourceField = builder.fields.find((field) => field.id === 'questionSourceMode')
+
+    return (
+      <section ref={previewRef} className="grid min-w-0 gap-4 scroll-mt-24">
+        {/* Toolbar: identity, Edit/Preview modes, style, answer key, downloads */}
+        <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0">
+              <h3 className="text-lg font-semibold text-primary">Question Paper Editor</h3>
+              <p className="mt-1 text-sm leading-6 text-slate-600">
+                Edit the header, instructions, sections and questions, then preview and download your paper.
+              </p>
+            </div>
+            <div className="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-1" role="tablist" aria-label="Editor mode">
+              {[
+                { id: 'edit', label: 'Edit Paper', Icon: PencilLine },
+                { id: 'preview', label: 'Preview Paper', Icon: Eye },
+              ].map((option) => {
+                const active = paperMode === option.id
+                return (
+                  <button
+                    key={option.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={active}
+                    onClick={() => setPaperMode(option.id)}
+                    className={`focus-ring inline-flex min-h-8 items-center gap-1.5 rounded-md px-2.5 text-xs font-semibold transition ${
+                      active ? 'bg-white text-primary shadow-sm' : 'text-slate-500 hover:text-primary'
+                    }`}
+                  >
+                    <option.Icon size={14} aria-hidden="true" />
+                    {option.label}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
+            <div className="inline-flex items-center gap-2">
+              <span className="text-[11px] font-semibold uppercase tracking-[0.06em] text-slate-500">Preview style</span>
+              <div className="inline-flex flex-wrap gap-1.5">
+                {PREVIEW_STYLES.map((style) => {
+                  const active = previewStyle === style.id
+                  return (
+                    <button
+                      key={style.id}
+                      type="button"
+                      onClick={() => setPreviewStyle(style.id)}
+                      className={`focus-ring inline-flex min-h-8 items-center rounded-md border px-2.5 text-xs font-semibold transition ${
+                        active ? 'border-accentBlue bg-blue-50 text-accentBlue' : 'border-slate-200 bg-white text-slate-600 hover:border-accentBlue hover:text-accentBlue'
+                      }`}
+                    >
+                      {style.label}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+            <label className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-2.5 py-1.5">
+              <input
+                type="checkbox"
+                checked={formValues.includeAnswerKey === true}
+                onChange={(event) => handleField('includeAnswerKey', event.target.checked)}
+                className="h-4 w-4 accent-accentTeal"
+              />
+              <span className="text-xs font-semibold text-slate-700">Include answer key</span>
+            </label>
+          </div>
+
+          {canvasResult?.blueprint ? (
+            <p className="mt-3 text-xs font-semibold text-slate-500">
+              {canvasResult.blueprint.numSections} sections · {canvasResult.blueprint.totalQuestions} questions · {canvasResult.blueprint.totalMarks} marks
+            </p>
+          ) : null}
+
+          <div className="mt-3 flex flex-wrap items-center gap-2.5 border-t border-slate-200 pt-3">
+            <button
+              type="button"
+              onClick={handleDownloadDocx}
+              disabled={!canvasHasRows}
+              className="focus-ring inline-flex min-h-10 items-center justify-center gap-2 rounded-md bg-accentTeal px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <FileText size={16} aria-hidden="true" />
+              Download DOCX
+            </button>
+            <button
+              type="button"
+              onClick={handleDownloadExcel}
+              disabled={!canvasHasRows}
+              className="focus-ring inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-3.5 text-sm font-semibold text-slate-600 transition hover:border-accentBlue hover:text-accentBlue disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <Download size={15} aria-hidden="true" />
+              Download Excel
+            </button>
+            <span className="text-[11px] text-slate-400">Add questions, then Download DOCX — ready to print or edit in Word.</span>
+          </div>
+        </div>
+
+        {/* Optional import: paste an existing section-wise paper into the editor. */}
+        <div className="rounded-lg border border-slate-200 bg-slate-50">
+          <button
+            type="button"
+            onClick={() => setShowImport((open) => !open)}
+            aria-expanded={showImport}
+            className="focus-ring flex w-full items-center justify-between gap-2 rounded-lg px-3.5 py-2.5 text-left text-xs font-semibold text-slate-600 transition hover:text-primary"
+          >
+            <span className="inline-flex items-center gap-2">
+              <FileText size={14} aria-hidden="true" />
+              Paste an existing question paper (optional)
+            </span>
+            <ChevronDown size={15} aria-hidden="true" className={`transition-transform ${showImport ? 'rotate-180' : ''}`} />
+          </button>
+          {showImport ? (
+            <div className="border-t border-slate-200 px-3.5 py-3">
+              <textarea
+                value={formValues.teacherPastedMaterial ?? ''}
+                rows={6}
+                placeholder={'SECTION A | 1 MARK | MCQ\n\n1. Question text\n\nSECTION B | 2 MARKS | SHORT ANSWER\n\n1. Question text'}
+                onChange={(event) => handleField('teacherPastedMaterial', event.target.value)}
+                className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-primary outline-none focus:border-accentBlue"
+              />
+              <p className="mt-1.5 text-xs leading-5 text-slate-500">
+                Add a heading like <span className="font-semibold">SECTION A | 1 MARK | MCQ</span> before each part. Importing replaces the current editor content; your question text is kept exactly as pasted.
+              </p>
+              <button
+                type="button"
+                onClick={handleImportIntoEditor}
+                className="focus-ring mt-2.5 inline-flex min-h-9 items-center gap-1.5 rounded-md bg-accentTeal px-3.5 text-xs font-semibold text-white shadow-sm transition hover:bg-teal-800"
+              >
+                <ArrowRight size={14} aria-hidden="true" />
+                Import into editor
+              </button>
+            </div>
+          ) : null}
+        </div>
+
+        {/* Body: Edit mode (editor) or Preview mode (final paper). */}
+        {paperMode === 'edit' ? (
+          <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+            <EditableQuestionPaper
+              model={editableModel}
+              notice={editableModel?.notice}
+              showAnswerField={formValues.includeAnswerKey === true}
+              onHeaderChange={handleHeaderChange}
+              onAddInstruction={handleAddInstruction}
+              onUpdateInstruction={handleUpdateInstruction}
+              onRemoveInstruction={handleRemoveInstruction}
+              onSectionChange={handleSectionChange}
+              onQuestionChange={handleQuestionChange}
+              onAddQuestion={handleAddQuestion}
+              onDeleteQuestion={handleDeleteQuestion}
+              onAddSection={handleAddSection}
+              onRemoveSection={handleRemoveSection}
+            />
+            <div className="mt-4 border-t border-slate-200 pt-3">
+              <button
+                type="button"
+                onClick={handleNewBlankPaper}
+                className="focus-ring inline-flex min-h-9 items-center gap-1.5 rounded-md border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-600 transition hover:border-rose-300 hover:text-rose-600"
+              >
+                <RotateCcw size={14} aria-hidden="true" />
+                Start a new blank paper
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-sm font-semibold text-primary">Paper preview</p>
+              <button
+                type="button"
+                onClick={() => setPaperMode('edit')}
+                className="focus-ring inline-flex min-h-8 items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 text-xs font-semibold text-slate-600 transition hover:border-accentBlue hover:text-accentBlue"
+              >
+                <PencilLine size={13} aria-hidden="true" />
+                Back to Edit Paper
+              </button>
+            </div>
+            {canvasHasRows ? (
+              <PaperPreview
+                builderType={builder.builderType}
+                form={effectiveForm}
+                rows={canvasResult.rows}
+                blueprint={canvasResult.blueprint}
+                previewStyle={previewStyle}
+              />
+            ) : (
+              <div className="mt-4 rounded-md border border-dashed border-slate-300 bg-slate-50 p-6 text-center">
+                <p className="text-sm font-semibold text-slate-600">Add at least one question to preview the paper.</p>
+                <p className="mt-1 text-xs text-slate-500">Switch to Edit Paper and type a question.</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Advanced: switch question source / open technical options. */}
+        {sourceField || advancedFields.length ? (
+          <div className="rounded-lg border border-slate-200 bg-slate-50">
+            <button
+              type="button"
+              onClick={() => setShowCanvasAdvanced((open) => !open)}
+              aria-expanded={showCanvasAdvanced}
+              className="focus-ring flex w-full items-center justify-between gap-2 rounded-lg px-3.5 py-2.5 text-left text-xs font-semibold text-slate-600 transition hover:text-primary"
+            >
+              <span className="inline-flex items-center gap-2">
+                <Settings2 size={14} aria-hidden="true" />
+                Advanced options (other question sources, ready question library)
+              </span>
+              <ChevronDown size={15} aria-hidden="true" className={`transition-transform ${showCanvasAdvanced ? 'rotate-180' : ''}`} />
+            </button>
+            {showCanvasAdvanced ? (
+              <div className="grid gap-3 border-t border-slate-200 px-3.5 py-3 sm:grid-cols-2">
+                {sourceField ? (
+                  <div className="sm:col-span-2">
+                    <FieldControl field={sourceField} value={formValues[sourceField.id]} onChange={handleField} />
+                  </div>
+                ) : null}
+                {advancedFields.map((field) => (
+                  <div key={field.id} className={field.full || field.type === 'textarea' ? 'sm:col-span-2' : ''}>
+                    <FieldControl field={field} value={formValues[field.id]} onChange={handleField} />
+                  </div>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+      </section>
+    )
+  }
 
   return (
     <section className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,400px)_minmax(0,1fr)]">

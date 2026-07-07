@@ -49,11 +49,16 @@ export function buildQuestionPaperModel(form = {}, rows = [], blueprint = null) 
   }))
   const showAnswerKey = form.includeAnswerKey === true
 
-  const generalInstructions = [
-    'Answer all questions.',
-    showMarks ? 'Marks are shown against each question.' : null,
-    (form.instructions || '').trim() || null,
-  ].filter(Boolean)
+  // v2.96 — when the Paper Editor Canvas supplies explicit instruction points on
+  // the blueprint, use them verbatim. Otherwise keep the legacy computed defaults
+  // (backward-compatible for every existing caller that doesn't set this).
+  const generalInstructions = Array.isArray(blueprint?.generalInstructions)
+    ? blueprint.generalInstructions.map((line) => String(line).trim()).filter(Boolean)
+    : [
+      'Answer all questions.',
+      showMarks ? 'Marks are shown against each question.' : null,
+      (form.instructions || '').trim() || null,
+    ].filter(Boolean)
 
   return {
     institution: (form.institution || '').trim(),

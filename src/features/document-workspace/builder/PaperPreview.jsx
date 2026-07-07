@@ -25,10 +25,14 @@ function FieldRow({ children }) {
   return <div className="flex flex-wrap gap-x-6 gap-y-1">{children}</div>
 }
 
-function PaperShell({ children }) {
+function PaperShell({ children, compact = false }) {
   return (
     <div className="mt-3 max-h-[70vh] overflow-y-auto rounded-md border border-slate-200 bg-slate-100 p-3 sm:p-5">
-      <div className="mx-auto max-w-[720px] rounded-sm bg-white px-6 py-7 shadow-md ring-1 ring-slate-200 sm:px-10 sm:py-9">
+      <div
+        className={`mx-auto max-w-[720px] rounded-sm bg-white shadow-md ring-1 ring-slate-200 ${
+          compact ? 'px-5 py-5 sm:px-8 sm:py-6' : 'px-6 py-7 sm:px-10 sm:py-9'
+        }`}
+      >
         {children}
       </div>
     </div>
@@ -133,13 +137,45 @@ function WorksheetPaper({ form, rows }) {
   )
 }
 
-function QuestionPaperPaper({ form, rows, blueprint }) {
+// v2.96 — preview-only style presets. DOCX output is unaffected.
+const QUESTION_PAPER_STYLES = {
+  classic: {
+    headerRule: 'my-3 border-b-2 border-slate-800',
+    sectionGap: 'mt-5',
+    questionLeading: 'leading-8',
+    sectionTitle: 'text-center text-sm font-bold uppercase tracking-wide text-slate-900',
+    compact: false,
+  },
+  compact: {
+    headerRule: 'my-2 border-b border-slate-700',
+    sectionGap: 'mt-3',
+    questionLeading: 'leading-6',
+    sectionTitle: 'text-center text-sm font-bold uppercase tracking-wide text-slate-900',
+    compact: true,
+  },
+  formal: {
+    headerRule: 'my-3 border-b-4 border-double border-slate-800',
+    sectionGap: 'mt-6',
+    questionLeading: 'leading-8',
+    sectionTitle: 'text-center text-sm font-bold uppercase tracking-[0.2em] text-slate-900',
+    compact: false,
+  },
+}
+
+function QuestionPaperPaper({ form, rows, blueprint, previewStyle = 'classic' }) {
   const model = buildQuestionPaperModel(form, rows, blueprint)
+  const style = QUESTION_PAPER_STYLES[previewStyle] || QUESTION_PAPER_STYLES.classic
+  const formal = previewStyle === 'formal'
 
   return (
-    <PaperShell>
-      <PaperHeader institution={model.institution} title={model.title} />
-      <div className="my-3 border-b-2 border-slate-800" />
+    <PaperShell compact={style.compact}>
+      <div className={formal ? 'text-center' : ''}>
+        <PaperHeader institution={model.institution} title={model.title} />
+        {formal && model.subject ? (
+          <p className="mt-0.5 text-[12px] font-semibold uppercase tracking-[0.15em] text-slate-500">{model.subject}</p>
+        ) : null}
+      </div>
+      <div className={style.headerRule} />
       <FieldRow>
         <Field label="Class" value={model.grade} />
         <Field label="Subject" value={model.subject} />
@@ -150,8 +186,8 @@ function QuestionPaperPaper({ form, rows, blueprint }) {
       </FieldRow>
 
       {model.generalInstructions.length ? (
-        <div className="mt-4 rounded-sm bg-slate-50 px-4 py-3">
-          <p className="text-[13px] font-bold text-slate-900">General Instructions</p>
+        <div className={`mt-4 rounded-sm px-4 py-3 ${formal ? 'border border-slate-300 bg-white' : 'bg-slate-50'}`}>
+          <p className={`text-[13px] font-bold text-slate-900 ${formal ? 'text-center uppercase tracking-wide' : ''}`}>General Instructions</p>
           <ol className="mt-1 list-decimal pl-5 text-[13px] leading-6 text-slate-800">
             {model.generalInstructions.map((line, index) => (
               <li key={index}>{line}</li>
@@ -165,8 +201,8 @@ function QuestionPaperPaper({ form, rows, blueprint }) {
       ) : null}
 
       {model.sections.map((section) => (
-        <div key={section.name} className="mt-5">
-          <p className="text-center text-sm font-bold uppercase tracking-wide text-slate-900">{section.name}</p>
+        <div key={section.name} className={style.sectionGap}>
+          <p className={style.sectionTitle}>{section.name}</p>
           {section.questionType ? (
             <p className="mt-0.5 text-center text-[11px] font-semibold text-slate-500">{section.questionType}</p>
           ) : null}
@@ -174,7 +210,7 @@ function QuestionPaperPaper({ form, rows, blueprint }) {
             <p className="mt-1 text-[12px] italic leading-5 text-slate-600">{section.instruction}</p>
           ) : null}
           <div className="mt-1 border-b border-slate-300" />
-          <ol className="mt-2 list-none text-[13px] leading-8 text-slate-800">
+          <ol className={`mt-2 list-none text-[13px] text-slate-800 ${style.questionLeading}`}>
             {section.questions.map((q) => (
               <li key={q.number} className="flex items-baseline justify-between gap-4">
                 <span>
@@ -212,9 +248,9 @@ function QuestionPaperPaper({ form, rows, blueprint }) {
   )
 }
 
-export default function PaperPreview({ builderType, form, rows, blueprint }) {
+export default function PaperPreview({ builderType, form, rows, blueprint, previewStyle }) {
   if (builderType === 'question-paper') {
-    return <QuestionPaperPaper form={form} rows={rows} blueprint={blueprint} />
+    return <QuestionPaperPaper form={form} rows={rows} blueprint={blueprint} previewStyle={previewStyle} />
   }
   return <WorksheetPaper form={form} rows={rows} />
 }
