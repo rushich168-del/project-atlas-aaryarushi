@@ -49,7 +49,7 @@ function PaperHeader({ institution, title }) {
 const SOURCE_BADGES = {
   'question-bank': { label: 'Bank', className: 'border-emerald-200 bg-emerald-50 text-emerald-700' },
   'teacher-material': { label: 'Your question', className: 'border-blue-200 bg-blue-50 text-blue-700' },
-  'reference-topic': { label: 'Practice', className: 'border-slate-200 bg-slate-50 text-slate-600' },
+  'reference-topic': { label: 'Draft', className: 'border-slate-200 bg-slate-50 text-slate-600' },
   placeholder: { label: 'Placeholder', className: 'border-amber-200 bg-amber-50 text-amber-700' },
 }
 

@@ -26,6 +26,8 @@ import {
 } from '../question-bank/questionBankService.js'
 import {
   countTeacherPastedQuestions,
+  createDraftQuestionsFromMaterial,
+  estimateDraftCoverage,
   parseTeacherPastedQuestions,
 } from '../question-bank/teacherMaterialSource.js'
 
@@ -224,6 +226,7 @@ export function normalizeQuestionPaperConfig(rawConfig = {}) {
     // truncated) and is NOT persisted anywhere — it only lives in this form value.
     sourceMetadata: {
       pastedText: typeof rawConfig.teacherPastedMaterial === 'string' ? rawConfig.teacherPastedMaterial : '',
+      referenceMaterial: typeof rawConfig.referenceMaterial === 'string' ? rawConfig.referenceMaterial : '',
       referenceBook: text(rawConfig.referenceBook, '', 160),
       referenceChapter: text(rawConfig.referenceChapter, '', 160),
       teacherInstructions: typeof rawConfig.teacherInstructions === 'string' ? rawConfig.teacherInstructions : '',
@@ -295,9 +298,38 @@ function createTeacherMaterialQuestion(teacherQuestion, config, sectionConfig) {
   }
 }
 
-// An ORIGINAL practice placeholder, based only on the teacher's selected
-// topic/chapter/reference label. This never copies or reproduces book content.
-function createReferenceTopicQuestion(config, sectionConfig, scopeLabel) {
+// The material a teacher pasted for reference-topic drafting. The dedicated
+// "Paste chapter notes / material" field is primary; the self-notes box is used
+// only as a fallback so a teacher who pasted there still gets drafts.
+function referenceMaterialText(config) {
+  const material = config.sourceMetadata.referenceMaterial
+  if (typeof material === 'string' && material.trim()) {
+    return material
+  }
+  return config.sourceMetadata.teacherInstructions || ''
+}
+
+// Flatten the built sections into an ordered list of draft targets, matching the
+// exact order the fill loop iterates so drafts align 1:1 with question slots.
+function buildBlueprintTargets(sections) {
+  const targets = []
+  sections.forEach((section) => {
+    for (let q = 0; q < section.count; q += 1) {
+      targets.push({
+        questionType: section.questionTypes?.[q] || section.questionType || 'Short answer',
+        difficulty: section.difficulties?.[q] || 'Medium',
+        marksPerQuestion: section.marksPerQuestion,
+        section: section.name,
+      })
+    }
+  })
+  return targets
+}
+
+// A DRAFT practice question built from the teacher's own pasted material. The
+// text/answer come from the deterministic material-to-draft generator; nothing
+// is copied from a book and no correctness is claimed.
+function createReferenceDraftQuestion(config, sectionConfig, draft) {
   return {
     ProductId: 'AR-QUESTION-PRO',
     Class: config.grade,
@@ -305,23 +337,14 @@ function createReferenceTopicQuestion(config, sectionConfig, scopeLabel) {
     Subject: config.subject,
     Chapter: config.chapter,
     Topic: config.topic,
-    QuestionText: `Original practice question - based on ${scopeLabel}. Review and finalize before classroom use.`,
-    Answer: config.includeAnswerKey ? '[Answer key placeholder]' : '',
+    QuestionText: draft.text,
+    Answer: config.includeAnswerKey ? (draft.answer || '[Teacher to add/verify answer]') : '',
     QuestionBankId: '',
-    QuestionType: sectionConfig.questionType,
+    QuestionType: draft.questionType || sectionConfig.questionType,
     QuestionSource: 'reference-topic',
-    SourceLabel: 'Practice',
+    SourceLabel: 'Draft',
     TeacherProvided: false,
   }
-}
-
-// Human-readable scope label used inside reference-topic practice questions.
-function referenceScopeLabel(config) {
-  return config.sourceMetadata.referenceChapter
-    || config.topic
-    || config.chapter
-    || config.sourceMetadata.referenceBook
-    || 'the selected topic'
 }
 
 function getSectionPattern(patternId) {
@@ -589,10 +612,18 @@ export function analyzeQuestionPaperBlueprint(rawConfig = {}) {
         : `About ${estimatedRealQuestionCount} of ${totalQuestions} question${totalQuestions === 1 ? '' : 's'} will use your pasted material; the rest use labelled placeholders. Review before classroom use.`)
     }
   } else if (sourceMode === 'reference-topic') {
-    estimatedRealQuestionCount = 0
-    estimatedPlaceholderCount = totalQuestions
+    // Estimate how many DRAFT questions the pasted material can supply from real
+    // content; the rest are honest fallback drafts.
+    const materialText = config.sourceMetadata.referenceMaterial?.trim()
+      ? config.sourceMetadata.referenceMaterial
+      : config.sourceMetadata.teacherInstructions
+    estimatedRealQuestionCount = estimateDraftCoverage(materialText, totalQuestions)
+    estimatedPlaceholderCount = Math.max(0, totalQuestions - estimatedRealQuestionCount)
     if (totalQuestions > 0) {
-      warnings.push('Reference / Topic mode creates original practice placeholders based on your selected topic and blueprint. These are for teacher review — not copied book questions.')
+      warnings.push('Reference / Topic mode creates draft practice questions from your material. Teacher review required — not copied book questions.')
+      if (estimatedRealQuestionCount === 0) {
+        warnings.push('Add more chapter notes / material to create richer draft questions. Fallback drafts are used until then.')
+      }
     }
   } else if (sourceMode === 'pdf-upload') {
     estimatedRealQuestionCount = 0
@@ -637,16 +668,28 @@ export function generateQuestionPaperRows(rawConfig = {}) {
     && config.questionBankScopeId !== PLACEHOLDER_ONLY_SCOPE_ID,
   )
   const teacherQuestions = isPasted ? parseTeacherPastedQuestions(config.sourceMetadata.pastedText) : []
-  const refLabel = referenceScopeLabel(config)
   const sections = buildSections(config)
+  // Reference / Topic: build one draft practice question per slot from the
+  // teacher's pasted material, aligned 1:1 with the loop's iteration order.
+  const referenceDrafts = isReference
+    ? createDraftQuestionsFromMaterial({
+      materialText: referenceMaterialText(config),
+      topic: config.topic,
+      chapter: config.chapter,
+      referenceBook: config.sourceMetadata.referenceBook,
+      blueprintTargets: buildBlueprintTargets(sections),
+    })
+    : []
   const rows = []
   const difficultyCounts = { Easy: 0, Medium: 0, Hard: 0 }
   const usedQuestionBankIds = []
   let questionBankCount = 0
   let placeholderCount = 0
   let teacherMaterialCount = 0
-  let referenceCount = 0
+  let draftQuestionCount = 0
+  let fallbackDraftCount = 0
   let teacherIndex = 0
+  let referenceIndex = 0
 
   sections.forEach((sectionConfig) => {
     for (let q = 0; q < sectionConfig.count; q += 1) {
@@ -669,8 +712,18 @@ export function generateQuestionPaperRows(rawConfig = {}) {
           questionData = createPlaceholderQuestion(config, rowSectionConfig, scopeLabel)
         }
       } else if (isReference) {
-        referenceCount += 1
-        questionData = createReferenceTopicQuestion(config, rowSectionConfig, refLabel)
+        const draft = referenceDrafts[referenceIndex] || {
+          text: `Draft practice question — based on ${scopeLabel}. Teacher review required.`,
+          answer: '[Teacher to add/verify answer]',
+          questionType,
+          isFallback: true,
+        }
+        referenceIndex += 1
+        draftQuestionCount += 1
+        if (draft.isFallback) {
+          fallbackDraftCount += 1
+        }
+        questionData = createReferenceDraftQuestion(config, rowSectionConfig, draft)
       } else {
         const bankQuestion = useQuestionBank
           ? selectQuestionBankQuestions({
@@ -746,7 +799,8 @@ export function generateQuestionPaperRows(rawConfig = {}) {
     questionBankCount,
     placeholderCount,
     teacherMaterialCount,
-    referenceCount,
+    draftQuestionCount,
+    fallbackDraftCount,
   }
 
   const plural = (count) => (count === 1 ? '' : 's')
@@ -758,7 +812,10 @@ export function generateQuestionPaperRows(rawConfig = {}) {
         : '.')
       + ' Review before classroom use.'
   } else if (isReference) {
-    notice = `${referenceCount} original practice placeholder${plural(referenceCount)} created based on your selected topic and blueprint. These are for teacher review — not copied book questions. Review and finalize before classroom use.`
+    notice = `${draftQuestionCount} draft practice question${plural(draftQuestionCount)} created from your material for teacher review. Original questions — not copied book questions. Teacher review required.`
+    if (fallbackDraftCount > 0) {
+      notice += ' Some fallback drafts were used because the material was limited.'
+    }
   } else if (sourceMode === 'pdf-upload') {
     notice = 'PDF upload is planned for a later version. This paper uses labelled placeholders for now. Review before classroom use.'
   } else if (useQuestionBank) {

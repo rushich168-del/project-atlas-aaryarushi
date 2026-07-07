@@ -591,8 +591,17 @@ export default function BuilderWorkspace({ config, state, actions, onUseInWorksp
           <div className="mt-3 grid gap-2 rounded-md border border-blue-200 bg-blue-50 p-3 text-xs font-semibold text-blue-800 sm:grid-cols-4">
             <span>Total questions: {result.blueprint.totalQuestions}</span>
             <span>Total marks: {result.blueprint.totalMarks}</span>
-            <span>Real bank questions: {result.blueprint.questionBankCount ?? 0}</span>
-            <span>Placeholders: {result.blueprint.placeholderCount ?? 0}</span>
+            {result.blueprint.questionSourceMode === 'reference-topic' ? (
+              <>
+                <span>Draft questions: {result.blueprint.draftQuestionCount ?? 0}</span>
+                <span>Fallback drafts: {result.blueprint.fallbackDraftCount ?? 0}</span>
+              </>
+            ) : (
+              <>
+                <span>Real bank questions: {result.blueprint.questionBankCount ?? 0}</span>
+                <span>Placeholders: {result.blueprint.placeholderCount ?? 0}</span>
+              </>
+            )}
           </div>
         ) : null}
 
