@@ -46,19 +46,23 @@ function PaperHeader({ institution, title }) {
   )
 }
 
+const SOURCE_BADGES = {
+  'question-bank': { label: 'Bank', className: 'border-emerald-200 bg-emerald-50 text-emerald-700' },
+  'teacher-material': { label: 'Your question', className: 'border-blue-200 bg-blue-50 text-blue-700' },
+  'reference-topic': { label: 'Practice', className: 'border-slate-200 bg-slate-50 text-slate-600' },
+  placeholder: { label: 'Placeholder', className: 'border-amber-200 bg-amber-50 text-amber-700' },
+}
+
 function SourceBadge({ source }) {
   if (!source) {
     return null
   }
 
-  const label = source === 'question-bank' ? 'Bank' : 'Placeholder'
-  const className = source === 'question-bank'
-    ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-    : 'border-amber-200 bg-amber-50 text-amber-700'
+  const badge = SOURCE_BADGES[source] || SOURCE_BADGES.placeholder
 
   return (
-    <span className={`ml-2 inline-flex rounded border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${className}`}>
-      {label}
+    <span className={`ml-2 inline-flex rounded border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${badge.className}`}>
+      {badge.label}
     </span>
   )
 }

@@ -7,12 +7,14 @@
 // placeholder. No eval, no network, no DOM.
 
 import {
+  DEFAULT_QUESTION_SOURCE_MODE,
   QUESTION_BLUEPRINT_MODE_IDS,
   QUESTION_DIFFICULTY_DISTRIBUTIONS,
   QUESTION_PAPER_GENERATED_COLUMNS,
   QUESTION_REFRESH_VARIANT_IDS,
   QUESTION_SECTION_PATTERN_IDS,
   QUESTION_SECTION_PATTERNS,
+  QUESTION_SOURCE_MODE_IDS,
   QUESTION_VARIANT_IDS,
 } from './builderPresets.js'
 import { sectionDisplayName } from './educationPresets.js'
@@ -22,6 +24,10 @@ import {
   PLACEHOLDER_ONLY_SCOPE_ID,
   selectQuestionBankQuestions,
 } from '../question-bank/questionBankService.js'
+import {
+  countTeacherPastedQuestions,
+  parseTeacherPastedQuestions,
+} from '../question-bank/teacherMaterialSource.js'
 
 export const QUESTION_PAPER_COLUMNS = QUESTION_PAPER_GENERATED_COLUMNS
 
@@ -197,6 +203,9 @@ export function normalizeQuestionPaperConfig(rawConfig = {}) {
   const questionVariant = QUESTION_VARIANT_IDS.includes(rawConfig.questionVariant) ? rawConfig.questionVariant : 'set-a'
   const refreshVariant = QUESTION_REFRESH_VARIANT_IDS.includes(rawConfig.refreshVariant) ? rawConfig.refreshVariant : 'refresh-1'
   const blueprintMode = QUESTION_BLUEPRINT_MODE_IDS.includes(rawConfig.blueprintMode) ? rawConfig.blueprintMode : 'pattern-preset'
+  const questionSourceMode = QUESTION_SOURCE_MODE_IDS.includes(rawConfig.questionSourceMode)
+    ? rawConfig.questionSourceMode
+    : DEFAULT_QUESTION_SOURCE_MODE
 
   return {
     numSections,
@@ -210,6 +219,16 @@ export function normalizeQuestionPaperConfig(rawConfig = {}) {
     questionVariant,
     refreshVariant,
     blueprintMode,
+    questionSourceMode,
+    // Teacher material source metadata. Pasted text is kept verbatim (never
+    // truncated) and is NOT persisted anywhere — it only lives in this form value.
+    sourceMetadata: {
+      pastedText: typeof rawConfig.teacherPastedMaterial === 'string' ? rawConfig.teacherPastedMaterial : '',
+      referenceBook: text(rawConfig.referenceBook, '', 160),
+      referenceChapter: text(rawConfig.referenceChapter, '', 160),
+      teacherInstructions: typeof rawConfig.teacherInstructions === 'string' ? rawConfig.teacherInstructions : '',
+      uploadedFileName: text(rawConfig.uploadedFileName, '', 200),
+    },
     rawConfig,
     questionBankScopeId: text(rawConfig.questionBankScopeId, PLACEHOLDER_ONLY_SCOPE_ID, 120) || PLACEHOLDER_ONLY_SCOPE_ID,
     board: text(rawConfig.board, ''),
@@ -233,6 +252,8 @@ function createPlaceholderQuestion(config, sectionConfig, scopeLabel) {
     QuestionBankId: '',
     QuestionType: sectionConfig.questionType,
     QuestionSource: 'placeholder',
+    SourceLabel: 'Placeholder',
+    TeacherProvided: false,
   }
 }
 
@@ -249,7 +270,58 @@ function createQuestionBankQuestion(bankQuestion, config) {
     QuestionBankId: bankQuestion.id,
     QuestionType: bankQuestion.questionType,
     QuestionSource: 'question-bank',
+    SourceLabel: 'Starter bank',
+    TeacherProvided: false,
   }
+}
+
+// A row built from the teacher's own pasted text. The text is used as-is; no
+// answer is parsed in v2.92, so the answer stays a clear teacher-review note.
+function createTeacherMaterialQuestion(teacherQuestion, config, sectionConfig) {
+  return {
+    ProductId: 'AR-QUESTION-PRO',
+    Class: config.grade,
+    Board: config.board,
+    Subject: config.subject,
+    Chapter: config.chapter,
+    Topic: config.topic,
+    QuestionText: teacherQuestion.text,
+    Answer: config.includeAnswerKey ? '[Teacher to add answer]' : '',
+    QuestionBankId: '',
+    QuestionType: sectionConfig.questionType,
+    QuestionSource: 'teacher-material',
+    SourceLabel: 'Teacher material',
+    TeacherProvided: true,
+  }
+}
+
+// An ORIGINAL practice placeholder, based only on the teacher's selected
+// topic/chapter/reference label. This never copies or reproduces book content.
+function createReferenceTopicQuestion(config, sectionConfig, scopeLabel) {
+  return {
+    ProductId: 'AR-QUESTION-PRO',
+    Class: config.grade,
+    Board: config.board,
+    Subject: config.subject,
+    Chapter: config.chapter,
+    Topic: config.topic,
+    QuestionText: `Original practice question - based on ${scopeLabel}. Review and finalize before classroom use.`,
+    Answer: config.includeAnswerKey ? '[Answer key placeholder]' : '',
+    QuestionBankId: '',
+    QuestionType: sectionConfig.questionType,
+    QuestionSource: 'reference-topic',
+    SourceLabel: 'Practice',
+    TeacherProvided: false,
+  }
+}
+
+// Human-readable scope label used inside reference-topic practice questions.
+function referenceScopeLabel(config) {
+  return config.sourceMetadata.referenceChapter
+    || config.topic
+    || config.chapter
+    || config.sourceMetadata.referenceBook
+    || 'the selected topic'
 }
 
 function getSectionPattern(patternId) {
@@ -469,7 +541,14 @@ function createTeacherSectionSummary(rawConfig, sectionKey, config, useQuestionB
 export function analyzeQuestionPaperBlueprint(rawConfig = {}) {
   const config = normalizeQuestionPaperConfig(rawConfig)
   const selectedScope = findQuestionBankScope(config.questionBankScopeId)
-  const useQuestionBank = Boolean(selectedScope && config.questionBankScopeId !== PLACEHOLDER_ONLY_SCOPE_ID)
+  const sourceMode = config.questionSourceMode
+  // Only the Starter Question Bank mode draws real bank estimates. Pasted and
+  // reference modes must not claim bank availability.
+  const useQuestionBank = Boolean(
+    sourceMode === 'starter-bank'
+    && selectedScope
+    && config.questionBankScopeId !== PLACEHOLDER_ONLY_SCOPE_ID,
+  )
   const usedQuestionBankIds = []
   const warnings = []
   const blockingWarnings = []
@@ -495,10 +574,33 @@ export function analyzeQuestionPaperBlueprint(rawConfig = {}) {
 
   const totalQuestions = enabledSections.reduce((sum, section) => sum + section.totalQuestions, 0)
   const totalMarks = enabledSections.reduce((sum, section) => sum + section.totalMarks, 0)
-  const estimatedRealQuestionCount = enabledSections.reduce((sum, section) => sum + section.estimatedRealQuestionCount, 0)
-  const estimatedPlaceholderCount = enabledSections.reduce((sum, section) => sum + section.estimatedPlaceholderCount, 0)
+  let estimatedRealQuestionCount = enabledSections.reduce((sum, section) => sum + section.estimatedRealQuestionCount, 0)
+  let estimatedPlaceholderCount = enabledSections.reduce((sum, section) => sum + section.estimatedPlaceholderCount, 0)
 
-  if (!useQuestionBank && totalQuestions > 0) {
+  if (sourceMode === 'pasted-material') {
+    // Estimate how many slots the pasted questions can cover, from the parsed
+    // line count. The rest fall back to labelled placeholders.
+    const pastedCount = countTeacherPastedQuestions(config.sourceMetadata.pastedText)
+    estimatedRealQuestionCount = Math.min(totalQuestions, pastedCount)
+    estimatedPlaceholderCount = Math.max(0, totalQuestions - estimatedRealQuestionCount)
+    if (totalQuestions > 0) {
+      warnings.push(pastedCount === 0
+        ? 'No pasted questions detected yet. Paste your questions (one per line); labelled placeholders are used until then. Review before classroom use.'
+        : `About ${estimatedRealQuestionCount} of ${totalQuestions} question${totalQuestions === 1 ? '' : 's'} will use your pasted material; the rest use labelled placeholders. Review before classroom use.`)
+    }
+  } else if (sourceMode === 'reference-topic') {
+    estimatedRealQuestionCount = 0
+    estimatedPlaceholderCount = totalQuestions
+    if (totalQuestions > 0) {
+      warnings.push('Reference / Topic mode creates original practice placeholders based on your selected topic and blueprint. These are for teacher review — not copied book questions.')
+    }
+  } else if (sourceMode === 'pdf-upload') {
+    estimatedRealQuestionCount = 0
+    estimatedPlaceholderCount = totalQuestions
+    if (totalQuestions > 0) {
+      warnings.push('PDF upload is planned for a later version. Labelled placeholders are used for now.')
+    }
+  } else if (!useQuestionBank && totalQuestions > 0) {
     warnings.push('This setup is using placeholder-only content. Generated questions will be clearly labelled placeholders.')
   }
 
@@ -511,6 +613,7 @@ export function analyzeQuestionPaperBlueprint(rawConfig = {}) {
     canGenerate: blockingWarnings.length === 0,
     estimatedRealQuestionCount,
     estimatedPlaceholderCount,
+    questionSourceMode: sourceMode,
     questionBankScopeId: config.questionBankScopeId,
     questionBankLabel: selectedScope?.label || '',
     isEstimated: true,
@@ -522,41 +625,73 @@ export function generateQuestionPaperRows(rawConfig = {}) {
   const config = normalizeQuestionPaperConfig(rawConfig)
   const scopeLabel = config.topic || config.chapter || 'this topic'
   const selectedScope = findQuestionBankScope(config.questionBankScopeId)
-  const useQuestionBank = Boolean(selectedScope && config.questionBankScopeId !== PLACEHOLDER_ONLY_SCOPE_ID)
+  const sourceMode = config.questionSourceMode
+  const isPasted = sourceMode === 'pasted-material'
+  const isReference = sourceMode === 'reference-topic'
+  // 'pdf-upload' is reserved and not offered in the UI; if it ever reaches here it
+  // falls back to honest placeholder behavior (handled by leaving useQuestionBank
+  // false and reporting it in the notice below). Only 'starter-bank' reads the bank.
+  const useQuestionBank = Boolean(
+    sourceMode === 'starter-bank'
+    && selectedScope
+    && config.questionBankScopeId !== PLACEHOLDER_ONLY_SCOPE_ID,
+  )
+  const teacherQuestions = isPasted ? parseTeacherPastedQuestions(config.sourceMetadata.pastedText) : []
+  const refLabel = referenceScopeLabel(config)
   const sections = buildSections(config)
   const rows = []
   const difficultyCounts = { Easy: 0, Medium: 0, Hard: 0 }
   const usedQuestionBankIds = []
   let questionBankCount = 0
   let placeholderCount = 0
+  let teacherMaterialCount = 0
+  let referenceCount = 0
+  let teacherIndex = 0
 
   sections.forEach((sectionConfig) => {
     for (let q = 0; q < sectionConfig.count; q += 1) {
       const difficulty = sectionConfig.difficulties[q] || 'Medium'
       const questionType = sectionConfig.questionTypes?.[q] || sectionConfig.questionType || 'Short answer'
       difficultyCounts[difficulty] = (difficultyCounts[difficulty] || 0) + 1
-      const bankQuestion = useQuestionBank
-        ? selectQuestionBankQuestions({
-          scopeId: config.questionBankScopeId,
-          count: 1,
-          difficulty,
-          questionType,
-          marksPerQuestion: sectionConfig.marksPerQuestion,
-          variantId: config.questionVariant,
-          refreshVariant: config.refreshVariant,
-          excludeIds: usedQuestionBankIds,
-        })[0]
-        : null
       const rowSectionConfig = { ...sectionConfig, questionType }
-      const questionData = bankQuestion
-        ? createQuestionBankQuestion(bankQuestion, config)
-        : createPlaceholderQuestion(config, rowSectionConfig, scopeLabel)
 
-      if (bankQuestion) {
-        usedQuestionBankIds.push(bankQuestion.id)
-        questionBankCount += 1
+      let questionData
+      if (isPasted) {
+        // Fill slots with pasted questions in paste order; fall back to labelled
+        // placeholders once the teacher's questions run out.
+        const teacherQuestion = teacherQuestions[teacherIndex]
+        if (teacherQuestion) {
+          teacherIndex += 1
+          teacherMaterialCount += 1
+          questionData = createTeacherMaterialQuestion(teacherQuestion, config, rowSectionConfig)
+        } else {
+          placeholderCount += 1
+          questionData = createPlaceholderQuestion(config, rowSectionConfig, scopeLabel)
+        }
+      } else if (isReference) {
+        referenceCount += 1
+        questionData = createReferenceTopicQuestion(config, rowSectionConfig, refLabel)
       } else {
-        placeholderCount += 1
+        const bankQuestion = useQuestionBank
+          ? selectQuestionBankQuestions({
+            scopeId: config.questionBankScopeId,
+            count: 1,
+            difficulty,
+            questionType,
+            marksPerQuestion: sectionConfig.marksPerQuestion,
+            variantId: config.questionVariant,
+            refreshVariant: config.refreshVariant,
+            excludeIds: usedQuestionBankIds,
+          })[0]
+          : null
+        if (bankQuestion) {
+          usedQuestionBankIds.push(bankQuestion.id)
+          questionBankCount += 1
+          questionData = createQuestionBankQuestion(bankQuestion, config)
+        } else {
+          placeholderCount += 1
+          questionData = createPlaceholderQuestion(config, rowSectionConfig, scopeLabel)
+        }
       }
 
       rows.push({
@@ -574,6 +709,8 @@ export function generateQuestionPaperRows(rawConfig = {}) {
         Difficulty: difficulty,
         QuestionType: questionData.QuestionType,
         QuestionSource: questionData.QuestionSource,
+        SourceLabel: questionData.SourceLabel,
+        TeacherProvided: questionData.TeacherProvided ? 'Yes' : 'No',
         QuestionBankId: questionData.QuestionBankId,
         Answer: questionData.Answer,
       })
@@ -605,13 +742,28 @@ export function generateQuestionPaperRows(rawConfig = {}) {
     })),
     questionBankScopeId: config.questionBankScopeId,
     questionBankLabel: selectedScope?.label || '',
+    questionSourceMode: sourceMode,
     questionBankCount,
     placeholderCount,
+    teacherMaterialCount,
+    referenceCount,
   }
 
-  const notice = useQuestionBank
-    ? `${questionBankCount} question bank question${questionBankCount === 1 ? '' : 's'} used from ${config.questionVariant.toUpperCase().replace('-', ' ')} / ${config.refreshVariant.replace('-', ' ')}. ${placeholderCount} placeholder question${placeholderCount === 1 ? '' : 's'} added where the starter bank did not have enough matches.`
-    : ''
+  const plural = (count) => (count === 1 ? '' : 's')
+  let notice = ''
+  if (isPasted) {
+    notice = `${teacherMaterialCount} teacher question${plural(teacherMaterialCount)} used from your pasted material`
+      + (placeholderCount > 0
+        ? `, and ${placeholderCount} labelled placeholder${plural(placeholderCount)} added where more questions were needed.`
+        : '.')
+      + ' Review before classroom use.'
+  } else if (isReference) {
+    notice = `${referenceCount} original practice placeholder${plural(referenceCount)} created based on your selected topic and blueprint. These are for teacher review — not copied book questions. Review and finalize before classroom use.`
+  } else if (sourceMode === 'pdf-upload') {
+    notice = 'PDF upload is planned for a later version. This paper uses labelled placeholders for now. Review before classroom use.'
+  } else if (useQuestionBank) {
+    notice = `${questionBankCount} question bank question${plural(questionBankCount)} used from ${config.questionVariant.toUpperCase().replace('-', ' ')} / ${config.refreshVariant.replace('-', ' ')}. ${placeholderCount} placeholder question${plural(placeholderCount)} added where the starter bank did not have enough matches.`
+  }
 
   return { columns: QUESTION_PAPER_COLUMNS, rows, blueprint, notice }
 }

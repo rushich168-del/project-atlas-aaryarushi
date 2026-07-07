@@ -75,6 +75,29 @@ export const QUESTION_BLUEPRINT_MODES = [
 
 export const QUESTION_BLUEPRINT_MODE_IDS = QUESTION_BLUEPRINT_MODES.map((mode) => mode.id)
 
+// --- v2.92 Teacher Material Source foundation ---
+//
+// Where the question TEXT comes from. This is orthogonal to the blueprint
+// structure (sections/marks/difficulty) — every mode still uses buildSections().
+// 'pdf-upload' is reserved for a later version and is deliberately NOT offered in
+// the UI selector below.
+export const QUESTION_SOURCE_MODES = [
+  { id: 'starter-bank', label: 'Starter Question Bank' },
+  { id: 'pasted-material', label: 'Teacher Pasted Material' },
+  { id: 'reference-topic', label: 'Teacher Reference / Topic' },
+  { id: 'pdf-upload', label: 'PDF Upload (planned later)', reserved: true },
+]
+
+export const QUESTION_SOURCE_MODE_IDS = QUESTION_SOURCE_MODES.map((mode) => mode.id)
+
+// UI selector options — reserved modes (e.g. pdf-upload) are filtered out so no
+// dead/unsupported option is shown to teachers in v2.92.
+export const QUESTION_SOURCE_MODE_OPTIONS = QUESTION_SOURCE_MODES
+  .filter((mode) => !mode.reserved)
+  .map((mode) => ({ value: mode.id, label: mode.label }))
+
+export const DEFAULT_QUESTION_SOURCE_MODE = 'starter-bank'
+
 export const QUESTION_TYPE_OPTIONS = ['MCQ', 'Fill in the blanks', 'True/False', 'Short answer', 'Long answer']
 
 export const QUESTION_SECTION_PATTERNS = [
@@ -141,6 +164,8 @@ export const QUESTION_PAPER_GENERATED_COLUMNS = [
   'Difficulty',
   'QuestionType',
   'QuestionSource',
+  'SourceLabel',
+  'TeacherProvided',
   'QuestionBankId',
   'Answer',
 ]
