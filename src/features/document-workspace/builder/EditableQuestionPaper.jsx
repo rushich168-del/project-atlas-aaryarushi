@@ -126,7 +126,7 @@ function QuestionFields({ questionType, sectionId, question, showAnswerField, on
           onChange={changeText('text')}
           className="w-full rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-sm text-primary outline-none focus:border-accentBlue"
         />
-        <div className="mt-2 grid gap-1.5 sm:grid-cols-2">
+        <div className="mt-3 grid gap-2 sm:grid-cols-2">
           {MCQ_OPTION_KEYS.map((key) => (
             <label key={key} className="flex items-center gap-1.5">
               <span className="w-5 shrink-0 text-sm font-semibold text-slate-500">{key}.</span>

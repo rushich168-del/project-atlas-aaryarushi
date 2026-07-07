@@ -922,14 +922,25 @@ export default function BuilderWorkspace({ config, state, actions, onUseInWorksp
           <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="text-sm font-semibold text-primary">Paper preview</p>
-              <button
-                type="button"
-                onClick={() => setPaperMode('edit')}
-                className="focus-ring inline-flex min-h-8 items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 text-xs font-semibold text-slate-600 transition hover:border-accentBlue hover:text-accentBlue"
-              >
-                <PencilLine size={13} aria-hidden="true" />
-                Back to Edit Paper
-              </button>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleDownloadDocx}
+                  disabled={!canvasHasRows}
+                  className="focus-ring inline-flex min-h-8 items-center gap-1.5 rounded-md bg-accentTeal px-2.5 text-xs font-semibold text-white transition hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <FileText size={13} aria-hidden="true" />
+                  Download DOCX
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPaperMode('edit')}
+                  className="focus-ring inline-flex min-h-8 items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 text-xs font-semibold text-slate-600 transition hover:border-accentBlue hover:text-accentBlue"
+                >
+                  <PencilLine size={13} aria-hidden="true" />
+                  Back to Edit Paper
+                </button>
+              </div>
             </div>
             {/* Preview style selector — sits right above the rendered paper so its
                 effect is obvious. Preview-only; the DOCX is unchanged. */}

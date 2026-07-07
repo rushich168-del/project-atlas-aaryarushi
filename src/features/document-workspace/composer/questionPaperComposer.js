@@ -92,6 +92,32 @@ function examTypeLabel(value) {
     .join(' ')
 }
 
+function isStructuredMcq(question) {
+  return question?.structured?.type === 'mcq' && Array.isArray(question.structured.options) && question.structured.options.length > 0
+}
+
+function questionStem(question) {
+  const stem = String(question?.structured?.stem ?? '').trim()
+  return question?.structured?.type === 'mcq' ? stem : (stem || String(question?.text ?? '').trim())
+}
+
+function renderQuestionParagraphs(question, model) {
+  const marksSuffix = model.showMarks && question.marks ? `  (${question.marks} marks)` : ''
+
+  if (!isStructuredMcq(question)) {
+    return [paragraph(`${question.number}. ${question.text}${marksSuffix}`, { spacingAfter: 100 })]
+  }
+
+  const parts = [
+    paragraph(`${question.number}. ${questionStem(question)}${marksSuffix}`, { spacingAfter: 30 }),
+  ]
+  question.structured.options.forEach((option, index) => {
+    const spacingAfter = index === question.structured.options.length - 1 ? 100 : 20
+    parts.push(paragraph(`   (${option.key}) ${option.value}`, { spacingAfter }))
+  })
+  return parts
+}
+
 export function composeQuestionPaperDocx(form = {}, rows = [], blueprint = null) {
   const model = buildQuestionPaperModel(form, rows, blueprint)
   const parts = []
@@ -138,8 +164,7 @@ export function composeQuestionPaperDocx(form = {}, rows = [], blueprint = null)
       parts.push(paragraph(section.instruction, { italic: true, spacingAfter: 60 }))
     }
     section.questions.forEach((q) => {
-      const marksSuffix = model.showMarks && q.marks ? `  (${q.marks} marks)` : ''
-      parts.push(paragraph(`${q.number}. ${q.text}${marksSuffix}`, { spacingAfter: 100 }))
+      parts.push(...renderQuestionParagraphs(q, model))
     })
   })
 
