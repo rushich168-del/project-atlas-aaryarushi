@@ -1,9 +1,22 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { AlertTriangle, ArrowRight, ChevronDown, Download, FileText, Info, PencilLine, Settings2, Sparkles, Table2 } from 'lucide-react'
+import { AlertTriangle, ArrowRight, ChevronDown, Download, FileText, Info, PencilLine, RotateCcw, Settings2, Sparkles, Table2 } from 'lucide-react'
 import { generateWorksheetRows } from './worksheetBuilder.js'
 import { analyzeQuestionPaperBlueprint, generateQuestionPaperRows } from './questionPaperBuilder.js'
 import { buildWorkbookFile, downloadWorkbook } from './buildWorkbook.js'
 import PaperPreview from './PaperPreview.jsx'
+import EditableQuestionPaper from './EditableQuestionPaper.jsx'
+import {
+  addQuestion as addQuestionToModel,
+  addSection as addSectionToModel,
+  buildEditableResult,
+  createEditableModelFromForm,
+  deleteQuestion as deleteQuestionFromModel,
+  editableModelToForm,
+  removeSection as removeSectionFromModel,
+  updateHeaderField,
+  updateQuestionField,
+  updateSectionField,
+} from './editablePaperModel.js'
 import { composeWorksheetDocx } from '../composer/worksheetComposer.js'
 import { composeQuestionPaperDocx } from '../composer/questionPaperComposer.js'
 import { downloadDocxBlob } from '../composer/documentLayout.js'
@@ -423,6 +436,9 @@ export default function BuilderWorkspace({ config, state, actions, onUseInWorksp
   const [using, setUsing] = useState(false)
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false)
+  // v2.95 — Editable Question Paper: an in-memory paper the teacher edits directly.
+  // Null until they click "Create Editable Paper". Lives only in the browser.
+  const [editableModel, setEditableModel] = useState(null)
   const formRef = useRef(null)
   const previewRef = useRef(null)
 
@@ -447,6 +463,26 @@ export default function BuilderWorkspace({ config, state, actions, onUseInWorksp
   const showPaperPresetsInAdvanced = isPaper && Boolean(builder.presets?.length)
   const hasAdvanced = advancedFields.length > 0 || showPaperPresetsInAdvanced
   const showBlueprintPanel = isPaper && formValues.blueprintMode === 'teacher-blueprint' && !preparedActive
+
+  // v2.95 — When an editable paper exists (prepared-paper flow only), it becomes
+  // the single source for preview + download. Rows/blueprint come from the model
+  // and header edits are merged over the form, so the composer/preview are unchanged.
+  const editableActive = preparedActive && Boolean(editableModel)
+  const editableResult = useMemo(
+    () => (editableActive ? buildEditableResult(editableModel) : null),
+    [editableActive, editableModel],
+  )
+  const effectiveResult = editableResult || result
+  const effectiveForm = editableActive ? editableModelToForm(editableModel, formValues) : formValues
+
+  // Leaving the prepared-paper flow (e.g. switching question source) discards the
+  // stale editable model so it can't silently drive a different mode's preview.
+  useEffect(() => {
+    if (!preparedActive && editableModel) {
+      setEditableModel(null)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [preparedActive])
 
   // Persist the form to the workspace so edits survive navigation / restore and are
   // available to the "Continue to DOCX Layout" handoff. Runs on form change only.
@@ -475,6 +511,27 @@ export default function BuilderWorkspace({ config, state, actions, onUseInWorksp
     previewRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
+  // v2.95 — Build the editable paper from the pasted section-wise paper, then
+  // bring the preview into view. Teacher edits happen in the editor after this.
+  function handleCreateEditablePaper() {
+    setEditableModel(createEditableModelFromForm(formValues))
+    previewRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+
+  // Return to the paste step so the teacher can re-paste / re-parse. Discards edits.
+  function handleStartOver() {
+    setEditableModel(null)
+    formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+
+  const handleHeaderChange = (field, value) => setEditableModel((model) => (model ? updateHeaderField(model, field, value) : model))
+  const handleSectionChange = (sectionId, field, value) => setEditableModel((model) => (model ? updateSectionField(model, sectionId, field, value) : model))
+  const handleQuestionChange = (sectionId, questionId, field, value) => setEditableModel((model) => (model ? updateQuestionField(model, sectionId, questionId, field, value) : model))
+  const handleAddQuestion = (sectionId) => setEditableModel((model) => (model ? addQuestionToModel(model, sectionId) : model))
+  const handleDeleteQuestion = (sectionId, questionId) => setEditableModel((model) => (model ? deleteQuestionFromModel(model, sectionId, questionId) : model))
+  const handleAddSection = () => setEditableModel((model) => (model ? addSectionToModel(model) : model))
+  const handleRemoveSection = (sectionId) => setEditableModel((model) => (model ? removeSectionFromModel(model, sectionId) : model))
+
   const sourceHelperText = isPaper
     ? {
       'reference-topic': 'Draft questions are created from your pasted material for teacher review.',
@@ -483,16 +540,16 @@ export default function BuilderWorkspace({ config, state, actions, onUseInWorksp
     }[formValues.questionSourceMode] || ''
     : ''
 
-  const hasRows = Boolean(result && result.rows.length)
-  const fileBase = `${config.productSlug}-${slugForFile(formValues.title, 'document')}`
+  const hasRows = Boolean(effectiveResult && effectiveResult.rows.length)
+  const fileBase = `${config.productSlug}-${slugForFile(effectiveForm.title, 'document')}`
 
   function handleDownloadDocx() {
     if (!hasRows) {
       return
     }
     const blob = isPaper
-      ? composeQuestionPaperDocx(formValues, result.rows, result.blueprint)
-      : composeWorksheetDocx(formValues, result.rows)
+      ? composeQuestionPaperDocx(effectiveForm, effectiveResult.rows, effectiveResult.blueprint)
+      : composeWorksheetDocx(effectiveForm, effectiveResult.rows)
     downloadDocxBlob(blob, `${fileBase}.docx`)
   }
 
@@ -500,7 +557,7 @@ export default function BuilderWorkspace({ config, state, actions, onUseInWorksp
     if (!hasRows) {
       return
     }
-    downloadWorkbook(result.columns, result.rows, `${fileBase}.xlsx`)
+    downloadWorkbook(effectiveResult.columns, effectiveResult.rows, `${fileBase}.xlsx`)
   }
 
   async function handleContinueToLayout() {
@@ -509,15 +566,15 @@ export default function BuilderWorkspace({ config, state, actions, onUseInWorksp
     }
     setUsing(true)
     try {
-      const file = buildWorkbookFile(result.columns, result.rows, `${fileBase}.xlsx`)
+      const file = buildWorkbookFile(effectiveResult.columns, effectiveResult.rows, `${fileBase}.xlsx`)
       await onUseInWorkspace(file)
     } finally {
       setUsing(false)
     }
   }
 
-  const previewRows = result ? result.rows.slice(0, PREVIEW_ROW_LIMIT) : []
-  const activeNotice = result?.notice || ''
+  const previewRows = effectiveResult ? effectiveResult.rows.slice(0, PREVIEW_ROW_LIMIT) : []
+  const activeNotice = editableActive ? '' : (result?.notice || '')
   const docxLabel = isPaper ? 'Download Question Paper DOCX' : 'Download Worksheet DOCX'
 
   return (
@@ -558,19 +615,34 @@ export default function BuilderWorkspace({ config, state, actions, onUseInWorksp
           </div>
         ) : null}
 
-        <div className="mt-4 grid gap-3 sm:grid-cols-2">
-          {simpleFields.map((field) => (
-            <div key={field.id} className={field.full || field.type === 'textarea' ? 'sm:col-span-2' : ''}>
-              <FieldControl field={field} value={formValues[field.id]} onChange={handleField} />
-            </div>
-          ))}
-        </div>
+        {editableActive ? (
+          <EditableQuestionPaper
+            model={editableModel}
+            notice={editableModel.notice}
+            showAnswerField={formValues.includeAnswerKey === true}
+            onHeaderChange={handleHeaderChange}
+            onSectionChange={handleSectionChange}
+            onQuestionChange={handleQuestionChange}
+            onAddQuestion={handleAddQuestion}
+            onDeleteQuestion={handleDeleteQuestion}
+            onAddSection={handleAddSection}
+            onRemoveSection={handleRemoveSection}
+          />
+        ) : (
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            {simpleFields.map((field) => (
+              <div key={field.id} className={field.full || field.type === 'textarea' ? 'sm:col-span-2' : ''}>
+                <FieldControl field={field} value={formValues[field.id]} onChange={handleField} />
+              </div>
+            ))}
+          </div>
+        )}
 
-        {showBlueprintPanel ? (
+        {!editableActive && showBlueprintPanel ? (
           <QuestionBlueprintPanel values={formValues} onChange={handleField} analysis={blueprintAnalysis} />
         ) : null}
 
-        {hasAdvanced ? (
+        {!editableActive && hasAdvanced ? (
           <div className="mt-4 rounded-md border border-slate-200 bg-slate-50">
             <button
               type="button"
@@ -622,26 +694,60 @@ export default function BuilderWorkspace({ config, state, actions, onUseInWorksp
           </div>
         ) : null}
 
-        {builder.note ? (
+        {!editableActive && builder.note ? (
           <div className="mt-4 flex items-start gap-2 rounded-md border border-blue-200 bg-blue-50 p-3">
             <Info size={15} className="mt-0.5 shrink-0 text-accentBlue" aria-hidden="true" />
             <p className="text-xs leading-5 text-blue-800">{builder.note}</p>
           </div>
         ) : null}
 
-        {/* Clear teacher action: setup → Generate / Update Preview → review → download */}
+        {/* Clear teacher action. Prepared-paper flow: paste → Create Editable Paper →
+            edit → download. Editing: Start over to re-paste. Everything else keeps the
+            Generate / Update Preview action. */}
         <div className="mt-5 border-t border-slate-200 pt-4">
-          <button
-            type="button"
-            onClick={handleGeneratePreview}
-            className="focus-ring inline-flex w-full min-h-11 items-center justify-center gap-2 rounded-md bg-accentTeal px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-800"
-          >
-            <Sparkles size={17} aria-hidden="true" />
-            Generate / Update Preview
-          </button>
-          <p className="mt-2 text-xs leading-5 text-slate-500">
-            {sourceHelperText || 'Review the preview, then download your DOCX.'}
-          </p>
+          {editableActive ? (
+            <>
+              <button
+                type="button"
+                onClick={handleStartOver}
+                className="focus-ring inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-600 transition hover:border-accentBlue hover:text-accentBlue"
+              >
+                <RotateCcw size={15} aria-hidden="true" />
+                Start over (re-paste)
+              </button>
+              <p className="mt-2 text-xs leading-5 text-slate-500">
+                Your edits update the preview live. Download the DOCX from the preview panel.
+              </p>
+            </>
+          ) : preparedActive ? (
+            <>
+              <button
+                type="button"
+                onClick={handleCreateEditablePaper}
+                className="focus-ring inline-flex w-full min-h-11 items-center justify-center gap-2 rounded-md bg-accentTeal px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-800"
+              >
+                <PencilLine size={17} aria-hidden="true" />
+                Create Editable Paper
+              </button>
+              <p className="mt-2 text-xs leading-5 text-slate-500">
+                Paste your section-wise paper above, then edit each section and question directly.
+              </p>
+            </>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={handleGeneratePreview}
+                className="focus-ring inline-flex w-full min-h-11 items-center justify-center gap-2 rounded-md bg-accentTeal px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-800"
+              >
+                <Sparkles size={17} aria-hidden="true" />
+                Generate / Update Preview
+              </button>
+              <p className="mt-2 text-xs leading-5 text-slate-500">
+                {sourceHelperText || 'Review the preview, then download your DOCX.'}
+              </p>
+            </>
+          )}
         </div>
       </div>
 
@@ -650,10 +756,12 @@ export default function BuilderWorkspace({ config, state, actions, onUseInWorksp
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="min-w-0">
             <p className="text-sm font-semibold text-primary">{builder.previewTitle || 'Preview'}</p>
-            <p className="text-[11px] text-slate-400">Use Generate / Update Preview after changing setup.</p>
-            {result?.blueprint ? (
+            <p className="text-[11px] text-slate-400">
+              {editableActive ? 'Your edits appear here live.' : 'Use Generate / Update Preview after changing setup.'}
+            </p>
+            {effectiveResult?.blueprint ? (
               <p className="text-xs font-semibold text-slate-500">
-                {result.blueprint.numSections} sections · {result.blueprint.totalQuestions} questions · {result.blueprint.totalMarks} marks
+                {effectiveResult.blueprint.numSections} sections · {effectiveResult.blueprint.totalQuestions} questions · {effectiveResult.blueprint.totalMarks} marks
               </p>
             ) : result?.meta ? (
               <p className="text-xs font-semibold text-slate-500">
@@ -688,31 +796,42 @@ export default function BuilderWorkspace({ config, state, actions, onUseInWorksp
         </div>
 
         {/* Always-visible compact action so the teacher can regenerate without scrolling setup */}
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={handleGeneratePreview}
-            className="focus-ring inline-flex min-h-9 items-center justify-center gap-2 rounded-md bg-accentTeal px-3.5 text-xs font-semibold text-white shadow-sm transition hover:bg-teal-800"
-          >
-            <Sparkles size={15} aria-hidden="true" />
-            Generate / Update Preview
-          </button>
-          <span className="text-[11px] text-slate-400">Setup → Generate / Update Preview → review → download.</span>
-        </div>
+        {editableActive ? (
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <span className="text-[11px] text-slate-400">Editing your paper — the preview and DOCX below update as you type.</span>
+          </div>
+        ) : (
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={handleGeneratePreview}
+              className="focus-ring inline-flex min-h-9 items-center justify-center gap-2 rounded-md bg-accentTeal px-3.5 text-xs font-semibold text-white shadow-sm transition hover:bg-teal-800"
+            >
+              <Sparkles size={15} aria-hidden="true" />
+              Generate / Update Preview
+            </button>
+            <span className="text-[11px] text-slate-400">Setup → Generate / Update Preview → review → download.</span>
+          </div>
+        )}
 
-        {isPaper && result?.blueprint ? (
+        {isPaper && effectiveResult?.blueprint ? (
           <div className="mt-3 grid gap-2 rounded-md border border-blue-200 bg-blue-50 p-3 text-xs font-semibold text-blue-800 sm:grid-cols-4">
-            <span>Total questions: {result.blueprint.totalQuestions}</span>
-            <span>Total marks: {result.blueprint.totalMarks}</span>
-            {result.blueprint.questionSourceMode === 'reference-topic' ? (
+            <span>Total questions: {effectiveResult.blueprint.totalQuestions}</span>
+            <span>Total marks: {effectiveResult.blueprint.totalMarks}</span>
+            {editableActive ? (
               <>
-                <span>Draft questions: {result.blueprint.draftQuestionCount ?? 0}</span>
-                <span>Fallback drafts: {result.blueprint.fallbackDraftCount ?? 0}</span>
+                <span>Your questions: {effectiveResult.blueprint.teacherMaterialCount ?? 0}</span>
+                <span>Sections: {effectiveResult.blueprint.numSections}</span>
+              </>
+            ) : effectiveResult.blueprint.questionSourceMode === 'reference-topic' ? (
+              <>
+                <span>Draft questions: {effectiveResult.blueprint.draftQuestionCount ?? 0}</span>
+                <span>Fallback drafts: {effectiveResult.blueprint.fallbackDraftCount ?? 0}</span>
               </>
             ) : (
               <>
-                <span>Real bank questions: {result.blueprint.questionBankCount ?? 0}</span>
-                <span>Placeholders: {result.blueprint.placeholderCount ?? 0}</span>
+                <span>Real bank questions: {effectiveResult.blueprint.questionBankCount ?? 0}</span>
+                <span>Placeholders: {effectiveResult.blueprint.placeholderCount ?? 0}</span>
               </>
             )}
           </div>
@@ -733,7 +852,7 @@ export default function BuilderWorkspace({ config, state, actions, onUseInWorksp
         ) : null}
 
         {hasRows && previewMode === 'paper' ? (
-          <PaperPreview builderType={builder.builderType} form={formValues} rows={result.rows} blueprint={result.blueprint} />
+          <PaperPreview builderType={builder.builderType} form={effectiveForm} rows={effectiveResult.rows} blueprint={effectiveResult.blueprint} />
         ) : null}
 
         {hasRows && previewMode === 'data' ? (
@@ -742,7 +861,7 @@ export default function BuilderWorkspace({ config, state, actions, onUseInWorksp
               <table className="min-w-full border-collapse text-left text-sm">
                 <thead>
                   <tr className="bg-slate-50">
-                    {result.columns.map((column) => (
+                    {effectiveResult.columns.map((column) => (
                       <th key={column} className="whitespace-nowrap border-b border-slate-200 px-3 py-2 text-xs font-semibold uppercase tracking-[0.06em] text-slate-500">
                         {column}
                       </th>
@@ -752,7 +871,7 @@ export default function BuilderWorkspace({ config, state, actions, onUseInWorksp
                 <tbody>
                   {previewRows.map((row, index) => (
                     <tr key={index} className="odd:bg-white even:bg-slate-50/60">
-                      {result.columns.map((column) => (
+                      {effectiveResult.columns.map((column) => (
                         <td key={column} className="whitespace-nowrap border-b border-slate-100 px-3 py-2 text-slate-700">
                           {row[column] || '—'}
                         </td>
@@ -762,8 +881,8 @@ export default function BuilderWorkspace({ config, state, actions, onUseInWorksp
                 </tbody>
               </table>
             </div>
-            {result.rows.length > PREVIEW_ROW_LIMIT ? (
-              <p className="mt-2 text-xs font-medium text-slate-500">Showing first {PREVIEW_ROW_LIMIT} of {result.rows.length} rows.</p>
+            {effectiveResult.rows.length > PREVIEW_ROW_LIMIT ? (
+              <p className="mt-2 text-xs font-medium text-slate-500">Showing first {PREVIEW_ROW_LIMIT} of {effectiveResult.rows.length} rows.</p>
             ) : null}
           </>
         ) : null}
