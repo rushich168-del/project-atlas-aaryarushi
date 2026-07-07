@@ -1,6 +1,7 @@
 import { buildWorksheetModel } from '../composer/worksheetComposer.js'
 import { buildQuestionPaperModel } from '../composer/questionPaperComposer.js'
 import { useEffect, useRef } from 'react'
+import MathText from './MathText.jsx'
 
 // Paper-style (A4-ish) preview of the composed worksheet / question paper. Reads
 // the SAME model builders the DOCX composer uses, so on-screen preview and the
@@ -205,12 +206,12 @@ const QUESTION_PAPER_STYLES = {
 function QuestionBody({ question, optionText }) {
   const structured = question.structured
   if (!structured) {
-    return <span>{question.text}</span>
+    return <MathText text={question.text} />
   }
   if (structured.type === 'mcq') {
     return (
       <>
-        {structured.stem ? <span>{structured.stem}</span> : null}
+        {structured.stem ? <MathText text={structured.stem} /> : null}
         <div
           className={
             structured.layout === 'horizontal'
@@ -220,7 +221,7 @@ function QuestionBody({ question, optionText }) {
         >
           {structured.options.map((option) => (
             <span key={option.key} className="text-slate-800">
-              <span className="font-medium">({option.key})</span> {option.value}
+              <span className="font-medium">({option.key})</span> <MathText text={option.value} />
             </span>
           ))}
         </div>
@@ -230,21 +231,21 @@ function QuestionBody({ question, optionText }) {
   if (structured.type === 'blank') {
     return (
       <span>
-        {structured.before ? `${structured.before} ` : ''}
+        {structured.before ? <><MathText text={structured.before} />{' '}</> : null}
         <span className="inline-block border-b border-slate-500 align-baseline" style={{ width: `${structured.width || 12}ch` }}>&nbsp;</span>
-        {structured.after ? ` ${structured.after}` : ''}
+        {structured.after ? <> <MathText text={structured.after} /></> : null}
       </span>
     )
   }
   if (structured.type === 'truefalse') {
     return (
       <>
-        {structured.statement ? <span>{structured.statement}</span> : null}
+        {structured.statement ? <MathText text={structured.statement} /> : null}
         <span className="mt-0.5 block text-[12px] font-semibold uppercase tracking-wide text-slate-500">True / False</span>
       </>
     )
   }
-  return <span>{question.text}</span>
+  return <MathText text={question.text} />
 }
 
 function QuestionPaperPaper({ form, rows, blueprint, previewStyle = 'classic', scrollStorageKey }) {
@@ -326,7 +327,7 @@ function QuestionPaperPaper({ form, rows, blueprint, previewStyle = 'classic', s
               <p className="text-[13px] font-semibold text-slate-700">{section.name}</p>
               <ol className="list-none text-[13px] leading-6 text-slate-600">
                 {section.questions.map((q) => (
-                  <li key={q.number}>{q.number}. {q.answer || '[Answer key placeholder]'}</li>
+                  <li key={q.number}>{q.number}. {q.answer ? <MathText text={q.answer} /> : '[Answer key placeholder]'}</li>
                 ))}
               </ol>
             </div>

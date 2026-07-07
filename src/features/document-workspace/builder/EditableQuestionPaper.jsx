@@ -131,7 +131,7 @@ function MathToolsPanel({ onInsert, className = '' }) {
       {open ? (
         <div className="mt-2 rounded-md border border-slate-200 bg-white p-2">
           <p className="text-[11px] leading-4 text-slate-500">
-            Tip: Word/PDF equations may paste as plain text. Use symbols/templates here if the equation looks wrong.
+            {'Tip: Word/PDF equations may paste as plain text. Use symbols/templates here if the equation looks wrong. Preview will render LaTeX like \\frac{}{} and \\sqrt{} as equations. Put the full expression inside braces, for example \\sqrt{x^{3}-2}.'}
           </p>
           <div className="mt-2 flex flex-wrap gap-1">
             {MATH_SYMBOLS.map((symbol) => (
