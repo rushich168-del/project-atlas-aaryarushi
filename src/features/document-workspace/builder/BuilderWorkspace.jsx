@@ -422,6 +422,7 @@ export default function BuilderWorkspace({ config, state, actions, onUseInWorksp
   const [previewMode, setPreviewMode] = useState('paper')
   const [using, setUsing] = useState(false)
   const [showAdvanced, setShowAdvanced] = useState(false)
+  const [showAdvancedOptions, setShowAdvancedOptions] = useState(false)
   const formRef = useRef(null)
   const previewRef = useRef(null)
 
@@ -433,6 +434,19 @@ export default function BuilderWorkspace({ config, state, actions, onUseInWorksp
     [formValues, isPaper],
   )
   const visibleFields = builder.fields.filter((field) => isFieldVisible(field, formValues))
+  // v2.94 — "I already have questions" + Section-wise paper builds structure from
+  // the paste itself, so Paper Setup / Custom Section Setup are hidden in the
+  // simple view for that combination.
+  const preparedActive = isPaper
+    && formValues.questionSourceMode === 'pasted-material'
+    && (formValues.pastedInputMode ?? 'prepared-paper') === 'prepared-paper'
+  const simpleFields = visibleFields.filter((field) => !field.advanced && !(preparedActive && field.id === 'blueprintMode'))
+  const advancedFields = visibleFields.filter((field) => field.advanced)
+  // Question-paper pattern chips (Quick Pattern) live under Advanced; worksheet
+  // presets stay in the simple flow.
+  const showPaperPresetsInAdvanced = isPaper && Boolean(builder.presets?.length)
+  const hasAdvanced = advancedFields.length > 0 || showPaperPresetsInAdvanced
+  const showBlueprintPanel = isPaper && formValues.blueprintMode === 'teacher-blueprint' && !preparedActive
 
   // Persist the form to the workspace so edits survive navigation / restore and are
   // available to the "Continue to DOCX Layout" handoff. Runs on form change only.
@@ -464,7 +478,7 @@ export default function BuilderWorkspace({ config, state, actions, onUseInWorksp
   const sourceHelperText = isPaper
     ? {
       'reference-topic': 'Draft questions are created from your pasted material for teacher review.',
-      'pasted-material': 'Questions are taken from your pasted list.',
+      'pasted-material': 'Paste your section-wise paper — sections, marks and question types are detected.',
       'starter-bank': 'Questions are selected from available starter-bank content.',
     }[formValues.questionSourceMode] || ''
     : ''
@@ -520,7 +534,8 @@ export default function BuilderWorkspace({ config, state, actions, onUseInWorksp
           </div>
         </div>
 
-        {builder.presets?.length ? (
+        {/* Worksheet keeps its pattern presets in the simple flow; paper presets move to Advanced. */}
+        {!isPaper && builder.presets?.length ? (
           <div className="mt-4">
             <p className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">{builder.presetLabel || 'Pattern'}</p>
             <div className="mt-2 flex flex-wrap gap-2">
@@ -544,15 +559,67 @@ export default function BuilderWorkspace({ config, state, actions, onUseInWorksp
         ) : null}
 
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
-          {visibleFields.map((field) => (
+          {simpleFields.map((field) => (
             <div key={field.id} className={field.full || field.type === 'textarea' ? 'sm:col-span-2' : ''}>
               <FieldControl field={field} value={formValues[field.id]} onChange={handleField} />
             </div>
           ))}
         </div>
 
-        {isPaper && formValues.blueprintMode === 'teacher-blueprint' ? (
+        {showBlueprintPanel ? (
           <QuestionBlueprintPanel values={formValues} onChange={handleField} analysis={blueprintAnalysis} />
+        ) : null}
+
+        {hasAdvanced ? (
+          <div className="mt-4 rounded-md border border-slate-200 bg-slate-50">
+            <button
+              type="button"
+              onClick={() => setShowAdvancedOptions((open) => !open)}
+              aria-expanded={showAdvancedOptions}
+              className="focus-ring flex w-full items-center justify-between gap-2 rounded-md px-3.5 py-2.5 text-left text-xs font-semibold text-slate-600 transition hover:text-primary"
+            >
+              <span className="inline-flex items-center gap-2">
+                <Settings2 size={14} aria-hidden="true" />
+                Advanced options
+              </span>
+              <ChevronDown size={15} aria-hidden="true" className={`transition-transform ${showAdvancedOptions ? 'rotate-180' : ''}`} />
+            </button>
+            {showAdvancedOptions ? (
+              <div className="border-t border-slate-200 px-3.5 py-3">
+                {showPaperPresetsInAdvanced ? (
+                  <div className="mb-3">
+                    <p className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">Advanced: Quick Pattern</p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {builder.presets.map((preset) => {
+                        const active = builder.presetMatch ? builder.presetMatch(formValues, preset) : false
+                        return (
+                          <button
+                            key={preset.id}
+                            type="button"
+                            onClick={() => handlePreset(preset)}
+                            className={`focus-ring inline-flex min-h-8 items-center rounded-md border px-3 text-xs font-semibold transition ${
+                              active ? 'border-accentBlue bg-blue-50 text-accentBlue' : 'border-slate-200 bg-white text-slate-600 hover:border-accentBlue hover:text-accentBlue'
+                            }`}
+                          >
+                            {preset.label}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                ) : null}
+                {advancedFields.length ? (
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {advancedFields.map((field) => (
+                      <div key={field.id} className={field.full || field.type === 'textarea' ? 'sm:col-span-2' : ''}>
+                        <FieldControl field={field} value={formValues[field.id]} onChange={handleField} />
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
         ) : null}
 
         {builder.note ? (

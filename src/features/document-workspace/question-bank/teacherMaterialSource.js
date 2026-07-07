@@ -382,3 +382,133 @@ export function estimateDraftCoverage(materialText, totalQuestions) {
   const supply = material.terms.length + material.statements.length + material.names.length
   return Math.max(0, Math.min(Number(totalQuestions) || 0, supply))
 }
+
+// ---------------------------------------------------------------------------
+// v2.94 — Prepared question-paper parser (pure, local, deterministic).
+//
+// Reads a teacher's already-written, section-wise paper and detects the section
+// name, marks per question, question type, and the questions under each section.
+// It never rewrites or drops the teacher's question text — headers only supply
+// structure. Returns { ok:false } when no SECTION heading exists so the caller
+// can fall back to plain one-question-per-line behavior.
+// ---------------------------------------------------------------------------
+
+const PREPARED_QUESTION_TYPES = ['MCQ', 'Fill in the blanks', 'True/False', 'Short answer', 'Long answer']
+
+function isSectionHeader(line) {
+  return /^\s*section\b/i.test(line)
+}
+
+// Detect the question type named in a header. Returns { type, found }.
+function detectSectionType(headerLower) {
+  if (/\bmcqs?\b/.test(headerLower) || /multiple choice/.test(headerLower)) {
+    return { type: 'MCQ', found: true }
+  }
+  if (/fill in the blank/.test(headerLower)) {
+    return { type: 'Fill in the blanks', found: true }
+  }
+  if (/true\s*\/?\s*(?:or\s*)?false/.test(headerLower) || /\bt\s*\/\s*f\b/.test(headerLower)) {
+    return { type: 'True/False', found: true }
+  }
+  if (/long answer/.test(headerLower)) {
+    return { type: 'Long answer', found: true }
+  }
+  if (/short answer/.test(headerLower)) {
+    return { type: 'Short answer', found: true }
+  }
+  return { type: 'Short answer', found: false }
+}
+
+// Detect marks per question named in a header. Returns { marks, found }.
+function detectSectionMarks(header) {
+  const match = header.match(/(\d+)\s*marks?\b/i)
+  if (match) {
+    return { marks: Math.max(1, Number(match[1])), found: true }
+  }
+  return { marks: 1, found: false }
+}
+
+// Pull the section name (the part before the first | : or " - " separator) and
+// tidy the leading "section" word to title case.
+function detectSectionName(header, fallbackName) {
+  const segment = header.split(/\s*[|:]\s*|\s+[-–]\s+/)[0].trim()
+  const cleaned = segment.replace(/\s+/g, ' ').trim()
+  if (!cleaned) {
+    return fallbackName
+  }
+  return cleaned.replace(/^section\b/i, 'Section')
+}
+
+export function parsePreparedQuestionPaper(text) {
+  const warnings = []
+  if (typeof text !== 'string' || !text.trim()) {
+    return { ok: false, sections: [], totalQuestions: 0, warnings }
+  }
+
+  const lines = text.split(/\r?\n/)
+  const sections = []
+  const preamble = []
+  let current = null
+  let sawHeader = false
+
+  for (const rawLine of lines) {
+    const trimmed = rawLine.trim()
+    if (!trimmed) {
+      continue
+    }
+
+    if (isSectionHeader(trimmed)) {
+      sawHeader = true
+      const headerLower = trimmed.toLowerCase()
+      const { marks, found: marksFound } = detectSectionMarks(trimmed)
+      const { type, found: typeFound } = detectSectionType(headerLower)
+      const name = detectSectionName(trimmed, `Section ${sections.length + 1}`)
+      current = { name, marks, questionType: type, questions: [], marksFound, typeFound }
+      sections.push(current)
+      continue
+    }
+
+    const cleaned = stripNumberingPrefix(trimmed)
+    if (!cleaned) {
+      continue
+    }
+    if (current) {
+      current.questions.push({ text: cleaned })
+    } else {
+      preamble.push({ text: cleaned })
+    }
+  }
+
+  // No section headings at all -> let the caller fall back to plain-list.
+  if (!sawHeader) {
+    return { ok: false, sections: [], totalQuestions: 0, warnings }
+  }
+
+  // Questions written before the first heading are kept in a synthesized section.
+  if (preamble.length) {
+    sections.unshift({ name: 'Section A', marks: 1, questionType: 'Short answer', questions: preamble, marksFound: false, typeFound: false })
+    warnings.push('Some questions appeared before the first SECTION heading — they were placed in a new Section A. Add a heading above them if needed.')
+  }
+
+  sections.forEach((section) => {
+    if (!section.marksFound) {
+      warnings.push(`${section.name}: marks not detected — defaulted to 1 mark. Add "| 1 MARK |" to set marks.`)
+    }
+    if (!section.typeFound) {
+      warnings.push(`${section.name}: question type not detected — defaulted to Short answer. Add a type like "| MCQ |".`)
+    }
+    if (!section.questions.length) {
+      warnings.push(`${section.name}: no questions detected under this heading.`)
+    }
+  })
+
+  const cleanSections = sections.map((section) => ({
+    name: section.name,
+    marks: section.marks,
+    questionType: PREPARED_QUESTION_TYPES.includes(section.questionType) ? section.questionType : 'Short answer',
+    questions: section.questions,
+  }))
+  const totalQuestions = cleanSections.reduce((sum, section) => sum + section.questions.length, 0)
+
+  return { ok: true, sections: cleanSections, totalQuestions, warnings }
+}

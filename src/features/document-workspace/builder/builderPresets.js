@@ -68,9 +68,12 @@ export const QUESTION_REFRESH_VARIANTS = [
 
 export const QUESTION_REFRESH_VARIANT_IDS = QUESTION_REFRESH_VARIANTS.map((variant) => variant.id)
 
+// v2.94 — teacher-first labels (ids unchanged for backward compatibility).
+// 'teacher-blueprint' (Custom Section Setup) is now the default; 'pattern-preset'
+// (Advanced: Quick Pattern) stays available under Advanced.
 export const QUESTION_BLUEPRINT_MODES = [
-  { id: 'pattern-preset', label: 'Pattern Preset' },
-  { id: 'teacher-blueprint', label: 'Teacher Blueprint' },
+  { id: 'teacher-blueprint', label: 'Custom Section Setup' },
+  { id: 'pattern-preset', label: 'Advanced: Quick Pattern' },
 ]
 
 export const QUESTION_BLUEPRINT_MODE_IDS = QUESTION_BLUEPRINT_MODES.map((mode) => mode.id)
@@ -81,22 +84,39 @@ export const QUESTION_BLUEPRINT_MODE_IDS = QUESTION_BLUEPRINT_MODES.map((mode) =
 // structure (sections/marks/difficulty) — every mode still uses buildSections().
 // 'pdf-upload' is reserved for a later version and is deliberately NOT offered in
 // the UI selector below.
+// v2.94 — teacher-first labels/order. Internal ids are UNCHANGED for backward
+// compatibility; only the labels and their order changed. "I already have
+// questions" (pasted-material) now leads the flow.
 export const QUESTION_SOURCE_MODES = [
-  { id: 'starter-bank', label: 'Starter Question Bank' },
-  { id: 'pasted-material', label: 'Teacher Pasted Material' },
-  { id: 'reference-topic', label: 'Teacher Reference / Topic' },
+  { id: 'pasted-material', label: 'I already have questions' },
+  { id: 'reference-topic', label: 'I have notes / reference material' },
+  { id: 'starter-bank', label: 'Use built-in starter bank' },
   { id: 'pdf-upload', label: 'PDF Upload (planned later)', reserved: true },
 ]
 
 export const QUESTION_SOURCE_MODE_IDS = QUESTION_SOURCE_MODES.map((mode) => mode.id)
 
 // UI selector options — reserved modes (e.g. pdf-upload) are filtered out so no
-// dead/unsupported option is shown to teachers in v2.92.
+// dead/unsupported option is shown to teachers.
 export const QUESTION_SOURCE_MODE_OPTIONS = QUESTION_SOURCE_MODES
   .filter((mode) => !mode.reserved)
   .map((mode) => ({ value: mode.id, label: mode.label }))
 
-export const DEFAULT_QUESTION_SOURCE_MODE = 'starter-bank'
+export const DEFAULT_QUESTION_SOURCE_MODE = 'pasted-material'
+
+// v2.94 — how the "I already have questions" paste box is interpreted.
+// prepared-paper (default) detects SECTION headings, marks and question types.
+// plain-list keeps the v2.93 one-question-per-line behavior (under Advanced).
+export const PASTED_INPUT_MODES = [
+  { id: 'prepared-paper', label: 'Section-wise question paper' },
+  { id: 'plain-list', label: 'Advanced: Plain question list' },
+]
+
+export const PASTED_INPUT_MODE_IDS = PASTED_INPUT_MODES.map((mode) => mode.id)
+
+export const PASTED_INPUT_MODE_OPTIONS = PASTED_INPUT_MODES.map((mode) => ({ value: mode.id, label: mode.label }))
+
+export const DEFAULT_PASTED_INPUT_MODE = 'prepared-paper'
 
 export const QUESTION_TYPE_OPTIONS = ['MCQ', 'Fill in the blanks', 'True/False', 'Short answer', 'Long answer']
 

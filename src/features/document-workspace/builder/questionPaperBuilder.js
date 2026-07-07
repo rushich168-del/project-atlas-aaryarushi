@@ -7,7 +7,9 @@
 // placeholder. No eval, no network, no DOM.
 
 import {
+  DEFAULT_PASTED_INPUT_MODE,
   DEFAULT_QUESTION_SOURCE_MODE,
+  PASTED_INPUT_MODE_IDS,
   QUESTION_BLUEPRINT_MODE_IDS,
   QUESTION_DIFFICULTY_DISTRIBUTIONS,
   QUESTION_PAPER_GENERATED_COLUMNS,
@@ -28,6 +30,7 @@ import {
   countTeacherPastedQuestions,
   createDraftQuestionsFromMaterial,
   estimateDraftCoverage,
+  parsePreparedQuestionPaper,
   parseTeacherPastedQuestions,
 } from '../question-bank/teacherMaterialSource.js'
 
@@ -208,6 +211,9 @@ export function normalizeQuestionPaperConfig(rawConfig = {}) {
   const questionSourceMode = QUESTION_SOURCE_MODE_IDS.includes(rawConfig.questionSourceMode)
     ? rawConfig.questionSourceMode
     : DEFAULT_QUESTION_SOURCE_MODE
+  const pastedInputMode = PASTED_INPUT_MODE_IDS.includes(rawConfig.pastedInputMode)
+    ? rawConfig.pastedInputMode
+    : DEFAULT_PASTED_INPUT_MODE
 
   return {
     numSections,
@@ -222,6 +228,7 @@ export function normalizeQuestionPaperConfig(rawConfig = {}) {
     refreshVariant,
     blueprintMode,
     questionSourceMode,
+    pastedInputMode,
     // Teacher material source metadata. Pasted text is kept verbatim (never
     // truncated) and is NOT persisted anywhere — it only lives in this form value.
     sourceMetadata: {
@@ -324,6 +331,80 @@ function buildBlueprintTargets(sections) {
     }
   })
   return targets
+}
+
+// Build the full paper directly from a teacher's prepared, section-wise paste.
+// Structure (section name / marks / type) comes from the parsed headers; the
+// question text is the teacher's own, used as-is. Returns the same shape as
+// generateQuestionPaperRows so callers are unchanged.
+function generatePreparedPaperRows(config, parsed) {
+  const rows = []
+  parsed.sections.forEach((section) => {
+    section.questions.forEach((question, index) => {
+      rows.push({
+        Section: section.name,
+        SectionInstruction: 'Answer all questions.',
+        QuestionNo: `Q${index + 1}`,
+        ProductId: 'AR-QUESTION-PRO',
+        Class: config.grade,
+        Board: config.board,
+        Subject: config.subject,
+        Chapter: config.chapter,
+        Topic: config.topic,
+        QuestionText: question.text,
+        Marks: String(section.marks),
+        Difficulty: '',
+        QuestionType: section.questionType,
+        QuestionSource: 'teacher-material',
+        SourceLabel: 'Your question',
+        TeacherProvided: 'Yes',
+        QuestionBankId: '',
+        Answer: config.includeAnswerKey ? '[Teacher to add answer]' : '',
+      })
+    })
+  })
+
+  const totalQuestions = rows.length
+  const totalMarks = parsed.sections.reduce((sum, section) => sum + (section.marks * section.questions.length), 0)
+  const plural = (count) => (count === 1 ? '' : 's')
+
+  const blueprint = {
+    numSections: parsed.sections.length,
+    questionsPerSection: '',
+    marksPerQuestion: '',
+    totalQuestions,
+    marksPerSection: '',
+    totalMarks,
+    difficultySpread: {},
+    questionType: '',
+    questionVariant: config.questionVariant,
+    refreshVariant: config.refreshVariant,
+    blueprintMode: config.blueprintMode,
+    sectionPatternId: config.sectionPatternId,
+    sections: parsed.sections.map((section) => ({
+      name: section.name,
+      instruction: 'Answer all questions.',
+      questionType: section.questionType,
+      count: section.questions.length,
+      marksPerQuestion: section.marks,
+    })),
+    questionBankScopeId: config.questionBankScopeId,
+    questionBankLabel: '',
+    questionSourceMode: 'pasted-material',
+    pastedInputMode: 'prepared-paper',
+    preparedPaper: true,
+    questionBankCount: 0,
+    placeholderCount: 0,
+    teacherMaterialCount: totalQuestions,
+    detectedSections: parsed.sections.length,
+  }
+
+  let notice = `Detected ${parsed.sections.length} section${plural(parsed.sections.length)} and ${totalQuestions} question${plural(totalQuestions)} from your prepared paper. Your questions are used exactly as pasted.`
+  if (parsed.warnings.length) {
+    notice += ` ${parsed.warnings.slice(0, 2).join(' ')}`
+  }
+
+  return { columns: QUESTION_PAPER_COLUMNS, rows, blueprint, notice }
 }
 
 // A DRAFT practice question built from the teacher's own pasted material. The
@@ -659,6 +740,16 @@ export function generateQuestionPaperRows(rawConfig = {}) {
   const sourceMode = config.questionSourceMode
   const isPasted = sourceMode === 'pasted-material'
   const isReference = sourceMode === 'reference-topic'
+
+  // v2.94 — "I already have questions" + Section-wise question paper: detect the
+  // teacher's own sections/marks/types and build the paper directly from them.
+  const wantsPreparedPaper = isPasted && config.pastedInputMode === 'prepared-paper'
+  const preparedPaper = wantsPreparedPaper ? parsePreparedQuestionPaper(config.sourceMetadata.pastedText) : null
+  if (preparedPaper && preparedPaper.ok) {
+    return generatePreparedPaperRows(config, preparedPaper)
+  }
+  // Prepared paste with no SECTION headers falls back to plain-list behavior.
+  const preparedFellBack = wantsPreparedPaper && preparedPaper && !preparedPaper.ok
   // 'pdf-upload' is reserved and not offered in the UI; if it ever reaches here it
   // falls back to honest placeholder behavior (handled by leaving useQuestionBank
   // false and reporting it in the notice below). Only 'starter-bank' reads the bank.
@@ -806,7 +897,10 @@ export function generateQuestionPaperRows(rawConfig = {}) {
   const plural = (count) => (count === 1 ? '' : 's')
   let notice = ''
   if (isPasted) {
-    notice = `${teacherMaterialCount} teacher question${plural(teacherMaterialCount)} used from your pasted material`
+    notice = preparedFellBack
+      ? 'No SECTION headers found — treated as a plain question list. Add SECTION headers to detect section-wise paper structure. '
+      : ''
+    notice += `${teacherMaterialCount} teacher question${plural(teacherMaterialCount)} used from your pasted material`
       + (placeholderCount > 0
         ? `, and ${placeholderCount} labelled placeholder${plural(placeholderCount)} added where more questions were needed.`
         : '.')
