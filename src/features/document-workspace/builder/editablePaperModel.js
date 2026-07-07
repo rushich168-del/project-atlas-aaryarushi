@@ -14,6 +14,7 @@
 //     They are never persisted anywhere.
 
 import { QUESTION_PAPER_GENERATED_COLUMNS } from './builderPresets.js'
+import { normalizeMathText } from './mathTextTools.js'
 import { parsePreparedQuestionPaper, parseTeacherPastedQuestions } from '../question-bank/teacherMaterialSource.js'
 
 const SOURCE_LABEL = 'Your question'
@@ -357,7 +358,7 @@ export function updateQuestionField(model, sectionId, questionId, field, value) 
         return { ...question, blankWidth: normalizeBlankWidth(value) }
       }
       if (QUESTION_TEXT_FIELDS.includes(field)) {
-        return { ...question, [field]: str(value) }
+        return { ...question, [field]: normalizeMathText(value) }
       }
       return question
     }),
@@ -372,7 +373,7 @@ export function updateQuestionOption(model, sectionId, questionId, optionKey, va
     ...section,
     questions: section.questions.map((question) => (
       question.id === questionId
-        ? { ...question, options: { ...question.options, [optionKey]: str(value) } }
+        ? { ...question, options: { ...question.options, [optionKey]: normalizeMathText(value) } }
         : question
     )),
   }))

@@ -1,3 +1,4 @@
+import { useRef, useState } from 'react'
 import { Info, Plus, Trash2 } from 'lucide-react'
 import {
   DEFAULT_BLANK_WIDTH,
@@ -7,6 +8,7 @@ import {
   MCQ_OPTION_KEYS,
   MIN_BLANK_WIDTH,
 } from './editablePaperModel.js'
+import { insertTextAtCursor, MATH_SYMBOLS, MATH_TEMPLATES, normalizeMathText } from './mathTextTools.js'
 
 const MCQ_LAYOUT_LABELS = { vertical: 'Vertical', horizontal: 'Horizontal' }
 
@@ -113,29 +115,116 @@ function AnswerField({ value, onChange }) {
 // v2.97 — the right editing space per question type. MCQ gets a stem + A–D options
 // and a layout toggle; Fill in the blanks gets before / size / after; True/False
 // gets a statement + hint; everything else keeps a plain text box.
-function QuestionFields({ questionType, sectionId, question, showAnswerField, onQuestionChange, onQuestionOptionChange }) {
-  const changeText = (field) => (event) => onQuestionChange(sectionId, question.id, field, event.target.value)
+function MathToolsPanel({ onInsert, className = '' }) {
+  const [open, setOpen] = useState(false)
 
+  return (
+    <div className={className}>
+      <button
+        type="button"
+        onClick={() => setOpen((current) => !current)}
+        className="focus-ring inline-flex min-h-7 items-center rounded-md border border-slate-200 bg-white px-2 text-[11px] font-semibold text-slate-500 transition hover:border-accentBlue hover:text-accentBlue"
+        aria-expanded={open}
+      >
+        {open ? 'Hide math tools' : '+ Math tools'}
+      </button>
+      {open ? (
+        <div className="mt-2 rounded-md border border-slate-200 bg-white p-2">
+          <p className="text-[11px] leading-4 text-slate-500">
+            Tip: Word/PDF equations may paste as plain text. Use symbols/templates here if the equation looks wrong.
+          </p>
+          <div className="mt-2 flex flex-wrap gap-1">
+            {MATH_SYMBOLS.map((symbol) => (
+              <button
+                key={symbol.value}
+                type="button"
+                onClick={() => onInsert(symbol.value)}
+                title={symbol.label}
+                className="focus-ring inline-flex min-h-7 min-w-7 items-center justify-center rounded-md border border-slate-200 bg-slate-50 px-1.5 text-xs font-semibold text-slate-700 transition hover:border-accentBlue hover:text-accentBlue"
+              >
+                {symbol.value}
+              </button>
+            ))}
+          </div>
+          <div className="mt-2 flex flex-wrap gap-1">
+            {MATH_TEMPLATES.map((template) => (
+              <button
+                key={template.value}
+                type="button"
+                onClick={() => onInsert(template.value)}
+                className="focus-ring inline-flex min-h-7 items-center rounded-md border border-slate-200 bg-slate-50 px-2 font-mono text-[11px] text-slate-700 transition hover:border-accentBlue hover:text-accentBlue"
+              >
+                {template.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+function MathTextControl({ value, onChange, placeholder, className, rows, as = 'input', mathToolsClassName = 'mt-2' }) {
+  const fieldRef = useRef(null)
+
+  function insertMathText(insert) {
+    const node = fieldRef.current
+    const next = insertTextAtCursor(value, insert, node?.selectionStart, node?.selectionEnd)
+    onChange(next.value)
+    window.requestAnimationFrame(() => {
+      node?.focus()
+      node?.setSelectionRange(next.selectionStart, next.selectionEnd)
+    })
+  }
+
+  function handlePaste(event) {
+    const text = event.clipboardData?.getData('text')
+    if (typeof text !== 'string') {
+      return
+    }
+    event.preventDefault()
+    insertMathText(normalizeMathText(text))
+  }
+
+  const props = {
+    ref: fieldRef,
+    value: value ?? '',
+    placeholder,
+    onChange: (event) => onChange(normalizeMathText(event.target.value)),
+    onPaste: handlePaste,
+    className,
+  }
+
+  return (
+    <>
+      {as === 'textarea' ? <textarea {...props} rows={rows || 2} /> : <input {...props} type="text" />}
+      <MathToolsPanel onInsert={insertMathText} className={mathToolsClassName} />
+    </>
+  )
+}
+
+function QuestionFields({ questionType, sectionId, question, showAnswerField, onQuestionChange, onQuestionOptionChange }) {
   if (questionType === 'MCQ') {
     return (
       <>
-        <textarea
+        <MathTextControl
+          as="textarea"
           value={question.text}
           rows={2}
           placeholder="Type the MCQ question…"
-          onChange={changeText('text')}
+          onChange={(value) => onQuestionChange(sectionId, question.id, 'text', value)}
           className="w-full rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-sm text-primary outline-none focus:border-accentBlue"
         />
         <div className="mt-3 grid gap-2 sm:grid-cols-2">
           {MCQ_OPTION_KEYS.map((key) => (
-            <label key={key} className="flex items-center gap-1.5">
-              <span className="w-5 shrink-0 text-sm font-semibold text-slate-500">{key}.</span>
-              <input
-                type="text"
+            <label key={key} className="grid gap-1.5">
+              <span className="text-sm font-semibold text-slate-500">{key}.</span>
+              <MathTextControl
                 value={question.options?.[key] ?? ''}
                 placeholder={`Option ${key}`}
-                onChange={(event) => onQuestionOptionChange(sectionId, question.id, key, event.target.value)}
+                onChange={(value) => onQuestionOptionChange(sectionId, question.id, key, value)}
                 className="min-h-8 min-w-0 flex-1 rounded-md border border-slate-200 bg-white px-2.5 text-sm text-primary outline-none focus:border-accentBlue"
+                mathToolsClassName="mt-1"
               />
             </label>
           ))}
@@ -169,11 +258,10 @@ function QuestionFields({ questionType, sectionId, question, showAnswerField, on
     const blankWidth = Number(question.blankWidth) || DEFAULT_BLANK_WIDTH
     return (
       <>
-        <input
-          type="text"
+        <MathTextControl
           value={question.blankBefore}
           placeholder="Text before the blank"
-          onChange={changeText('blankBefore')}
+          onChange={(value) => onQuestionChange(sectionId, question.id, 'blankBefore', value)}
           className="min-h-8 w-full rounded-md border border-slate-200 bg-white px-2.5 text-sm text-primary outline-none focus:border-accentBlue"
         />
         <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -191,11 +279,10 @@ function QuestionFields({ questionType, sectionId, question, showAnswerField, on
           </label>
           <span className="inline-block border-b border-slate-500 align-baseline" style={{ width: `${blankWidth}ch` }}>&nbsp;</span>
         </div>
-        <input
-          type="text"
+        <MathTextControl
           value={question.blankAfter}
           placeholder="Text after the blank"
-          onChange={changeText('blankAfter')}
+          onChange={(value) => onQuestionChange(sectionId, question.id, 'blankAfter', value)}
           className="mt-2 min-h-8 w-full rounded-md border border-slate-200 bg-white px-2.5 text-sm text-primary outline-none focus:border-accentBlue"
         />
         {showAnswerField ? <AnswerField value={question.answer} onChange={(v) => onQuestionChange(sectionId, question.id, 'answer', v)} /> : null}
@@ -206,11 +293,12 @@ function QuestionFields({ questionType, sectionId, question, showAnswerField, on
   if (questionType === 'True/False') {
     return (
       <>
-        <textarea
+        <MathTextControl
+          as="textarea"
           value={question.trueFalseStatement ?? question.text}
           rows={2}
           placeholder="Type the statement…"
-          onChange={changeText('trueFalseStatement')}
+          onChange={(value) => onQuestionChange(sectionId, question.id, 'trueFalseStatement', value)}
           className="w-full rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-sm text-primary outline-none focus:border-accentBlue"
         />
         <p className="mt-1 text-[11px] font-medium text-slate-400">Preview shows “True / False” below the statement.</p>
@@ -221,11 +309,12 @@ function QuestionFields({ questionType, sectionId, question, showAnswerField, on
 
   return (
     <>
-      <textarea
+        <MathTextControl
+          as="textarea"
         value={question.text}
         rows={2}
         placeholder="Type the question text…"
-        onChange={changeText('text')}
+        onChange={(value) => onQuestionChange(sectionId, question.id, 'text', value)}
         className="w-full rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-sm text-primary outline-none focus:border-accentBlue"
       />
       {showAnswerField ? <AnswerField value={question.answer} onChange={(v) => onQuestionChange(sectionId, question.id, 'answer', v)} /> : null}
