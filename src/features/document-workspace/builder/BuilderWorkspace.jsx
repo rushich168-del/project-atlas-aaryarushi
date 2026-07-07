@@ -423,6 +423,7 @@ export default function BuilderWorkspace({ config, state, actions, onUseInWorksp
   const [using, setUsing] = useState(false)
   const [showAdvanced, setShowAdvanced] = useState(false)
   const formRef = useRef(null)
+  const previewRef = useRef(null)
 
   // Live preview — regenerates from the current form. Deterministic + cheap, so the
   // paper updates as the teacher types (only pattern/range/count reshuffle questions).
@@ -451,6 +452,22 @@ export default function BuilderWorkspace({ config, state, actions, onUseInWorksp
   function handleEditInBuilder() {
     formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
+
+  // Teacher-facing "Generate / Update Preview". The preview already recomputes
+  // from form values, so this re-runs the SAME generation path (no duplicate
+  // logic, no separate paper state) and brings the preview into view.
+  function handleGeneratePreview() {
+    setFormValues((current) => ({ ...current }))
+    previewRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+
+  const sourceHelperText = isPaper
+    ? {
+      'reference-topic': 'Draft questions are created from your pasted material for teacher review.',
+      'pasted-material': 'Questions are taken from your pasted list.',
+      'starter-bank': 'Questions are selected from available starter-bank content.',
+    }[formValues.questionSourceMode] || ''
+    : ''
 
   const hasRows = Boolean(result && result.rows.length)
   const fileBase = `${config.productSlug}-${slugForFile(formValues.title, 'document')}`
@@ -544,13 +561,29 @@ export default function BuilderWorkspace({ config, state, actions, onUseInWorksp
             <p className="text-xs leading-5 text-blue-800">{builder.note}</p>
           </div>
         ) : null}
+
+        {/* Clear teacher action: setup → Generate / Update Preview → review → download */}
+        <div className="mt-5 border-t border-slate-200 pt-4">
+          <button
+            type="button"
+            onClick={handleGeneratePreview}
+            className="focus-ring inline-flex w-full min-h-11 items-center justify-center gap-2 rounded-md bg-accentTeal px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-800"
+          >
+            <Sparkles size={17} aria-hidden="true" />
+            Generate / Update Preview
+          </button>
+          <p className="mt-2 text-xs leading-5 text-slate-500">
+            {sourceHelperText || 'Review the preview, then download your DOCX.'}
+          </p>
+        </div>
       </div>
 
       {/* Right: live paper preview + actions */}
-      <div className="min-w-0 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+      <div ref={previewRef} className="min-w-0 rounded-lg border border-slate-200 bg-white p-5 shadow-sm scroll-mt-24">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="min-w-0">
             <p className="text-sm font-semibold text-primary">{builder.previewTitle || 'Preview'}</p>
+            <p className="text-[11px] text-slate-400">Use Generate / Update Preview after changing setup.</p>
             {result?.blueprint ? (
               <p className="text-xs font-semibold text-slate-500">
                 {result.blueprint.numSections} sections · {result.blueprint.totalQuestions} questions · {result.blueprint.totalMarks} marks
@@ -585,6 +618,19 @@ export default function BuilderWorkspace({ config, state, actions, onUseInWorksp
               )
             })}
           </div>
+        </div>
+
+        {/* Always-visible compact action so the teacher can regenerate without scrolling setup */}
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={handleGeneratePreview}
+            className="focus-ring inline-flex min-h-9 items-center justify-center gap-2 rounded-md bg-accentTeal px-3.5 text-xs font-semibold text-white shadow-sm transition hover:bg-teal-800"
+          >
+            <Sparkles size={15} aria-hidden="true" />
+            Generate / Update Preview
+          </button>
+          <span className="text-[11px] text-slate-400">Setup → Generate / Update Preview → review → download.</span>
         </div>
 
         {isPaper && result?.blueprint ? (
