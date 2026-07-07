@@ -1,5 +1,6 @@
 import { buildWorksheetModel } from '../composer/worksheetComposer.js'
 import { buildQuestionPaperModel } from '../composer/questionPaperComposer.js'
+import { useEffect, useRef } from 'react'
 
 // Paper-style (A4-ish) preview of the composed worksheet / question paper. Reads
 // the SAME model builders the DOCX composer uses, so on-screen preview and the
@@ -25,12 +26,43 @@ function FieldRow({ children }) {
   return <div className="flex flex-wrap gap-x-6 gap-y-1">{children}</div>
 }
 
-function PaperShell({ children, compact = false }) {
+function PaperShell({ children, compact = false, scrollStorageKey = '' }) {
+  const scrollRef = useRef(null)
+
+  useEffect(() => {
+    if (!scrollStorageKey || typeof window === 'undefined') {
+      return undefined
+    }
+    const node = scrollRef.current
+    if (!node) {
+      return undefined
+    }
+    try {
+      const saved = window.localStorage.getItem(scrollStorageKey)
+      if (saved) {
+        window.requestAnimationFrame(() => {
+          node.scrollTop = Number(saved) || 0
+        })
+      }
+    } catch {
+      // Storage is best-effort only.
+    }
+    const handleScroll = () => {
+      try {
+        window.localStorage.setItem(scrollStorageKey, String(node.scrollTop))
+      } catch {
+        // Storage is best-effort only.
+      }
+    }
+    node.addEventListener('scroll', handleScroll, { passive: true })
+    return () => node.removeEventListener('scroll', handleScroll)
+  }, [scrollStorageKey])
+
   return (
-    <div className="mt-3 max-h-[70vh] overflow-y-auto rounded-md border border-slate-200 bg-slate-100 p-3 sm:p-5">
+    <div ref={scrollRef} className="mt-3 max-h-[82vh] overflow-y-auto rounded-md border border-slate-200 bg-slate-100 p-3 sm:p-5">
       <div
-        className={`mx-auto max-w-[720px] rounded-sm bg-white shadow-md ring-1 ring-slate-200 ${
-          compact ? 'px-5 py-5 sm:px-8 sm:py-6' : 'px-6 py-7 sm:px-10 sm:py-9'
+        className={`mx-auto min-h-[min(1123px,145vw)] w-full max-w-[794px] rounded-sm bg-white shadow-md ring-1 ring-slate-200 ${
+          compact ? 'px-5 py-6 sm:px-10 sm:py-8' : 'px-6 py-8 sm:px-12 sm:py-12'
         }`}
       >
         {children}
@@ -71,12 +103,12 @@ function SourceBadge({ source }) {
   )
 }
 
-function WorksheetPaper({ form, rows }) {
+function WorksheetPaper({ form, rows, scrollStorageKey }) {
   const model = buildWorksheetModel(form, rows)
   const boxed = model.layoutStyle === 'boxed' || model.layoutStyle === 'exam'
 
   return (
-    <PaperShell>
+    <PaperShell scrollStorageKey={scrollStorageKey}>
       <div className={boxed ? 'border border-slate-300 p-4' : ''}>
         <PaperHeader institution={model.institution} title={model.title} />
         <div className="my-3 border-b-2 border-slate-800" />
@@ -168,8 +200,6 @@ const QUESTION_PAPER_STYLES = {
   },
 }
 
-const BLANK_WIDTHS = { small: 'w-16', medium: 'w-32', large: 'w-52' }
-
 // Render a typed question's body from its structured payload; falls back to the
 // composed text when no structured data is present.
 function QuestionBody({ question, optionText }) {
@@ -201,7 +231,7 @@ function QuestionBody({ question, optionText }) {
     return (
       <span>
         {structured.before ? `${structured.before} ` : ''}
-        <span className={`inline-block border-b border-slate-500 align-baseline ${BLANK_WIDTHS[structured.size] || BLANK_WIDTHS.medium}`}>&nbsp;</span>
+        <span className="inline-block border-b border-slate-500 align-baseline" style={{ width: `${structured.width || 12}ch` }}>&nbsp;</span>
         {structured.after ? ` ${structured.after}` : ''}
       </span>
     )
@@ -217,13 +247,13 @@ function QuestionBody({ question, optionText }) {
   return <span>{question.text}</span>
 }
 
-function QuestionPaperPaper({ form, rows, blueprint, previewStyle = 'classic' }) {
+function QuestionPaperPaper({ form, rows, blueprint, previewStyle = 'classic', scrollStorageKey }) {
   const model = buildQuestionPaperModel(form, rows, blueprint)
   const style = QUESTION_PAPER_STYLES[previewStyle] || QUESTION_PAPER_STYLES.classic
   const formal = previewStyle === 'formal'
 
   return (
-    <PaperShell compact={style.compact}>
+    <PaperShell compact={style.compact} scrollStorageKey={scrollStorageKey}>
      <div className={style.font}>
       <div className={formal ? 'text-center' : ''}>
         <PaperHeader institution={model.institution} title={model.title} />
@@ -308,9 +338,9 @@ function QuestionPaperPaper({ form, rows, blueprint, previewStyle = 'classic' })
   )
 }
 
-export default function PaperPreview({ builderType, form, rows, blueprint, previewStyle }) {
+export default function PaperPreview({ builderType, form, rows, blueprint, previewStyle, scrollStorageKey }) {
   if (builderType === 'question-paper') {
-    return <QuestionPaperPaper form={form} rows={rows} blueprint={blueprint} previewStyle={previewStyle} />
+    return <QuestionPaperPaper form={form} rows={rows} blueprint={blueprint} previewStyle={previewStyle} scrollStorageKey={scrollStorageKey} />
   }
-  return <WorksheetPaper form={form} rows={rows} />
+  return <WorksheetPaper form={form} rows={rows} scrollStorageKey={scrollStorageKey} />
 }

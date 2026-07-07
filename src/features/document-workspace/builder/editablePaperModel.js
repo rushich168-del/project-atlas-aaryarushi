@@ -53,18 +53,27 @@ export const DEFAULT_PREVIEW_STYLE = 'classic'
 // v2.97 — per-question-type editing helpers.
 export const MCQ_OPTION_KEYS = ['A', 'B', 'C', 'D']
 export const MCQ_LAYOUTS = ['vertical', 'horizontal']
-export const BLANK_SIZES = ['small', 'medium', 'large']
-// Underscore runs used to render the blank in QuestionText (DOCX + data view).
-export const BLANK_UNDERSCORES = {
-  small: '______',
-  medium: '____________',
-  large: '____________________',
-}
+export const DEFAULT_BLANK_WIDTH = 12
+export const MIN_BLANK_WIDTH = 6
+export const MAX_BLANK_WIDTH = 30
+const LEGACY_BLANK_WIDTHS = { small: 6, medium: 12, large: 20 }
 
 let idCounter = 0
 function nextId(prefix) {
   idCounter += 1
   return `${prefix}-${idCounter}`
+}
+
+function stableId(prefix, value) {
+  const id = str(value).trim()
+  if (id) {
+    const match = id.match(/-(\d+)$/)
+    if (match) {
+      idCounter = Math.max(idCounter, Number(match[1]))
+    }
+    return id
+  }
+  return nextId(prefix)
 }
 
 function str(value, fallback = '') {
@@ -85,6 +94,23 @@ function normalizeOptions(options) {
   }, {})
 }
 
+function normalizeQuestionType(value, fallback = DEFAULT_QUESTION_TYPE) {
+  return EDITABLE_QUESTION_TYPE_OPTIONS.includes(value) ? value : fallback
+}
+
+function normalizeBlankWidth(input) {
+  const migrated = LEGACY_BLANK_WIDTHS[input] ?? input
+  const width = Number(migrated)
+  if (!Number.isFinite(width)) {
+    return DEFAULT_BLANK_WIDTH
+  }
+  return Math.min(MAX_BLANK_WIDTH, Math.max(MIN_BLANK_WIDTH, Math.round(width)))
+}
+
+function effectiveQuestionType(section, question) {
+  return normalizeQuestionType(question?.questionType, normalizeQuestionType(section?.questionType))
+}
+
 // Split a line into { before, after } around the first run of 2+ underscores.
 function splitBlank(text) {
   const value = str(text)
@@ -98,21 +124,24 @@ function splitBlank(text) {
 
 // A question object with all optional per-type fields present but empty by default,
 // so old (text-only) questions keep working and every editor has a field to bind to.
-function makeQuestion(input = {}) {
+function makeQuestion(input = {}, defaultType = DEFAULT_QUESTION_TYPE) {
   const source = typeof input === 'string' ? { text: input } : (input || {})
+  const type = normalizeQuestionType(source.questionType, defaultType)
   return {
-    id: nextId('q'),
+    id: stableId('q', source.id),
+    questionType: type,
     text: str(source.text), // teacher text kept as-is; never trimmed or rewritten
     answer: str(source.answer),
+    trueFalseStatement: str(source.trueFalseStatement || source.text),
     // MCQ
     options: normalizeOptions(source.options),
     mcqLayout: source.mcqLayout === 'horizontal' ? 'horizontal' : 'vertical',
     // Fill in the blanks
     blankBefore: str(source.blankBefore),
     blankAfter: str(source.blankAfter),
-    blankSize: BLANK_SIZES.includes(source.blankSize) ? source.blankSize : 'medium',
-    source: QUESTION_SOURCE,
-    sourceLabel: SOURCE_LABEL,
+    blankWidth: normalizeBlankWidth(source.blankWidth ?? source.blankSize),
+    source: source.source || QUESTION_SOURCE,
+    sourceLabel: source.sourceLabel || SOURCE_LABEL,
   }
 }
 
@@ -126,15 +155,25 @@ function seedBlankParts(question) {
   return { ...question, blankBefore: before, blankAfter: after }
 }
 
-function makeSection({ title, instruction, questionType, marksPerQuestion, questions } = {}) {
-  const type = EDITABLE_QUESTION_TYPE_OPTIONS.includes(questionType) ? questionType : DEFAULT_QUESTION_TYPE
-  const marks = Number(marksPerQuestion)
-  let built = (questions || []).map((q) => makeQuestion(q))
+function seedQuestionForType(question, type) {
   if (type === 'Fill in the blanks') {
-    built = built.map(seedBlankParts)
+    return seedBlankParts(question)
   }
+  if (type === 'True/False' && !question.trueFalseStatement) {
+    return { ...question, trueFalseStatement: question.text || '' }
+  }
+  return question
+}
+
+function makeSection({ id, title, instruction, questionType, marksPerQuestion, questions } = {}) {
+  const type = normalizeQuestionType(questionType)
+  const marks = Number(marksPerQuestion)
+  const built = (questions || []).map((q) => {
+    const question = makeQuestion(q, type)
+    return seedQuestionForType(question, effectiveQuestionType({ questionType: type }, question))
+  })
   return {
-    id: nextId('s'),
+    id: stableId('s', id),
     title: str(title, 'Section').trim() || 'Section',
     instruction: str(instruction, DEFAULT_INSTRUCTION),
     questionType: type,
@@ -188,6 +227,24 @@ export function createEmptyEditableModel(form = {}) {
     })],
     source: 'empty',
     notice: '',
+  }
+}
+
+export function normalizeEditableModel(model = {}, form = {}) {
+  const header = {
+    ...headerFromForm(form),
+    ...(model.header || {}),
+  }
+  const instructions = Array.isArray(model.instructions) ? model.instructions.map((line) => str(line)) : [...DEFAULT_INSTRUCTIONS]
+  const sections = Array.isArray(model.sections) && model.sections.length
+    ? model.sections.map((section) => makeSection(section))
+    : createEmptyEditableModel(form).sections
+  return {
+    header,
+    instructions,
+    sections,
+    source: model.source || 'restored-draft',
+    notice: model.notice || '',
   }
 }
 
@@ -270,13 +327,8 @@ export function updateSectionField(model, sectionId, field, value) {
       return { ...section, marksPerQuestion: next }
     }
     if (field === 'questionType') {
-      const nextType = EDITABLE_QUESTION_TYPE_OPTIONS.includes(value) ? value : section.questionType
-      // Switching to "Fill in the blanks" seeds the before/after editors from the
-      // existing question text so nothing is lost on the type change.
-      const questions = nextType === 'Fill in the blanks'
-        ? section.questions.map(seedBlankParts)
-        : section.questions
-      return { ...section, questionType: nextType, questions }
+      const nextType = normalizeQuestionType(value, section.questionType)
+      return { ...section, questionType: nextType }
     }
     if (field === 'title' || field === 'instruction') {
       return { ...section, [field]: str(value) }
@@ -285,7 +337,7 @@ export function updateSectionField(model, sectionId, field, value) {
   })
 }
 
-const QUESTION_TEXT_FIELDS = ['text', 'answer', 'blankBefore', 'blankAfter']
+const QUESTION_TEXT_FIELDS = ['text', 'answer', 'blankBefore', 'blankAfter', 'trueFalseStatement']
 
 export function updateQuestionField(model, sectionId, questionId, field, value) {
   return mapSections(model, sectionId, (section) => ({
@@ -297,8 +349,12 @@ export function updateQuestionField(model, sectionId, questionId, field, value) 
       if (field === 'mcqLayout') {
         return { ...question, mcqLayout: value === 'horizontal' ? 'horizontal' : 'vertical' }
       }
-      if (field === 'blankSize') {
-        return { ...question, blankSize: BLANK_SIZES.includes(value) ? value : question.blankSize }
+      if (field === 'questionType') {
+        const nextType = normalizeQuestionType(value, effectiveQuestionType(section, question))
+        return seedQuestionForType({ ...question, questionType: nextType }, nextType)
+      }
+      if (field === 'blankWidth') {
+        return { ...question, blankWidth: normalizeBlankWidth(value) }
       }
       if (QUESTION_TEXT_FIELDS.includes(field)) {
         return { ...question, [field]: str(value) }
@@ -325,7 +381,7 @@ export function updateQuestionOption(model, sectionId, questionId, optionKey, va
 export function addQuestion(model, sectionId) {
   return mapSections(model, sectionId, (section) => ({
     ...section,
-    questions: [...section.questions, makeQuestion({})],
+    questions: [...section.questions, makeQuestion({}, normalizeQuestionType(section.questionType))],
   }))
 }
 
@@ -380,7 +436,7 @@ function composeQuestionText(type, question) {
   if (type === 'Fill in the blanks') {
     const before = str(question.blankBefore).trim()
     const after = str(question.blankAfter).trim()
-    const blank = BLANK_UNDERSCORES[question.blankSize] || BLANK_UNDERSCORES.medium
+    const blank = '_'.repeat(normalizeBlankWidth(question.blankWidth ?? question.blankSize))
     if (!before && !after) {
       const stem = str(question.text).trim()
       return stem ? `${stem} ${blank}` : blank
@@ -388,7 +444,7 @@ function composeQuestionText(type, question) {
     return `${before} ${blank} ${after}`.replace(/\s+/g, ' ').trim()
   }
   if (type === 'True/False') {
-    const statement = str(question.text).trim()
+    const statement = str(question.trueFalseStatement || question.text).trim()
     return statement ? `${statement} (True / False)` : '(True / False)'
   }
   return str(question.text)
@@ -415,10 +471,10 @@ function buildStructured(type, question) {
     if (!before && !after) {
       return null
     }
-    return { type: 'blank', before, after, size: BLANK_SIZES.includes(question.blankSize) ? question.blankSize : 'medium' }
+    return { type: 'blank', before, after, width: normalizeBlankWidth(question.blankWidth ?? question.blankSize) }
   }
   if (type === 'True/False') {
-    return { type: 'truefalse', statement: str(question.text) }
+    return { type: 'truefalse', statement: str(question.trueFalseStatement || question.text) }
   }
   return null
 }
@@ -432,6 +488,7 @@ export function editableModelToRows(model) {
   model.sections.forEach((section) => {
     const marks = marksOf(section)
     section.questions.forEach((question, index) => {
+      const type = effectiveQuestionType(section, question)
       rows.push({
         Section: section.title || 'Section',
         SectionInstruction: section.instruction || '',
@@ -442,16 +499,16 @@ export function editableModelToRows(model) {
         Subject: model.header.subject,
         Chapter: '',
         Topic: '',
-        QuestionText: composeQuestionText(section.questionType, question),
+        QuestionText: composeQuestionText(type, question),
         Marks: marks > 0 ? String(marks) : '',
         Difficulty: '',
-        QuestionType: section.questionType,
+        QuestionType: type,
         QuestionSource: question.source || QUESTION_SOURCE,
         SourceLabel: question.sourceLabel || SOURCE_LABEL,
         TeacherProvided: 'Yes',
         QuestionBankId: '',
         Answer: question.answer || '',
-        structured: buildStructured(section.questionType, question),
+        structured: buildStructured(type, question),
       })
     })
   })

@@ -33,24 +33,27 @@ function groupBySection(rows) {
 // Shared model for both the DOCX composer and the on-screen paper preview.
 export function buildQuestionPaperModel(form = {}, rows = [], blueprint = null) {
   const showMarks = form.showMarks !== false
-  const sections = groupBySection(rows).map((section) => ({
-    name: section.name,
-    questionType: section.rows[0]?.QuestionType || '',
-    instruction: section.rows[0]?.SectionInstruction || '',
-    questions: section.rows.map((row, index) => ({
-      number: index + 1,
-      text: row.QuestionText || '',
-      marks: row.Marks || '',
-      answer: row.Answer || '',
-      source: row.QuestionSource || '',
-      questionBankId: row.QuestionBankId || '',
-      questionType: row.QuestionType || '',
+  const sections = groupBySection(rows).map((section) => {
+    const questionTypes = [...new Set(section.rows.map((row) => row.QuestionType || '').filter(Boolean))]
+    return {
+      name: section.name,
+      questionType: questionTypes.length === 1 ? questionTypes[0] : '',
+      instruction: section.rows[0]?.SectionInstruction || '',
+      questions: section.rows.map((row, index) => ({
+        number: index + 1,
+        text: row.QuestionText || '',
+        marks: row.Marks || '',
+        answer: row.Answer || '',
+        source: row.QuestionSource || '',
+        questionBankId: row.QuestionBankId || '',
+        questionType: row.QuestionType || '',
       // v2.97 — optional structured payload (MCQ options / blank / true-false) used
       // only by the on-screen preview. The DOCX path below ignores it and renders
       // the composed QuestionText, so this is additive and backward-compatible.
-      structured: row.structured || null,
-    })),
-  }))
+        structured: row.structured || null,
+      })),
+    }
+  })
   const showAnswerKey = form.includeAnswerKey === true
 
   // v2.96 — when the Paper Editor Canvas supplies explicit instruction points on

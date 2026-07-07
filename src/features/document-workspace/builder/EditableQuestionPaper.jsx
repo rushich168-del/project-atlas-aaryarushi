@@ -1,8 +1,14 @@
 import { Info, Plus, Trash2 } from 'lucide-react'
-import { BLANK_SIZES, EDITABLE_QUESTION_TYPE_OPTIONS, MCQ_LAYOUTS, MCQ_OPTION_KEYS } from './editablePaperModel.js'
+import {
+  DEFAULT_BLANK_WIDTH,
+  EDITABLE_QUESTION_TYPE_OPTIONS,
+  MAX_BLANK_WIDTH,
+  MCQ_LAYOUTS,
+  MCQ_OPTION_KEYS,
+  MIN_BLANK_WIDTH,
+} from './editablePaperModel.js'
 
 const MCQ_LAYOUT_LABELS = { vertical: 'Vertical', horizontal: 'Horizontal' }
-const BLANK_SIZE_LABELS = { small: 'Small', medium: 'Medium', large: 'Large' }
 
 // Project Atlas v2.96 — Editable Question Paper editor (presentational).
 //
@@ -107,10 +113,10 @@ function AnswerField({ value, onChange }) {
 // v2.97 — the right editing space per question type. MCQ gets a stem + A–D options
 // and a layout toggle; Fill in the blanks gets before / size / after; True/False
 // gets a statement + hint; everything else keeps a plain text box.
-function QuestionFields({ sectionType, sectionId, question, showAnswerField, onQuestionChange, onQuestionOptionChange }) {
+function QuestionFields({ questionType, sectionId, question, showAnswerField, onQuestionChange, onQuestionOptionChange }) {
   const changeText = (field) => (event) => onQuestionChange(sectionId, question.id, field, event.target.value)
 
-  if (sectionType === 'MCQ') {
+  if (questionType === 'MCQ') {
     return (
       <>
         <textarea
@@ -159,7 +165,8 @@ function QuestionFields({ sectionType, sectionId, question, showAnswerField, onQ
     )
   }
 
-  if (sectionType === 'Fill in the blanks') {
+  if (questionType === 'Fill in the blanks') {
+    const blankWidth = Number(question.blankWidth) || DEFAULT_BLANK_WIDTH
     return (
       <>
         <input
@@ -170,24 +177,19 @@ function QuestionFields({ sectionType, sectionId, question, showAnswerField, onQ
           className="min-h-8 w-full rounded-md border border-slate-200 bg-white px-2.5 text-sm text-primary outline-none focus:border-accentBlue"
         />
         <div className="mt-2 flex flex-wrap items-center gap-2">
-          <span className="text-[11px] font-semibold uppercase tracking-[0.06em] text-slate-500">Blank size</span>
-          <div className="inline-flex gap-1.5">
-            {BLANK_SIZES.map((size) => {
-              const active = (question.blankSize || 'medium') === size
-              return (
-                <button
-                  key={size}
-                  type="button"
-                  onClick={() => onQuestionChange(sectionId, question.id, 'blankSize', size)}
-                  className={`focus-ring inline-flex min-h-8 items-center rounded-md border px-2.5 text-xs font-semibold transition ${
-                    active ? 'border-accentBlue bg-blue-50 text-accentBlue' : 'border-slate-200 bg-white text-slate-600 hover:border-accentBlue hover:text-accentBlue'
-                  }`}
-                >
-                  {BLANK_SIZE_LABELS[size]}
-                </button>
-              )
-            })}
-          </div>
+          <label className="grid min-w-[220px] flex-1 gap-1">
+            <span className="text-[11px] font-semibold uppercase tracking-[0.06em] text-slate-500">Blank length: {blankWidth}</span>
+            <input
+              type="range"
+              min={MIN_BLANK_WIDTH}
+              max={MAX_BLANK_WIDTH}
+              step={1}
+              value={blankWidth}
+              onChange={(event) => onQuestionChange(sectionId, question.id, 'blankWidth', event.target.value)}
+              className="w-full accent-accentTeal"
+            />
+          </label>
+          <span className="inline-block border-b border-slate-500 align-baseline" style={{ width: `${blankWidth}ch` }}>&nbsp;</span>
         </div>
         <input
           type="text"
@@ -201,14 +203,14 @@ function QuestionFields({ sectionType, sectionId, question, showAnswerField, onQ
     )
   }
 
-  if (sectionType === 'True/False') {
+  if (questionType === 'True/False') {
     return (
       <>
         <textarea
-          value={question.text}
+          value={question.trueFalseStatement ?? question.text}
           rows={2}
           placeholder="Type the statement…"
-          onChange={changeText('text')}
+          onChange={changeText('trueFalseStatement')}
           className="w-full rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-sm text-primary outline-none focus:border-accentBlue"
         />
         <p className="mt-1 text-[11px] font-medium text-slate-400">Preview shows “True / False” below the statement.</p>
@@ -263,7 +265,7 @@ function SectionCard({
         <TextField label="Section title" value={section.title} placeholder="e.g. Section A" onChange={(value) => onSectionChange(section.id, 'title', value)} />
         <TextField label="Instruction" value={section.instruction} placeholder="e.g. Answer all questions." onChange={(value) => onSectionChange(section.id, 'instruction', value)} />
         <label className="grid gap-1">
-          <span className="text-[11px] font-semibold uppercase tracking-[0.06em] text-slate-500">Question type</span>
+          <span className="text-[11px] font-semibold uppercase tracking-[0.06em] text-slate-500">Section default type</span>
           <select
             value={section.questionType}
             onChange={(event) => onSectionChange(section.id, 'questionType', event.target.value)}
@@ -273,6 +275,7 @@ function SectionCard({
               <option key={type} value={type}>{type}</option>
             ))}
           </select>
+          <span className="text-[11px] leading-4 text-slate-400">Section type is used as default for new questions. You can change each question type separately.</span>
         </label>
         <label className="grid gap-1">
           <span className="text-[11px] font-semibold uppercase tracking-[0.06em] text-slate-500">Marks per question</span>
@@ -293,8 +296,20 @@ function SectionCard({
               <div className="flex items-start gap-2">
                 <span className="mt-2 w-6 shrink-0 text-right text-sm font-semibold text-slate-400">{questionIndex + 1}.</span>
                 <div className="min-w-0 flex-1">
+                  <label className="mb-2 grid gap-1 sm:max-w-xs">
+                    <span className="text-[11px] font-semibold uppercase tracking-[0.06em] text-slate-500">Question type</span>
+                    <select
+                      value={question.questionType || section.questionType}
+                      onChange={(event) => onQuestionChange(section.id, question.id, 'questionType', event.target.value)}
+                      className="min-h-8 rounded-md border border-slate-200 bg-white px-2.5 text-sm font-semibold text-primary outline-none focus:border-accentBlue"
+                    >
+                      {EDITABLE_QUESTION_TYPE_OPTIONS.map((type) => (
+                        <option key={type} value={type}>{type}</option>
+                      ))}
+                    </select>
+                  </label>
                   <QuestionFields
-                    sectionType={section.questionType}
+                    questionType={question.questionType || section.questionType}
                     sectionId={section.id}
                     question={question}
                     showAnswerField={showAnswerField}

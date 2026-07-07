@@ -15,6 +15,7 @@ import {
   DEFAULT_PREVIEW_STYLE,
   deleteQuestion as deleteQuestionFromModel,
   editableModelToForm,
+  normalizeEditableModel,
   PREVIEW_STYLES,
   removeInstruction as removeInstructionFromModel,
   removeSection as removeSectionFromModel,
@@ -40,6 +41,9 @@ const GENERATORS = {
 const PREVIEW_ROW_LIMIT = 12
 const MIN_BLUEPRINT_SECTIONS = 3
 const MAX_BLUEPRINT_SECTIONS = 6
+const EDITABLE_DRAFT_KEY = 'project-atlas:ar-question-pro:editable-draft:v1'
+const EDITABLE_SCROLL_KEY = 'project-atlas:ar-question-pro:editable-scroll:v1'
+const EDITABLE_PREVIEW_SCROLL_KEY = 'project-atlas:ar-question-pro:preview-scroll:v1'
 
 // v2.95.1 — The clean, paste-first left panel for "I already have questions" +
 // Section-wise paper (before an editable paper is created). Only these fields
@@ -192,6 +196,42 @@ function isFieldVisible(field, values) {
 function slugForFile(value, fallback) {
   const slug = String(value || '').trim().replace(/[^a-z0-9]+/gi, '-').replace(/^-+|-+$/g, '').toLowerCase()
   return slug || fallback
+}
+
+function readEditableDraft() {
+  if (typeof window === 'undefined') {
+    return null
+  }
+  try {
+    const raw = window.localStorage.getItem(EDITABLE_DRAFT_KEY)
+    return raw ? JSON.parse(raw) : null
+  } catch {
+    return null
+  }
+}
+
+function writeEditableDraft(draft) {
+  if (typeof window === 'undefined') {
+    return
+  }
+  try {
+    window.localStorage.setItem(EDITABLE_DRAFT_KEY, JSON.stringify(draft))
+  } catch {
+    // Local draft storage is best-effort only.
+  }
+}
+
+function clearEditableDraft() {
+  if (typeof window === 'undefined') {
+    return
+  }
+  try {
+    window.localStorage.removeItem(EDITABLE_DRAFT_KEY)
+    window.localStorage.removeItem(EDITABLE_SCROLL_KEY)
+    window.localStorage.removeItem(EDITABLE_PREVIEW_SCROLL_KEY)
+  } catch {
+    // Local draft storage is best-effort only.
+  }
 }
 
 function FieldControl({ field, value, onChange }) {
@@ -449,9 +489,14 @@ export default function BuilderWorkspace({ config, state, actions, onUseInWorksp
   const builder = config.builder
   const generate = GENERATORS[builder.builderType] || GENERATORS.worksheet
   const isPaper = builder.builderType === 'question-paper'
+  const initialDraft = useMemo(() => (
+    isPaper ? readEditableDraft() : null
+  ), [isPaper])
   const [formValues, setFormValues] = useState(() => ({
     ...defaultsFromFields(builder.fields),
     ...(state.builderConfig || {}),
+    ...(initialDraft?.formValues || {}),
+    ...(typeof initialDraft?.includeAnswerKey === 'boolean' ? { includeAnswerKey: initialDraft.includeAnswerKey } : {}),
   }))
   const [previewMode, setPreviewMode] = useState('paper')
   const [using, setUsing] = useState(false)
@@ -461,15 +506,19 @@ export default function BuilderWorkspace({ config, state, actions, onUseInWorksp
   // For the AR-QUESTION-PRO main flow it is created up-front so the editor is the
   // first thing shown (no setup grid). Lives only in the browser.
   const [editableModel, setEditableModel] = useState(() => {
-    const initial = { ...defaultsFromFields(builder.fields), ...(state.builderConfig || {}) }
+    const initial = { ...defaultsFromFields(builder.fields), ...(state.builderConfig || {}), ...(initialDraft?.formValues || {}) }
     const isEditorFirst = builder.builderType === 'question-paper'
       && initial.questionSourceMode === 'pasted-material'
       && (initial.pastedInputMode ?? 'prepared-paper') === 'prepared-paper'
+    if (isEditorFirst && initialDraft?.editableModel) {
+      return normalizeEditableModel(initialDraft.editableModel, initial)
+    }
     return isEditorFirst ? createEmptyEditableModel(initial) : null
   })
   // Canvas view: 'edit' to prepare the paper, 'preview' to see the final paper.
-  const [paperMode, setPaperMode] = useState('edit')
-  const [previewStyle, setPreviewStyle] = useState(DEFAULT_PREVIEW_STYLE)
+  const [paperMode, setPaperMode] = useState(() => (initialDraft?.paperMode === 'preview' ? 'preview' : 'edit'))
+  const [previewStyle, setPreviewStyle] = useState(initialDraft?.previewStyle || DEFAULT_PREVIEW_STYLE)
+  const [draftRestored, setDraftRestored] = useState(Boolean(initialDraft?.editableModel))
   const [showImport, setShowImport] = useState(false)
   const [showCanvasAdvanced, setShowCanvasAdvanced] = useState(false)
   const formRef = useRef(null)
@@ -541,6 +590,64 @@ export default function BuilderWorkspace({ config, state, actions, onUseInWorksp
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formValues])
 
+  useEffect(() => {
+    if (!editableActive || !editableModel) {
+      return
+    }
+    writeEditableDraft({
+      editableModel,
+      previewStyle,
+      paperMode,
+      includeAnswerKey: formValues.includeAnswerKey === true,
+      formValues,
+      savedAt: new Date().toISOString(),
+    })
+  }, [editableActive, editableModel, previewStyle, paperMode, formValues])
+
+  useEffect(() => {
+    if (!editorFirst || !draftRestored || typeof window === 'undefined') {
+      return
+    }
+    try {
+      const saved = window.localStorage.getItem(EDITABLE_SCROLL_KEY)
+      if (saved) {
+        window.requestAnimationFrame(() => {
+          window.scrollTo({ top: Number(saved) || 0 })
+        })
+      }
+    } catch {
+      // Scroll restore is best-effort only.
+    }
+  }, [editorFirst, draftRestored])
+
+  useEffect(() => {
+    if (!editorFirst || typeof window === 'undefined') {
+      return undefined
+    }
+    let ticking = false
+    const saveScroll = () => {
+      if (ticking) {
+        return
+      }
+      ticking = true
+      window.requestAnimationFrame(() => {
+        try {
+          window.localStorage.setItem(EDITABLE_SCROLL_KEY, String(window.scrollY || 0))
+        } catch {
+          // Scroll restore is best-effort only.
+        } finally {
+          ticking = false
+        }
+      })
+    }
+    window.addEventListener('scroll', saveScroll, { passive: true })
+    window.addEventListener('beforeunload', saveScroll)
+    return () => {
+      window.removeEventListener('scroll', saveScroll)
+      window.removeEventListener('beforeunload', saveScroll)
+    }
+  }, [editorFirst])
+
   function handleField(id, value) {
     setFormValues((current) => ({ ...current, [id]: value }))
   }
@@ -565,12 +672,15 @@ export default function BuilderWorkspace({ config, state, actions, onUseInWorksp
   // bring the preview into view. Teacher edits happen in the editor after this.
   function handleCreateEditablePaper() {
     setEditableModel(createEditableModelFromForm(formValues))
+    setDraftRestored(false)
     previewRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
   // Return to the paste step so the teacher can re-paste / re-parse. Discards edits.
   function handleStartOver() {
+    clearEditableDraft()
     setEditableModel(null)
+    setDraftRestored(false)
     formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
@@ -580,12 +690,15 @@ export default function BuilderWorkspace({ config, state, actions, onUseInWorksp
     setEditableModel(createEditableModelFromForm(formValues))
     setShowImport(false)
     setPaperMode('edit')
+    setDraftRestored(false)
   }
 
   // Start a fresh blank paper in the canvas.
   function handleNewBlankPaper() {
+    clearEditableDraft()
     setEditableModel(createEmptyEditableModel(formValues))
     setPaperMode('edit')
+    setDraftRestored(false)
   }
 
   const handleHeaderChange = (field, value) => setEditableModel((model) => (model ? updateHeaderField(model, field, value) : model))
@@ -705,6 +818,12 @@ export default function BuilderWorkspace({ config, state, actions, onUseInWorksp
           {canvasResult?.blueprint ? (
             <p className="mt-3 text-xs font-semibold text-slate-500">
               {canvasResult.blueprint.numSections} sections · {canvasResult.blueprint.totalQuestions} questions · {canvasResult.blueprint.totalMarks} marks
+            </p>
+          ) : null}
+
+          {draftRestored ? (
+            <p className="mt-2 inline-flex rounded-md border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-800">
+              Draft restored from this browser.
             </p>
           ) : null}
 
@@ -841,6 +960,7 @@ export default function BuilderWorkspace({ config, state, actions, onUseInWorksp
                 rows={canvasResult.rows}
                 blueprint={canvasResult.blueprint}
                 previewStyle={previewStyle}
+                scrollStorageKey={EDITABLE_PREVIEW_SCROLL_KEY}
               />
             ) : (
               <div className="mt-4 rounded-md border border-dashed border-slate-300 bg-slate-50 p-6 text-center">
