@@ -137,29 +137,84 @@ function WorksheetPaper({ form, rows }) {
   )
 }
 
-// v2.96 — preview-only style presets. DOCX output is unaffected.
+// v2.97 — preview-only style presets, made clearly distinct. DOCX is unaffected.
 const QUESTION_PAPER_STYLES = {
   classic: {
+    font: '',
+    compact: false,
     headerRule: 'my-3 border-b-2 border-slate-800',
     sectionGap: 'mt-5',
-    questionLeading: 'leading-8',
+    questionText: 'text-[13px] leading-8',
+    optionText: 'text-[13px]',
     sectionTitle: 'text-center text-sm font-bold uppercase tracking-wide text-slate-900',
-    compact: false,
   },
   compact: {
+    font: '',
+    compact: true,
     headerRule: 'my-2 border-b border-slate-700',
     sectionGap: 'mt-3',
-    questionLeading: 'leading-6',
-    sectionTitle: 'text-center text-sm font-bold uppercase tracking-wide text-slate-900',
-    compact: true,
+    questionText: 'text-[12px] leading-5',
+    optionText: 'text-[12px]',
+    sectionTitle: 'text-center text-[13px] font-bold uppercase tracking-wide text-slate-900',
   },
   formal: {
-    headerRule: 'my-3 border-b-4 border-double border-slate-800',
-    sectionGap: 'mt-6',
-    questionLeading: 'leading-8',
-    sectionTitle: 'text-center text-sm font-bold uppercase tracking-[0.2em] text-slate-900',
+    font: 'font-serif',
     compact: false,
+    headerRule: 'my-3 border-b-4 border-double border-slate-800',
+    sectionGap: 'mt-7',
+    questionText: 'text-[13px] leading-9',
+    optionText: 'text-[13px]',
+    sectionTitle: 'text-center text-sm font-bold uppercase tracking-[0.25em] text-slate-900',
   },
+}
+
+const BLANK_WIDTHS = { small: 'w-16', medium: 'w-32', large: 'w-52' }
+
+// Render a typed question's body from its structured payload; falls back to the
+// composed text when no structured data is present.
+function QuestionBody({ question, optionText }) {
+  const structured = question.structured
+  if (!structured) {
+    return <span>{question.text}</span>
+  }
+  if (structured.type === 'mcq') {
+    return (
+      <>
+        {structured.stem ? <span>{structured.stem}</span> : null}
+        <div
+          className={
+            structured.layout === 'horizontal'
+              ? `mt-1 flex flex-wrap gap-x-8 gap-y-1 ${optionText}`
+              : `mt-1 grid gap-0.5 ${optionText}`
+          }
+        >
+          {structured.options.map((option) => (
+            <span key={option.key} className="text-slate-800">
+              <span className="font-medium">({option.key})</span> {option.value}
+            </span>
+          ))}
+        </div>
+      </>
+    )
+  }
+  if (structured.type === 'blank') {
+    return (
+      <span>
+        {structured.before ? `${structured.before} ` : ''}
+        <span className={`inline-block border-b border-slate-500 align-baseline ${BLANK_WIDTHS[structured.size] || BLANK_WIDTHS.medium}`}>&nbsp;</span>
+        {structured.after ? ` ${structured.after}` : ''}
+      </span>
+    )
+  }
+  if (structured.type === 'truefalse') {
+    return (
+      <>
+        {structured.statement ? <span>{structured.statement}</span> : null}
+        <span className="mt-0.5 block text-[12px] font-semibold uppercase tracking-wide text-slate-500">True / False</span>
+      </>
+    )
+  }
+  return <span>{question.text}</span>
 }
 
 function QuestionPaperPaper({ form, rows, blueprint, previewStyle = 'classic' }) {
@@ -169,6 +224,7 @@ function QuestionPaperPaper({ form, rows, blueprint, previewStyle = 'classic' })
 
   return (
     <PaperShell compact={style.compact}>
+     <div className={style.font}>
       <div className={formal ? 'text-center' : ''}>
         <PaperHeader institution={model.institution} title={model.title} />
         {formal && model.subject ? (
@@ -210,16 +266,19 @@ function QuestionPaperPaper({ form, rows, blueprint, previewStyle = 'classic' })
             <p className="mt-1 text-[12px] italic leading-5 text-slate-600">{section.instruction}</p>
           ) : null}
           <div className="mt-1 border-b border-slate-300" />
-          <ol className={`mt-2 list-none text-[13px] text-slate-800 ${style.questionLeading}`}>
+          <ol className={`mt-2 list-none text-slate-800 ${style.questionText}`}>
             {section.questions.map((q) => (
-              <li key={q.number} className="flex items-baseline justify-between gap-4">
-                <span>
-                  <span className="font-medium">{q.number}.</span> {q.text}
-                  <SourceBadge source={q.source} />
-                </span>
-                {model.showMarks && q.marks ? (
-                  <span className="shrink-0 font-semibold text-slate-500">[{q.marks}]</span>
-                ) : null}
+              <li key={q.number} className="mb-1">
+                <div className="flex items-baseline justify-between gap-4">
+                  <div className="min-w-0">
+                    <span className="font-medium">{q.number}.</span>{' '}
+                    <QuestionBody question={q} optionText={style.optionText} />
+                    <SourceBadge source={q.source} />
+                  </div>
+                  {model.showMarks && q.marks ? (
+                    <span className="shrink-0 font-semibold text-slate-500">[{q.marks}]</span>
+                  ) : null}
+                </div>
               </li>
             ))}
           </ol>
@@ -244,6 +303,7 @@ function QuestionPaperPaper({ form, rows, blueprint, previewStyle = 'classic' })
           ))}
         </div>
       ) : null}
+     </div>
     </PaperShell>
   )
 }

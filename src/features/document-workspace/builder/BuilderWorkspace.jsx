@@ -21,6 +21,7 @@ import {
   updateHeaderField,
   updateInstruction as updateInstructionInModel,
   updateQuestionField,
+  updateQuestionOption as updateQuestionOptionInModel,
   updateSectionField,
 } from './editablePaperModel.js'
 import { composeWorksheetDocx } from '../composer/worksheetComposer.js'
@@ -593,6 +594,7 @@ export default function BuilderWorkspace({ config, state, actions, onUseInWorksp
   const handleRemoveInstruction = (index) => setEditableModel((model) => (model ? removeInstructionFromModel(model, index) : model))
   const handleSectionChange = (sectionId, field, value) => setEditableModel((model) => (model ? updateSectionField(model, sectionId, field, value) : model))
   const handleQuestionChange = (sectionId, questionId, field, value) => setEditableModel((model) => (model ? updateQuestionField(model, sectionId, questionId, field, value) : model))
+  const handleQuestionOptionChange = (sectionId, questionId, optionKey, value) => setEditableModel((model) => (model ? updateQuestionOptionInModel(model, sectionId, questionId, optionKey, value) : model))
   const handleAddQuestion = (sectionId) => setEditableModel((model) => (model ? addQuestionToModel(model, sectionId) : model))
   const handleDeleteQuestion = (sectionId, questionId) => setEditableModel((model) => (model ? deleteQuestionFromModel(model, sectionId, questionId) : model))
   const handleAddSection = () => setEditableModel((model) => (model ? addSectionToModel(model) : model))
@@ -688,26 +690,6 @@ export default function BuilderWorkspace({ config, state, actions, onUseInWorksp
           </div>
 
           <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
-            <div className="inline-flex items-center gap-2">
-              <span className="text-[11px] font-semibold uppercase tracking-[0.06em] text-slate-500">Preview style</span>
-              <div className="inline-flex flex-wrap gap-1.5">
-                {PREVIEW_STYLES.map((style) => {
-                  const active = previewStyle === style.id
-                  return (
-                    <button
-                      key={style.id}
-                      type="button"
-                      onClick={() => setPreviewStyle(style.id)}
-                      className={`focus-ring inline-flex min-h-8 items-center rounded-md border px-2.5 text-xs font-semibold transition ${
-                        active ? 'border-accentBlue bg-blue-50 text-accentBlue' : 'border-slate-200 bg-white text-slate-600 hover:border-accentBlue hover:text-accentBlue'
-                      }`}
-                    >
-                      {style.label}
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
             <label className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-2.5 py-1.5">
               <input
                 type="checkbox"
@@ -717,6 +699,7 @@ export default function BuilderWorkspace({ config, state, actions, onUseInWorksp
               />
               <span className="text-xs font-semibold text-slate-700">Include answer key</span>
             </label>
+            <span className="text-[11px] text-slate-400">Choose a preview style in the Preview Paper tab.</span>
           </div>
 
           {canvasResult?.blueprint ? (
@@ -799,6 +782,7 @@ export default function BuilderWorkspace({ config, state, actions, onUseInWorksp
               onRemoveInstruction={handleRemoveInstruction}
               onSectionChange={handleSectionChange}
               onQuestionChange={handleQuestionChange}
+              onQuestionOptionChange={handleQuestionOptionChange}
               onAddQuestion={handleAddQuestion}
               onDeleteQuestion={handleDeleteQuestion}
               onAddSection={handleAddSection}
@@ -827,6 +811,28 @@ export default function BuilderWorkspace({ config, state, actions, onUseInWorksp
                 <PencilLine size={13} aria-hidden="true" />
                 Back to Edit Paper
               </button>
+            </div>
+            {/* Preview style selector — sits right above the rendered paper so its
+                effect is obvious. Preview-only; the DOCX is unchanged. */}
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <span className="text-[11px] font-semibold uppercase tracking-[0.06em] text-slate-500">Preview style</span>
+              <div className="inline-flex flex-wrap gap-1.5">
+                {PREVIEW_STYLES.map((style) => {
+                  const active = previewStyle === style.id
+                  return (
+                    <button
+                      key={style.id}
+                      type="button"
+                      onClick={() => setPreviewStyle(style.id)}
+                      className={`focus-ring inline-flex min-h-8 items-center rounded-md border px-3 text-xs font-semibold transition ${
+                        active ? 'border-accentBlue bg-blue-50 text-accentBlue' : 'border-slate-200 bg-white text-slate-600 hover:border-accentBlue hover:text-accentBlue'
+                      }`}
+                    >
+                      {style.label}
+                    </button>
+                  )
+                })}
+              </div>
             </div>
             {canvasHasRows ? (
               <PaperPreview

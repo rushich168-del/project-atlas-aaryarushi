@@ -1,5 +1,8 @@
 import { Info, Plus, Trash2 } from 'lucide-react'
-import { EDITABLE_QUESTION_TYPE_OPTIONS } from './editablePaperModel.js'
+import { BLANK_SIZES, EDITABLE_QUESTION_TYPE_OPTIONS, MCQ_LAYOUTS, MCQ_OPTION_KEYS } from './editablePaperModel.js'
+
+const MCQ_LAYOUT_LABELS = { vertical: 'Vertical', horizontal: 'Horizontal' }
+const BLANK_SIZE_LABELS = { small: 'Small', medium: 'Medium', large: 'Large' }
 
 // Project Atlas v2.96 — Editable Question Paper editor (presentational).
 //
@@ -89,6 +92,145 @@ function InstructionsCard({ instructions, onAddInstruction, onUpdateInstruction,
   )
 }
 
+function AnswerField({ value, onChange }) {
+  return (
+    <input
+      type="text"
+      value={value ?? ''}
+      placeholder="Answer (optional — used in the answer key)"
+      onChange={(event) => onChange(event.target.value)}
+      className="mt-1.5 w-full rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-600 outline-none focus:border-accentBlue"
+    />
+  )
+}
+
+// v2.97 — the right editing space per question type. MCQ gets a stem + A–D options
+// and a layout toggle; Fill in the blanks gets before / size / after; True/False
+// gets a statement + hint; everything else keeps a plain text box.
+function QuestionFields({ sectionType, sectionId, question, showAnswerField, onQuestionChange, onQuestionOptionChange }) {
+  const changeText = (field) => (event) => onQuestionChange(sectionId, question.id, field, event.target.value)
+
+  if (sectionType === 'MCQ') {
+    return (
+      <>
+        <textarea
+          value={question.text}
+          rows={2}
+          placeholder="Type the MCQ question…"
+          onChange={changeText('text')}
+          className="w-full rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-sm text-primary outline-none focus:border-accentBlue"
+        />
+        <div className="mt-2 grid gap-1.5 sm:grid-cols-2">
+          {MCQ_OPTION_KEYS.map((key) => (
+            <label key={key} className="flex items-center gap-1.5">
+              <span className="w-5 shrink-0 text-sm font-semibold text-slate-500">{key}.</span>
+              <input
+                type="text"
+                value={question.options?.[key] ?? ''}
+                placeholder={`Option ${key}`}
+                onChange={(event) => onQuestionOptionChange(sectionId, question.id, key, event.target.value)}
+                className="min-h-8 min-w-0 flex-1 rounded-md border border-slate-200 bg-white px-2.5 text-sm text-primary outline-none focus:border-accentBlue"
+              />
+            </label>
+          ))}
+        </div>
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <span className="text-[11px] font-semibold uppercase tracking-[0.06em] text-slate-500">Options layout</span>
+          <div className="inline-flex gap-1.5">
+            {MCQ_LAYOUTS.map((layout) => {
+              const active = (question.mcqLayout || 'vertical') === layout
+              return (
+                <button
+                  key={layout}
+                  type="button"
+                  onClick={() => onQuestionChange(sectionId, question.id, 'mcqLayout', layout)}
+                  className={`focus-ring inline-flex min-h-8 items-center rounded-md border px-2.5 text-xs font-semibold transition ${
+                    active ? 'border-accentBlue bg-blue-50 text-accentBlue' : 'border-slate-200 bg-white text-slate-600 hover:border-accentBlue hover:text-accentBlue'
+                  }`}
+                >
+                  {MCQ_LAYOUT_LABELS[layout]}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+        {showAnswerField ? <AnswerField value={question.answer} onChange={(v) => onQuestionChange(sectionId, question.id, 'answer', v)} /> : null}
+      </>
+    )
+  }
+
+  if (sectionType === 'Fill in the blanks') {
+    return (
+      <>
+        <input
+          type="text"
+          value={question.blankBefore}
+          placeholder="Text before the blank"
+          onChange={changeText('blankBefore')}
+          className="min-h-8 w-full rounded-md border border-slate-200 bg-white px-2.5 text-sm text-primary outline-none focus:border-accentBlue"
+        />
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <span className="text-[11px] font-semibold uppercase tracking-[0.06em] text-slate-500">Blank size</span>
+          <div className="inline-flex gap-1.5">
+            {BLANK_SIZES.map((size) => {
+              const active = (question.blankSize || 'medium') === size
+              return (
+                <button
+                  key={size}
+                  type="button"
+                  onClick={() => onQuestionChange(sectionId, question.id, 'blankSize', size)}
+                  className={`focus-ring inline-flex min-h-8 items-center rounded-md border px-2.5 text-xs font-semibold transition ${
+                    active ? 'border-accentBlue bg-blue-50 text-accentBlue' : 'border-slate-200 bg-white text-slate-600 hover:border-accentBlue hover:text-accentBlue'
+                  }`}
+                >
+                  {BLANK_SIZE_LABELS[size]}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+        <input
+          type="text"
+          value={question.blankAfter}
+          placeholder="Text after the blank"
+          onChange={changeText('blankAfter')}
+          className="mt-2 min-h-8 w-full rounded-md border border-slate-200 bg-white px-2.5 text-sm text-primary outline-none focus:border-accentBlue"
+        />
+        {showAnswerField ? <AnswerField value={question.answer} onChange={(v) => onQuestionChange(sectionId, question.id, 'answer', v)} /> : null}
+      </>
+    )
+  }
+
+  if (sectionType === 'True/False') {
+    return (
+      <>
+        <textarea
+          value={question.text}
+          rows={2}
+          placeholder="Type the statement…"
+          onChange={changeText('text')}
+          className="w-full rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-sm text-primary outline-none focus:border-accentBlue"
+        />
+        <p className="mt-1 text-[11px] font-medium text-slate-400">Preview shows “True / False” below the statement.</p>
+        {showAnswerField ? <AnswerField value={question.answer} onChange={(v) => onQuestionChange(sectionId, question.id, 'answer', v)} /> : null}
+      </>
+    )
+  }
+
+  return (
+    <>
+      <textarea
+        value={question.text}
+        rows={2}
+        placeholder="Type the question text…"
+        onChange={changeText('text')}
+        className="w-full rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-sm text-primary outline-none focus:border-accentBlue"
+      />
+      {showAnswerField ? <AnswerField value={question.answer} onChange={(v) => onQuestionChange(sectionId, question.id, 'answer', v)} /> : null}
+    </>
+  )
+}
+
 function SectionCard({
   section,
   index,
@@ -96,6 +238,7 @@ function SectionCard({
   showAnswerField,
   onSectionChange,
   onQuestionChange,
+  onQuestionOptionChange,
   onAddQuestion,
   onDeleteQuestion,
   onRemoveSection,
@@ -150,22 +293,14 @@ function SectionCard({
               <div className="flex items-start gap-2">
                 <span className="mt-2 w-6 shrink-0 text-right text-sm font-semibold text-slate-400">{questionIndex + 1}.</span>
                 <div className="min-w-0 flex-1">
-                  <textarea
-                    value={question.text}
-                    rows={2}
-                    placeholder="Type the question text…"
-                    onChange={(event) => onQuestionChange(section.id, question.id, 'text', event.target.value)}
-                    className="w-full rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-sm text-primary outline-none focus:border-accentBlue"
+                  <QuestionFields
+                    sectionType={section.questionType}
+                    sectionId={section.id}
+                    question={question}
+                    showAnswerField={showAnswerField}
+                    onQuestionChange={onQuestionChange}
+                    onQuestionOptionChange={onQuestionOptionChange}
                   />
-                  {showAnswerField ? (
-                    <input
-                      type="text"
-                      value={question.answer}
-                      placeholder="Answer (optional — used in the answer key)"
-                      onChange={(event) => onQuestionChange(section.id, question.id, 'answer', event.target.value)}
-                      className="mt-1.5 w-full rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-600 outline-none focus:border-accentBlue"
-                    />
-                  ) : null}
                 </div>
                 <button
                   type="button"
@@ -207,6 +342,7 @@ export default function EditableQuestionPaper({
   onRemoveInstruction,
   onSectionChange,
   onQuestionChange,
+  onQuestionOptionChange,
   onAddQuestion,
   onDeleteQuestion,
   onAddSection,
@@ -243,6 +379,7 @@ export default function EditableQuestionPaper({
           showAnswerField={showAnswerField}
           onSectionChange={onSectionChange}
           onQuestionChange={onQuestionChange}
+          onQuestionOptionChange={onQuestionOptionChange}
           onAddQuestion={onAddQuestion}
           onDeleteQuestion={onDeleteQuestion}
           onRemoveSection={onRemoveSection}

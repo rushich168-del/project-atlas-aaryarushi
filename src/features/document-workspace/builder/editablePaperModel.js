@@ -41,14 +41,25 @@ export const DEFAULT_INSTRUCTIONS = [
   'Marks are shown against each question.',
 ]
 
-// Preview styles offered by the canvas (preview-only in v2.96; DOCX unaffected).
+// Preview styles offered by the canvas (preview-only; DOCX unaffected).
 export const PREVIEW_STYLES = [
-  { id: 'classic', label: 'Classic Exam' },
+  { id: 'classic', label: 'Classic' },
   { id: 'compact', label: 'Compact' },
   { id: 'formal', label: 'Formal Board' },
 ]
 export const PREVIEW_STYLE_IDS = PREVIEW_STYLES.map((style) => style.id)
 export const DEFAULT_PREVIEW_STYLE = 'classic'
+
+// v2.97 — per-question-type editing helpers.
+export const MCQ_OPTION_KEYS = ['A', 'B', 'C', 'D']
+export const MCQ_LAYOUTS = ['vertical', 'horizontal']
+export const BLANK_SIZES = ['small', 'medium', 'large']
+// Underscore runs used to render the blank in QuestionText (DOCX + data view).
+export const BLANK_UNDERSCORES = {
+  small: '______',
+  medium: '____________',
+  large: '____________________',
+}
 
 let idCounter = 0
 function nextId(prefix) {
@@ -66,26 +77,69 @@ function marksOf(section) {
   return Number.isFinite(marks) && marks > 0 ? marks : 0
 }
 
-function makeQuestion(text = '', answer = '') {
+function normalizeOptions(options) {
+  const source = options || {}
+  return MCQ_OPTION_KEYS.reduce((out, key) => {
+    out[key] = str(source[key])
+    return out
+  }, {})
+}
+
+// Split a line into { before, after } around the first run of 2+ underscores.
+function splitBlank(text) {
+  const value = str(text)
+  const match = value.match(/_{2,}/)
+  if (match) {
+    const index = value.indexOf(match[0])
+    return { before: value.slice(0, index).trim(), after: value.slice(index + match[0].length).trim() }
+  }
+  return { before: value.trim(), after: '' }
+}
+
+// A question object with all optional per-type fields present but empty by default,
+// so old (text-only) questions keep working and every editor has a field to bind to.
+function makeQuestion(input = {}) {
+  const source = typeof input === 'string' ? { text: input } : (input || {})
   return {
     id: nextId('q'),
-    text: str(text), // teacher text kept as-is; never trimmed or rewritten
-    answer: str(answer),
+    text: str(source.text), // teacher text kept as-is; never trimmed or rewritten
+    answer: str(source.answer),
+    // MCQ
+    options: normalizeOptions(source.options),
+    mcqLayout: source.mcqLayout === 'horizontal' ? 'horizontal' : 'vertical',
+    // Fill in the blanks
+    blankBefore: str(source.blankBefore),
+    blankAfter: str(source.blankAfter),
+    blankSize: BLANK_SIZES.includes(source.blankSize) ? source.blankSize : 'medium',
     source: QUESTION_SOURCE,
     sourceLabel: SOURCE_LABEL,
   }
 }
 
+// Pre-split imported "Fill in the blanks" questions so the before/after editors are
+// populated from the pasted text (nothing is lost).
+function seedBlankParts(question) {
+  if (question.blankBefore || question.blankAfter) {
+    return question
+  }
+  const { before, after } = splitBlank(question.text)
+  return { ...question, blankBefore: before, blankAfter: after }
+}
+
 function makeSection({ title, instruction, questionType, marksPerQuestion, questions } = {}) {
   const type = EDITABLE_QUESTION_TYPE_OPTIONS.includes(questionType) ? questionType : DEFAULT_QUESTION_TYPE
   const marks = Number(marksPerQuestion)
+  let built = (questions || []).map((q) => makeQuestion(q))
+  if (type === 'Fill in the blanks') {
+    built = built.map(seedBlankParts)
+  }
   return {
     id: nextId('s'),
     title: str(title, 'Section').trim() || 'Section',
     instruction: str(instruction, DEFAULT_INSTRUCTION),
     questionType: type,
     marksPerQuestion: Number.isFinite(marks) && marks > 0 ? marks : 1,
-    questions: (questions || []).map((q) => makeQuestion(q.text, q.answer)),
+    questions: built,
   }
 }
 
@@ -216,7 +270,13 @@ export function updateSectionField(model, sectionId, field, value) {
       return { ...section, marksPerQuestion: next }
     }
     if (field === 'questionType') {
-      return { ...section, questionType: EDITABLE_QUESTION_TYPE_OPTIONS.includes(value) ? value : section.questionType }
+      const nextType = EDITABLE_QUESTION_TYPE_OPTIONS.includes(value) ? value : section.questionType
+      // Switching to "Fill in the blanks" seeds the before/after editors from the
+      // existing question text so nothing is lost on the type change.
+      const questions = nextType === 'Fill in the blanks'
+        ? section.questions.map(seedBlankParts)
+        : section.questions
+      return { ...section, questionType: nextType, questions }
     }
     if (field === 'title' || field === 'instruction') {
       return { ...section, [field]: str(value) }
@@ -225,14 +285,39 @@ export function updateSectionField(model, sectionId, field, value) {
   })
 }
 
+const QUESTION_TEXT_FIELDS = ['text', 'answer', 'blankBefore', 'blankAfter']
+
 export function updateQuestionField(model, sectionId, questionId, field, value) {
-  if (field !== 'text' && field !== 'answer') {
+  return mapSections(model, sectionId, (section) => ({
+    ...section,
+    questions: section.questions.map((question) => {
+      if (question.id !== questionId) {
+        return question
+      }
+      if (field === 'mcqLayout') {
+        return { ...question, mcqLayout: value === 'horizontal' ? 'horizontal' : 'vertical' }
+      }
+      if (field === 'blankSize') {
+        return { ...question, blankSize: BLANK_SIZES.includes(value) ? value : question.blankSize }
+      }
+      if (QUESTION_TEXT_FIELDS.includes(field)) {
+        return { ...question, [field]: str(value) }
+      }
+      return question
+    }),
+  }))
+}
+
+export function updateQuestionOption(model, sectionId, questionId, optionKey, value) {
+  if (!MCQ_OPTION_KEYS.includes(optionKey)) {
     return model
   }
   return mapSections(model, sectionId, (section) => ({
     ...section,
     questions: section.questions.map((question) => (
-      question.id === questionId ? { ...question, [field]: str(value) } : question
+      question.id === questionId
+        ? { ...question, options: { ...question.options, [optionKey]: str(value) } }
+        : question
     )),
   }))
 }
@@ -240,7 +325,7 @@ export function updateQuestionField(model, sectionId, questionId, field, value) 
 export function addQuestion(model, sectionId) {
   return mapSections(model, sectionId, (section) => ({
     ...section,
-    questions: [...section.questions, makeQuestion('', '')],
+    questions: [...section.questions, makeQuestion({})],
   }))
 }
 
@@ -273,8 +358,75 @@ export function removeSection(model, sectionId) {
 
 // --- Conversion back to the existing generated-row / blueprint shape -----------
 
-// Convert the editable model into the SAME rows the prepared-paper generator
-// produced in v2.94, so PaperPreview and the DOCX composer stay unchanged.
+function filledOptions(question) {
+  return MCQ_OPTION_KEYS
+    .map((key) => ({ key, value: str(question.options?.[key]).trim() }))
+    .filter((option) => option.value)
+}
+
+// Compose a single-line, DOCX-safe QuestionText from a typed question. The DOCX
+// composer only reads QuestionText, so options / blanks / true-false must be baked
+// in here (inline — the DOCX renders one paragraph per question).
+function composeQuestionText(type, question) {
+  if (type === 'MCQ') {
+    const options = filledOptions(question)
+    if (!options.length) {
+      return str(question.text)
+    }
+    const rendered = options.map((option) => `(${option.key}) ${option.value}`).join('   ')
+    const stem = str(question.text).trim()
+    return stem ? `${stem}   ${rendered}` : rendered
+  }
+  if (type === 'Fill in the blanks') {
+    const before = str(question.blankBefore).trim()
+    const after = str(question.blankAfter).trim()
+    const blank = BLANK_UNDERSCORES[question.blankSize] || BLANK_UNDERSCORES.medium
+    if (!before && !after) {
+      const stem = str(question.text).trim()
+      return stem ? `${stem} ${blank}` : blank
+    }
+    return `${before} ${blank} ${after}`.replace(/\s+/g, ' ').trim()
+  }
+  if (type === 'True/False') {
+    const statement = str(question.text).trim()
+    return statement ? `${statement} (True / False)` : '(True / False)'
+  }
+  return str(question.text)
+}
+
+// Structured payload the preview can render richly. Null for plain types (or empty
+// structured content) so the preview falls back to QuestionText.
+function buildStructured(type, question) {
+  if (type === 'MCQ') {
+    const options = filledOptions(question)
+    if (!options.length) {
+      return null
+    }
+    return {
+      type: 'mcq',
+      stem: str(question.text),
+      options,
+      layout: question.mcqLayout === 'horizontal' ? 'horizontal' : 'vertical',
+    }
+  }
+  if (type === 'Fill in the blanks') {
+    const before = str(question.blankBefore).trim()
+    const after = str(question.blankAfter).trim()
+    if (!before && !after) {
+      return null
+    }
+    return { type: 'blank', before, after, size: BLANK_SIZES.includes(question.blankSize) ? question.blankSize : 'medium' }
+  }
+  if (type === 'True/False') {
+    return { type: 'truefalse', statement: str(question.text) }
+  }
+  return null
+}
+
+// Convert the editable model into the generated-row shape PaperPreview + the DOCX
+// composer consume. QuestionText is the composed single-line text (DOCX-safe); the
+// extra `structured` field lets the preview render options / blanks / true-false
+// nicely and is ignored by the composer and the Excel/data view.
 export function editableModelToRows(model) {
   const rows = []
   model.sections.forEach((section) => {
@@ -290,7 +442,7 @@ export function editableModelToRows(model) {
         Subject: model.header.subject,
         Chapter: '',
         Topic: '',
-        QuestionText: question.text,
+        QuestionText: composeQuestionText(section.questionType, question),
         Marks: marks > 0 ? String(marks) : '',
         Difficulty: '',
         QuestionType: section.questionType,
@@ -299,6 +451,7 @@ export function editableModelToRows(model) {
         TeacherProvided: 'Yes',
         QuestionBankId: '',
         Answer: question.answer || '',
+        structured: buildStructured(section.questionType, question),
       })
     })
   })

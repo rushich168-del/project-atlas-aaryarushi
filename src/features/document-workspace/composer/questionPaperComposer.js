@@ -45,6 +45,10 @@ export function buildQuestionPaperModel(form = {}, rows = [], blueprint = null) 
       source: row.QuestionSource || '',
       questionBankId: row.QuestionBankId || '',
       questionType: row.QuestionType || '',
+      // v2.97 — optional structured payload (MCQ options / blank / true-false) used
+      // only by the on-screen preview. The DOCX path below ignores it and renders
+      // the composed QuestionText, so this is additive and backward-compatible.
+      structured: row.structured || null,
     })),
   }))
   const showAnswerKey = form.includeAnswerKey === true
