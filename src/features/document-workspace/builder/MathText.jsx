@@ -19,7 +19,7 @@ function normalizeForKatex(value) {
     .replace(/\u00b2/g, '^2')
     .replace(/\u00b3/g, '^3')
     .replace(/\u221a\s*\{([^}]+)\}/g, '\\sqrt{$1}')
-    .replace(/\u221a\s*([A-Za-z0-9]+)/g, '\\sqrt{$1}')
+    .replace(/\u221a\s*([A-Za-z0-9]+(?:\^(?:\{[^}]*\}|[A-Za-z0-9]+))?)/g, '\\sqrt{$1}')
     .trim()
 }
 
