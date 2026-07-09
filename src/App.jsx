@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Loader2 } from 'lucide-react'
 import ProtectedRoute from './components/auth/ProtectedRoute.jsx'
 import { useAuth } from './context/AuthContext.jsx'
+import AdminInquiriesPage from './pages/AdminInquiriesPage.jsx'
 import DashboardPage from './pages/DashboardPage.jsx'
 import HistoryPage from './pages/HistoryPage.jsx'
 import LandingPage from './pages/LandingPage.jsx'
@@ -92,6 +93,14 @@ function App() {
     return (
       <ProtectedRoute>
         <HistoryPage />
+      </ProtectedRoute>
+    )
+  }
+
+  if (path === '/dashboard/admin/inquiries') {
+    return (
+      <ProtectedRoute>
+        <AdminInquiriesPage />
       </ProtectedRoute>
     )
   }

@@ -1,5 +1,6 @@
-import { FileStack, History, LayoutDashboard, Package, Settings, Sparkles, UploadCloud } from 'lucide-react'
+import { FileStack, History, LayoutDashboard, Package, Settings, ShieldCheck, Sparkles, UploadCloud } from 'lucide-react'
 import { useWorkspace } from '../../hooks/useWorkspace.js'
+import { useIsAppAdmin } from '../../hooks/useIsAppAdmin.js'
 import { navigateTo } from '../../utils/routes.js'
 import UserMenu from './UserMenu.jsx'
 
@@ -20,6 +21,7 @@ export default function Sidebar({ currentView = 'dashboard' }) {
     setCurrentOrganizationId,
     loading,
   } = useWorkspace()
+  const isAdmin = useIsAppAdmin()
   const workspaceName = loading ? 'Loading workspace' : currentOrganization?.name || 'Static Workspace'
 
   return (
@@ -72,6 +74,16 @@ export default function Sidebar({ currentView = 'dashboard' }) {
             </button>
           )
         })}
+        {isAdmin ? (
+          <button
+            type="button"
+            onClick={() => navigateTo('/dashboard/admin/inquiries')}
+            className={`focus-ring flex min-h-10 items-center gap-2.5 rounded-md px-2.5 text-sm font-semibold transition ${currentView === 'admin-inquiries' ? 'bg-accentTeal text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50 hover:text-primary'}`}
+          >
+            <ShieldCheck size={18} aria-hidden="true" />
+            Admin
+          </button>
+        ) : null}
       </nav>
       <div className="mt-auto pt-6">
         <UserMenu />
