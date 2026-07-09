@@ -3,6 +3,7 @@ import DataStateBanner from '../components/dashboard/DataStateBanner.jsx'
 import DashboardLayout from '../components/dashboard/DashboardLayout.jsx'
 import EnvironmentBanner from '../components/dashboard/EnvironmentBanner.jsx'
 import ProductBadges from '../components/products/ProductBadges.jsx'
+import RequestCustomSetupButton from '../components/leads/RequestCustomSetupButton.jsx'
 import { getCategoryById, getProductBySlug } from '../data/products.js'
 import { useProductCatalog } from '../hooks/useProductCatalog.js'
 import { navigateTo } from '../utils/routes.js'
@@ -410,6 +411,7 @@ export default function ProductDetailPage({ slug }) {
                   {mainActionLabel}
                   <ArrowUpRight size={16} aria-hidden="true" />
                 </button>
+                <RequestCustomSetupButton product={product} source="product-detail" variant="outline" className="mt-2 w-full" />
               </div>
             </div>
           </div>

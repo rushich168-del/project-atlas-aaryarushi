@@ -3,6 +3,7 @@ import { AlertCircle, ArrowRight, CheckCircle2, FileSpreadsheet, FileText, Info,
 import DataStateBanner from '../components/dashboard/DataStateBanner.jsx'
 import DashboardLayout from '../components/dashboard/DashboardLayout.jsx'
 import EnvironmentBanner from '../components/dashboard/EnvironmentBanner.jsx'
+import RequestCustomSetupButton from '../components/leads/RequestCustomSetupButton.jsx'
 import { getCategoryById } from '../data/products.js'
 import { certificateWorkspaceConfig } from '../features/certificate/config.js'
 import { sharedDocumentWorkspaceConfigs } from '../features/document-workspace/config.js'
@@ -217,6 +218,9 @@ function GuidedWorkspaceStarter({ product, category, catalogState }) {
                       : 'This guided starter does not generate documents yet for this product. It helps prepare the template, Excel data, and field checklist safely before a dedicated workflow is connected.'}
                   </p>
                 </div>
+              </div>
+              <div className="mt-4">
+                <RequestCustomSetupButton product={product} source="product-workspace" variant="outline" />
               </div>
             </div>
 
