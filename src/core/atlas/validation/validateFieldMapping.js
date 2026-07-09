@@ -30,7 +30,7 @@ export function validateFieldMapping({
     }))
 
   missingMappings.forEach((missing) => {
-    errors.push(error(`${missing.label} is required but not mapped.`, missing))
+    errors.push(error(`${missing.label} is required but is not connected to an Excel column yet.`, missing))
   })
 
   Object.entries(fieldMapping)
@@ -52,23 +52,27 @@ export function validateFieldMapping({
       }
     })
 
+  // After v4.1, every valid detected placeholder becomes an effective field (known
+  // or custom), so this branch no longer fires for valid custom placeholders like
+  // {{place}}. Kept as a friendly fallback in case a placeholder has no field or
+  // matching Excel column at all.
   unknownPlaceholders.forEach((placeholder) => {
-    warnings.push(warning(`Unknown placeholder ${placeholder.raw} was found in the template.`, placeholder))
+    warnings.push(warning(`Placeholder ${placeholder.raw} is not connected to an Excel column yet.`, placeholder))
   })
 
   invalidPlaceholders.forEach((placeholder) => {
-    warnings.push(warning(`Invalid placeholder ${placeholder.raw} was found.`, placeholder))
+    warnings.push(warning(`Invalid placeholder ${placeholder.raw}. Placeholders must start with a letter and use only letters, numbers, and underscores.`, placeholder))
   })
 
   const unusedColumns = getUnusedColumns(detectedColumns, fieldMapping)
   if (unusedColumns.length > 0) {
-    infoMessages.push(info(`${unusedColumns.length} Excel columns are not used in this mapping.`, { columns: unusedColumns }))
+    infoMessages.push(info(`${unusedColumns.length} Excel column(s) are not used by the current template.`, { columns: unusedColumns }))
   }
 
   fieldDefinitions
     .filter((field) => !field.required && detectedPlaceholderKeys.has(field.id) && !fieldMapping[field.id])
     .forEach((field) => {
-      warnings.push(warning(`Optional placeholder ${field.placeholder || `{{${field.id}}}`} is present but not mapped.`, { fieldId: field.id }))
+      warnings.push(warning(`Placeholder ${field.placeholder || `{{${field.id}}}`} is not connected to an Excel column yet.`, { fieldId: field.id }))
     })
 
   return {

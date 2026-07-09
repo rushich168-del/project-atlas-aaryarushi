@@ -213,7 +213,7 @@ export function TemplateStep({ state, actions, workspace, config }) {
     <div className="grid min-w-0 gap-4">
       <FileUploadControl
         title={config.copy?.templateTitle || 'Upload your certificate template'}
-        description={config.copy?.templateDescription || 'Choose the approved DOCX template for this certificate batch. Placeholder fields will be detected after upload.'}
+        description={config.copy?.templateDescription || 'Upload a .docx Word template containing placeholders like {{name}}. Placeholders are detected after upload.'}
         acceptLabel=".docx only, max 10 MB"
         accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         loading={state.uploadingTemplate}
@@ -224,6 +224,16 @@ export function TemplateStep({ state, actions, workspace, config }) {
         onRemove={handleRemoveTemplate}
         emptyText={config.copy?.templateEmptyText || 'No DOCX template uploaded yet.'}
       />
+      <div className="rounded-lg border border-blue-200 bg-blue-50/60 p-4">
+        <p className="text-sm font-semibold text-blue-900">What is a placeholder?</p>
+        <p className="mt-1 text-sm leading-6 text-blue-800">
+          Placeholders are text tags inside your Word template, like <span className="font-mono">{'{{name}}'}</span> or <span className="font-mono">{'{{place}}'}</span>. During generation, each tag is replaced with data from the matching Excel column.
+        </p>
+        <p className="mt-2 text-sm font-semibold text-blue-900">Each Word placeholder must match an Excel column name exactly.</p>
+        <p className="mt-1 text-sm leading-6 text-blue-800">
+          You can add your own placeholders, such as <span className="font-mono">{'{{place}}'}</span> or <span className="font-mono">{'{{school_name}}'}</span>, as long as your Excel file has matching columns.
+        </p>
+      </div>
       <SampleStarterPanel slug={config.productSlug} config={config} defaultOpen={!templateReady} />
       <FirstRunGuide slug={config.productSlug} config={config} defaultOpen={!templateReady} />
     </div>
@@ -264,7 +274,7 @@ export function ExcelStep({ state, actions, workspace, config }) {
     <div className="grid min-w-0 gap-4">
       <FileUploadControl
         title={config.copy?.excelTitle || 'Upload your Excel data'}
-        description={config.copy?.excelDescription || 'Choose the spreadsheet with student or participant rows. Column headers are detected in the browser.'}
+        description={config.copy?.excelDescription || 'Upload an .xlsx Excel file with column names that match your placeholders. Column headers are detected in the browser.'}
         acceptLabel=".xlsx or .xls, max 10 MB"
         accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
         loading={state.uploadingExcel}
@@ -291,7 +301,7 @@ export function ExcelStep({ state, actions, workspace, config }) {
       {state.detectedColumns.length > 0 && (
         <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
           <h4 className="text-lg font-semibold text-primary">Detected columns</h4>
-          <p className="mt-1 text-sm text-slate-500">These columns are available for field mapping.</p>
+          <p className="mt-1 text-sm text-slate-500">These columns are available for mapping. Each Word placeholder must match an Excel column name exactly.</p>
           <div className="mt-4 flex flex-wrap gap-2">
             {state.detectedColumns.map((column) => (
               <span key={column} className="max-w-full break-words rounded-md border border-slate-200 bg-lightBg px-3 py-2 text-sm font-semibold text-slate-600">
@@ -350,7 +360,7 @@ export function MappingStep({ state, actions, config }) {
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-400">Step 3</p>
           <h3 className="mt-1 text-xl font-semibold text-primary">Review mapped fields</h3>
-          <p className="mt-2 text-sm leading-6 text-slate-600">Connect each template placeholder to the matching Excel column.</p>
+          <p className="mt-2 text-sm leading-6 text-slate-600">Check that each placeholder is connected to the correct Excel column.</p>
         </div>
         <button
           type="button"
@@ -361,6 +371,9 @@ export function MappingStep({ state, actions, config }) {
           Auto-map
         </button>
       </div>
+      <p className="mt-3 text-sm leading-6 text-slate-600">
+        Auto-map connects placeholders to Excel columns with the same name. You can still choose any column manually below.
+      </p>
       {state.detectedColumns.length === 0 && (
         <div className="mt-5 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm font-medium leading-6 text-amber-800">
           Upload an Excel file first so columns can be detected.
@@ -384,6 +397,9 @@ export function MappingStep({ state, actions, config }) {
       <div className="mt-5 grid gap-3 lg:grid-cols-2">
         <section className="rounded-md border border-slate-200 bg-lightBg p-4">
           <h4 className="text-sm font-semibold text-primary">Detected placeholders</h4>
+          <p className="mt-1 text-xs leading-5 text-slate-500">
+            Custom placeholders are supported — add your own like <span className="font-mono">{'{{place}}'}</span> with a matching Excel column.
+          </p>
           {state.placeholderKeys.length === 0 ? (
             <p className="mt-2 text-sm text-slate-500">No valid DOCX placeholders detected yet.</p>
           ) : (
@@ -410,7 +426,7 @@ export function MappingStep({ state, actions, config }) {
               <p key={item.message} className="font-medium text-slate-500">{item.message}</p>
             ))}
             {validation.valid && validation.warnings.length === 0 && (
-              <p className="font-medium text-emerald-700">Required mapping is valid.</p>
+              <p className="font-medium text-emerald-700">All required placeholders are mapped. Ready to generate.</p>
             )}
           </div>
           {validation.unusedColumns.length > 0 && (
@@ -517,7 +533,7 @@ export function PreviewStep({ state, actions, config }) {
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-400">Step 4</p>
           <h3 className="mt-1 text-xl font-semibold text-primary">{config.copy?.previewTitle || 'Preview one student row'}</h3>
-          <p className="mt-2 text-sm leading-6 text-slate-600">{config.copy?.previewDescription || 'Review one parsed Excel row before generating DOCX files.'}</p>
+          <p className="mt-2 text-sm leading-6 text-slate-600">{config.copy?.previewDescription || 'Preview one row before generating files.'}</p>
         </div>
         <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700">
           {totalRows ? `Row ${previewRowNumber} of ${totalRows}` : 'No preview rows available'}
