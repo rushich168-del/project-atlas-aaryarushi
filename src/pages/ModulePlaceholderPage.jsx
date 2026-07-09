@@ -5,12 +5,12 @@ const moduleCopy = {
   templates: {
     title: 'Templates',
     eyebrow: 'Coming soon',
-    description: 'A reusable template library is planned after the MVP demo. For now, upload the AR-CERT-PRO template inside the product workspace.',
+    description: 'A reusable template library is planned after the MVP launch. For now, upload the AR-CERT-PRO template inside the product workspace.',
   },
   uploads: {
     title: 'Uploads',
     eyebrow: 'Coming soon',
-    description: 'A workspace-wide upload library is planned after the MVP demo. AR-CERT-PRO uploads are handled directly in the product workflow.',
+    description: 'A workspace-wide upload library is planned after the MVP launch. AR-CERT-PRO uploads are handled directly in the product workflow.',
   },
   settings: {
     title: 'Settings',
