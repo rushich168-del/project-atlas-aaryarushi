@@ -14,11 +14,6 @@ export const productCategories = [
     name: 'Office / Business',
     description: 'Practical document, Excel, DOCX, and reporting automation for daily office work.',
   },
-  {
-    id: 'communication',
-    name: 'Communication',
-    description: 'Safe communication preparation, validation, and dry-run workflows for operational teams.',
-  },
 ]
 
 export const products = [
@@ -227,8 +222,8 @@ export const products = [
     productCode: 'AR-MAIL-PRO',
     slug: 'ar-mail-pro',
     name: 'AR-MAIL-PRO',
-    categoryId: 'communication',
-    sector: 'communication',
+    categoryId: 'hr',
+    sector: 'hr',
     status: 'Safe Demo',
     summary: 'Prepare personalized email batches from Excel data and templates with safe dry-run validation.',
     metrics: ['Email Prep', 'Excel to personalized email', 'Dry-run validation', 'Real sending disabled'],

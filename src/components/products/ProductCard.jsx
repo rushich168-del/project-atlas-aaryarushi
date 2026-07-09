@@ -5,7 +5,6 @@ function getSuiteLabel(product) {
   if (product.categoryId === 'education' || product.sector === 'education') return 'Education Suite'
   if (product.categoryId === 'hr' || product.sector === 'hr') return 'HR / Admin Suite'
   if (product.categoryId === 'office-business' || product.sector === 'office-business') return 'Office / Business Suite'
-  if (product.categoryId === 'communication' || product.sector === 'communication') return 'HR / Admin Suite'
   return 'Product Suite'
 }
 
