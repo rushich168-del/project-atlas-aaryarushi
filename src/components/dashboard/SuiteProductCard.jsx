@@ -32,8 +32,16 @@ export default function SuiteProductCard({ card }) {
     buttonLabel,
   } = card
 
-  const displayBadge = badge || status || 'Coming soon'
-  const badgeKey = badge?.toLowerCase().replace(/\s+/g, '_') || status?.toLowerCase().replace(/\s+/g, '_') || 'inactive'
+  // v4.3: active working DOCX products read clearer as "Ready to use" than the
+  // internal "Product workspace" label. Display-only remap — the card data is
+  // unchanged, and Mail Prep / Request setup / other badges are left as-is.
+  const rawBadge = badge || status || 'Coming soon'
+  const isProductWorkspace = /^product workspace$/i.test(String(badge || status || '').trim())
+  const readyRemap = active && isProductWorkspace
+  const displayBadge = readyRemap ? 'Ready to use' : rawBadge
+  const badgeKey = readyRemap
+    ? 'ready_to_use'
+    : (badge?.toLowerCase().replace(/\s+/g, '_') || status?.toLowerCase().replace(/\s+/g, '_') || 'inactive')
   const badgeClass = badgeStyles[badgeKey] || badgeStyles.inactive
   // The dashboard renders from plain card objects (not full product rows), so pass
   // the display name / code through as product context for the setup request.

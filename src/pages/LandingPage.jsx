@@ -174,6 +174,13 @@ const safetyStatements = [
   'PDF export is not presented as available inside Project Atlas.',
 ]
 
+// v4.3: active working DOCX products read clearer as "Ready to use" than the
+// internal "Product workspace" label. Display-only — the underlying data is
+// unchanged, and Mail preparation / other statuses are left as-is.
+function displayStatus(status) {
+  return status === 'Product workspace' ? 'Ready to use' : status
+}
+
 function getStatusClass(status) {
   if (status === 'Ready to use') return 'bg-emerald-50 text-emerald-700'
   if (status === 'Mail preparation') return 'bg-teal-50 text-teal-700'
@@ -520,8 +527,8 @@ function LandingPage() {
                   <div key={product.name} className="rounded-md border border-slate-200 bg-lightBg p-4">
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                       <p className="text-sm font-semibold text-primary">{product.name}</p>
-                      <span className={`w-fit shrink-0 rounded-md px-2.5 py-1 text-xs font-bold ${getStatusClass(product.status)}`}>
-                        {product.status}
+                      <span className={`w-fit shrink-0 rounded-md px-2.5 py-1 text-xs font-bold ${getStatusClass(displayStatus(product.status))}`}>
+                        {displayStatus(product.status)}
                       </span>
                     </div>
                     <p className="mt-2 text-sm leading-6 text-slate-600">{product.description}</p>

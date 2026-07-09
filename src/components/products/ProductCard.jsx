@@ -37,7 +37,7 @@ export default function ProductCard({ product }) {
   const statusLabel = isActive
     ? 'Ready to use'
     : isSharedDocxWorkspace
-      ? 'Product workspace'
+      ? 'Ready to use'
       : isSafeDemo
       ? 'Mail preparation'
       : isLaunchPrep
@@ -50,7 +50,7 @@ export default function ProductCard({ product }) {
   const statusClass = isActive
     ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
     : isSharedDocxWorkspace
-      ? 'border-blue-200 bg-blue-50 text-blue-700'
+      ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
       : isSafeDemo
       ? 'border-teal-200 bg-teal-50 text-teal-700'
       : isLaunchPrep
