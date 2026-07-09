@@ -12,7 +12,6 @@ import { navigateTo } from '../../utils/routes.js'
 import EmailPreparationPanel from '../../components/email/EmailPreparationPanel.jsx'
 import SampleStarterPanel from '../document-workspace/SampleStarterPanel.jsx'
 import FirstRunGuide from '../document-workspace/FirstRunGuide.jsx'
-import StarterTemplateGuide from '../document-workspace/StarterTemplateGuide.jsx'
 import { uploadAndApplyExcel } from '../document-workspace/excelUploadHandler.js'
 
 function normalizeName(value) {
@@ -225,7 +224,6 @@ export function TemplateStep({ state, actions, workspace, config }) {
         onRemove={handleRemoveTemplate}
         emptyText={config.copy?.templateEmptyText || 'No DOCX template uploaded yet.'}
       />
-      <StarterTemplateGuide slug={config.productSlug} defaultOpen={!templateReady} />
       <SampleStarterPanel slug={config.productSlug} config={config} defaultOpen={!templateReady} />
       <FirstRunGuide slug={config.productSlug} config={config} defaultOpen={!templateReady} />
     </div>
