@@ -1,7 +1,21 @@
 import katex from 'katex'
 
-const COMMAND_PATTERN = /\\(frac|sqrt|in|notin|cup|cap|le|ge|ne|neq|theta|pi|subset)/
 const MATH_PATTERN = /\\(frac|sqrt|in|notin|cup|cap|le|ge|ne|neq|theta|pi|subset)|[\u2260\u2264\u2265\u2208\u2209\u222a\u2229\u221a\u00b2\u00b3]|\^\{[^}]+\}|_\{[^}]+\}|\^[A-Za-z0-9]/
+
+// A "strong" math word carries an unambiguous math signal (command, brace,
+// super/subscript, relation, or a math symbol). Such a word anchors a math run.
+const STRONG_MATH_WORD =
+  /\\[A-Za-z]+|[{}^_=]|[\u2260\u2264\u2265\u2208\u2209\u222a\u2229\u221a\u00b2\u00b3\u2282\u03b8\u03c0]/
+// A "weak" math word is a lone variable, number or operator. It can join an
+// existing math run (e.g. the `x` in `x \u2208 A`) but never starts one on its own,
+// so ordinary prose is not dragged into math mode.
+const WEAK_MATH_WORD = /^[A-Za-z]$|^\d+$|^[-+*/=<>]+$/
+
+function classifyWord(word) {
+  if (STRONG_MATH_WORD.test(word)) return 'strong'
+  if (WEAK_MATH_WORD.test(word)) return 'weak'
+  return 'prose'
+}
 
 function hasMath(text) {
   return MATH_PATTERN.test(String(text || ''))
@@ -139,22 +153,43 @@ function tokenizeAuto(text) {
     return [{ type: 'text', value: text }]
   }
 
-  const commandMatch = text.match(COMMAND_PATTERN)
-  const mathMatch = text.match(MATH_PATTERN)
-  const firstIndex = Math.min(
-    commandMatch?.index ?? Number.POSITIVE_INFINITY,
-    mathMatch?.index ?? Number.POSITIVE_INFINITY,
-  )
+  // Split into alternating word / whitespace parts so slices can be rebuilt
+  // exactly. Even indices are words, odd indices are the separators between.
+  const parts = text.split(/(\s+)/)
+  const kinds = parts.map((part, index) => (index % 2 === 0 ? classifyWord(part) : 'space'))
 
-  if (!Number.isFinite(firstIndex)) {
+  // Anchor the math run on the first strong-math word.
+  let anchor = -1
+  for (let index = 0; index < parts.length; index += 2) {
+    if (kinds[index] === 'strong') {
+      anchor = index
+      break
+    }
+  }
+
+  if (anchor < 0) {
     return [{ type: 'text', value: text }]
   }
 
-  const prefix = text.slice(0, firstIndex)
-  const start = prefix.trim().length <= 3 ? 0 : firstIndex
+  // Grow left over adjacent weak words (e.g. the `x` before `∈`) and right over
+  // any strong/weak words. Stop at the first prose word so trailing normal prose
+  // (e.g. "and explain your answer") stays outside math mode.
+  let startWord = anchor
+  for (let index = anchor - 2; index >= 0; index -= 2) {
+    if (kinds[index] === 'weak') startWord = index
+    else break
+  }
+
+  let endWord = anchor
+  for (let index = anchor + 2; index < parts.length; index += 2) {
+    if (kinds[index] === 'strong' || kinds[index] === 'weak') endWord = index
+    else break
+  }
+
   return [
-    { type: 'text', value: text.slice(0, start) },
-    { type: 'math', value: text.slice(start) },
+    { type: 'text', value: parts.slice(0, startWord).join('') },
+    { type: 'math', value: parts.slice(startWord, endWord + 1).join('') },
+    { type: 'text', value: parts.slice(endWord + 1).join('') },
   ].filter((token) => token.value)
 }
 
