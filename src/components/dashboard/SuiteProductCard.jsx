@@ -1,4 +1,5 @@
 import { ArrowRight } from 'lucide-react'
+import RequestCustomSetupButton from '../leads/RequestCustomSetupButton.jsx'
 import { navigateTo } from '../../utils/routes.js'
 
 const badgeStyles = {
@@ -34,6 +35,9 @@ export default function SuiteProductCard({ card }) {
   const displayBadge = badge || status || 'Coming soon'
   const badgeKey = badge?.toLowerCase().replace(/\s+/g, '_') || status?.toLowerCase().replace(/\s+/g, '_') || 'inactive'
   const badgeClass = badgeStyles[badgeKey] || badgeStyles.inactive
+  // The dashboard renders from plain card objects (not full product rows), so pass
+  // the display name / code through as product context for the setup request.
+  const requestProduct = { name: label, productCode }
 
   return (
     <article className="group flex min-h-[178px] flex-col rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md">
@@ -66,6 +70,16 @@ export default function SuiteProductCard({ card }) {
           {buttonLabel || (active ? 'Open Workspace' : 'Setup Workspace')}
           {active ? <ArrowRight size={16} aria-hidden="true" /> : null}
         </button>
+        <div className="mt-2">
+          <RequestCustomSetupButton
+            product={requestProduct}
+            source="dashboard"
+            variant="outline"
+            size="sm"
+            fullWidth
+            supportingText="Need this prepared for your organization?"
+          />
+        </div>
       </div>
     </article>
   )

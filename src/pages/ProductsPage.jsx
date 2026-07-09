@@ -4,6 +4,7 @@ import DashboardLayout from '../components/dashboard/DashboardLayout.jsx'
 import EnvironmentBanner from '../components/dashboard/EnvironmentBanner.jsx'
 import ProductFilters from '../components/products/ProductFilters.jsx'
 import ProductGrid from '../components/products/ProductGrid.jsx'
+import RequestCustomSetupButton from '../components/leads/RequestCustomSetupButton.jsx'
 import { useProductCatalog } from '../hooks/useProductCatalog.js'
 import { filterProducts } from '../utils/productFilters.js'
 
@@ -23,6 +24,13 @@ export default function ProductsPage() {
       <div className="px-4 py-6 sm:px-6 lg:px-8">
         <EnvironmentBanner />
         <DataStateBanner loading={loading} error={error} source={source} status={status} organization={organization} />
+        <div className="mt-4 flex flex-col gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm font-semibold text-primary">Don&apos;t see the exact document you need?</p>
+            <p className="text-xs text-slate-500">Request a workspace prepared for your organization&apos;s document process.</p>
+          </div>
+          <RequestCustomSetupButton source="generic" variant="outline" size="sm" />
+        </div>
         <ProductFilters
           categories={categories}
           searchTerm={searchTerm}

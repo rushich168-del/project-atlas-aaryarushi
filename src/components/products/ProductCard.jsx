@@ -1,4 +1,5 @@
 import { ArrowUpRight, Boxes } from 'lucide-react'
+import RequestCustomSetupButton from '../leads/RequestCustomSetupButton.jsx'
 import { navigateTo } from '../../utils/routes.js'
 
 function getSuiteLabel(product) {
@@ -99,6 +100,17 @@ export default function ProductCard({ product }) {
         {buttonLabel}
         {canOpen ? <ArrowUpRight size={16} aria-hidden="true" /> : null}
       </button>
+
+      <div className="mt-2">
+        <RequestCustomSetupButton
+          product={product}
+          source="product-card"
+          variant="outline"
+          size="sm"
+          fullWidth
+          supportingText="Need this prepared for your organization?"
+        />
+      </div>
     </article>
   )
 }

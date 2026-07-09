@@ -89,6 +89,11 @@ export default function CustomSetupRequestForm({ product = null, source = 'websi
             <p className="mt-1 text-sm leading-5 text-slate-500">
               Tell us what you want to automate. Our team will help prepare your organization workspace.
             </p>
+            {product?.name || product?.productCode ? (
+              <span className="mt-2 inline-flex items-center gap-1 rounded-md border border-teal-200 bg-teal-50 px-2 py-1 text-xs font-semibold text-teal-800">
+                Custom setup for: {product.name || product.productCode}
+              </span>
+            ) : null}
           </div>
           <button
             type="button"

@@ -220,7 +220,12 @@ function GuidedWorkspaceStarter({ product, category, catalogState }) {
                 </div>
               </div>
               <div className="mt-4">
-                <RequestCustomSetupButton product={product} source="product-workspace" variant="outline" />
+                <RequestCustomSetupButton
+                  product={product}
+                  source="product-workspace"
+                  variant="outline"
+                  supportingText="Share your template and Excel format needs."
+                />
               </div>
             </div>
 

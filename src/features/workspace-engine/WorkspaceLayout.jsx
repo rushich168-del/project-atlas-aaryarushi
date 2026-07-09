@@ -3,6 +3,7 @@ import { ArrowLeft, FileSpreadsheet, FileText } from 'lucide-react'
 import DashboardLayout from '../../components/dashboard/DashboardLayout.jsx'
 import DataStateBanner from '../../components/dashboard/DataStateBanner.jsx'
 import EnvironmentBanner from '../../components/dashboard/EnvironmentBanner.jsx'
+import RequestCustomSetupButton from '../../components/leads/RequestCustomSetupButton.jsx'
 import { useAuth } from '../../context/AuthContext.jsx'
 import ReadinessChecklist from './ReadinessChecklist.jsx'
 import StepRenderer from './StepRenderer.jsx'
@@ -317,6 +318,11 @@ export default function WorkspaceLayout({ product, config, catalogState }) {
           statusLabel={workspaceState.draftRecord && !workspaceState.draftDirty ? 'Draft saved' : 'Draft unsaved'}
           totalSteps={config.steps.length}
         />
+
+        <div className="mt-3 flex flex-col gap-2 rounded-lg border border-slate-200 bg-white px-4 py-3 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm font-semibold text-slate-600">Need this prepared for your organization?</p>
+          <RequestCustomSetupButton product={product} source="product-workspace" variant="outline" size="sm" />
+        </div>
 
         {builderFirst ? (
           <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 shadow-sm">
