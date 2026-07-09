@@ -2,6 +2,7 @@ export { detectDocxPlaceholders } from './placeholders/detectDocxPlaceholders.js
 export { normalizePlaceholder, normalizePlaceholderToken } from './placeholders/normalizePlaceholder.js'
 export { PLACEHOLDER_KEY_PATTERN, PLACEHOLDER_PATTERN } from './placeholders/placeholderRules.js'
 export { validateFieldMapping } from './validation/validateFieldMapping.js'
+export { deriveCustomFields, withCustomFields } from './fields/deriveCustomFields.js'
 export { getUnusedColumns } from './validation/validateColumns.js'
 export { mergeRow } from './merge/mergeRow.js'
 export { normalizeValue } from './merge/normalizeValue.js'

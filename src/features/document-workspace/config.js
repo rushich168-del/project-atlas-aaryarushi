@@ -21,7 +21,7 @@ import {
   saveGenerationOutput,
   uploadBatchDocx,
 } from '../certificate/services/certificateBatchService.js'
-import { mergeRow, validateFieldMapping } from '../../core/atlas/index.js'
+import { mergeRow, validateFieldMapping, withCustomFields } from '../../core/atlas/index.js'
 import { getStorageError } from '../../utils/errorMessages.js'
 import {
   ARITHMETIC_OPERATIONS,
@@ -195,9 +195,19 @@ export function createSharedDocumentWorkspaceConfig(options) {
   const emptyMapping = () => createEmptyFieldMapping(templateFields)
   const stepLabels = options.stepLabels || {}
 
+  // Effective fields = the product's known template fields plus any valid custom
+  // placeholders the user added to their template (matched to Excel columns later).
+  // Keeps merge / validation / auto-map consistent for user-defined placeholders.
+  function getEffectiveFields(state) {
+    return withCustomFields({
+      fieldDefinitions: templateFields,
+      detectedPlaceholders: state?.detectedPlaceholders || [],
+    })
+  }
+
   function getMergeResultForRow(state, row) {
     return mergeRow({
-      fieldDefinitions: templateFields,
+      fieldDefinitions: getEffectiveFields(state),
       fieldMapping: state.fieldMapping,
       row,
       options: {
@@ -216,7 +226,7 @@ export function createSharedDocumentWorkspaceConfig(options) {
     return validateFieldMapping({
       detectedPlaceholders: state.detectedPlaceholders,
       invalidPlaceholders: state.invalidPlaceholders,
-      fieldDefinitions: templateFields,
+      fieldDefinitions: getEffectiveFields(state),
       detectedColumns: state.detectedColumns,
       fieldMapping: state.fieldMapping,
     })
@@ -617,6 +627,7 @@ export function createSharedDocumentWorkspaceConfig(options) {
     getPreviewData(state) {
       return getMergeResult(state).values
     },
+    getEffectiveFields,
     getMergeResult,
     getValidationResult,
     getMissingRequiredFields(state) {

@@ -306,6 +306,11 @@ export function ExcelStep({ state, actions, workspace, config }) {
 }
 
 export function MappingStep({ state, actions, config }) {
+  // Effective fields include any valid custom placeholders the user added to their
+  // template (v4.1), so they appear as mappable rows and are auto-mapped like the
+  // known fields. Falls back to the fixed list if a config predates this method.
+  const mappingFields = config.getEffectiveFields ? config.getEffectiveFields(state) : config.templateFields
+
   function handleAutoMap() {
     const normalizedColumns = state.detectedColumns.map((column) => ({
       column,
@@ -313,7 +318,7 @@ export function MappingStep({ state, actions, config }) {
     }))
     const nextMapping = { ...state.fieldMapping }
 
-    config.templateFields.forEach((field) => {
+    mappingFields.forEach((field) => {
       const candidates = [field.id, field.label, field.placeholder]
       const match = normalizedColumns.find(({ normalized }) =>
         candidates.some((candidate) => normalized === normalizeName(candidate)),
@@ -433,7 +438,7 @@ export function MappingStep({ state, actions, config }) {
         <p className="text-sm font-semibold text-primary">Review the mapping before generating files. You can change any column manually.</p>
       </div>
       <div className="mt-5 grid gap-4">
-        {config.templateFields.map((field) => {
+        {mappingFields.map((field) => {
           const selectedColumn = state.fieldMapping[field.id] || ''
           const isMissing = field.required && !selectedColumn
 

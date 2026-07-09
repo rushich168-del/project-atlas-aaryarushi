@@ -21,7 +21,7 @@ import {
   saveGenerationOutput,
   uploadBatchDocx,
 } from './services/certificateBatchService.js'
-import { mergeRow, validateFieldMapping } from '../../core/atlas/index.js'
+import { mergeRow, validateFieldMapping, withCustomFields } from '../../core/atlas/index.js'
 import { getStorageError } from '../../utils/errorMessages.js'
 
 const requiredFieldIds = ['name', 'course', 'date', 'certificate_id']
@@ -38,9 +38,18 @@ function getMergeResult(state) {
   return getMergeResultForRow(state, state.previewRows[state.previewRowIndex] || {})
 }
 
+// Effective fields = the certificate's known template fields plus any valid custom
+// placeholders the user added to their template (matched to Excel columns later).
+function getEffectiveFields(state) {
+  return withCustomFields({
+    fieldDefinitions: certificateWorkspaceConfig.templateFields,
+    detectedPlaceholders: state?.detectedPlaceholders || [],
+  })
+}
+
 function getMergeResultForRow(state, row) {
   return mergeRow({
-    fieldDefinitions: certificateWorkspaceConfig.templateFields,
+    fieldDefinitions: getEffectiveFields(state),
     fieldMapping: state.fieldMapping,
     row,
     options: {
@@ -90,7 +99,7 @@ function getValidationResult(state) {
   return validateFieldMapping({
     detectedPlaceholders: state.detectedPlaceholders,
     invalidPlaceholders: state.invalidPlaceholders,
-    fieldDefinitions: certificateWorkspaceConfig.templateFields,
+    fieldDefinitions: getEffectiveFields(state),
     detectedColumns: state.detectedColumns,
     fieldMapping: state.fieldMapping,
   })
@@ -529,6 +538,7 @@ export const certificateWorkspaceConfig = {
     ]
   },
   getPreviewData: previewDataFromState,
+  getEffectiveFields,
   getMergeResult,
   getValidationResult,
   getMissingRequiredFields(state) {
