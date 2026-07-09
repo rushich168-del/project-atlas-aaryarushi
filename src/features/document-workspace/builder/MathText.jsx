@@ -116,10 +116,17 @@ function tokenizeExplicit(text) {
 
     if (next === dollarIndex && !/\d/.test(text[next + 1] || '')) {
       const end = text.indexOf('$', next + 1)
-      if (end > next + 1 && !/\d/.test(text[end - 1] || '')) {
-        tokens.push({ type: 'math', value: text.slice(next + 1, end) })
-        index = end + 1
-        continue
+      if (end > next + 1) {
+        const inside = text.slice(next + 1, end)
+        // The trailing-digit check guards against currency like "5$"; genuine
+        // inline math frequently ends in a digit ($x^{2}=4$), so let real math
+        // through regardless. Currency is still blocked by the leading-digit
+        // check above ($5 never reaches here).
+        if (hasMath(inside) || !/\d/.test(text[end - 1] || '')) {
+          tokens.push({ type: 'math', value: inside })
+          index = end + 1
+          continue
+        }
       }
     }
 
