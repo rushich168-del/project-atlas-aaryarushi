@@ -20,13 +20,16 @@ import {
   RotateCw,
   Target,
   Sparkles,
+  TrendingUp,
 } from 'lucide-react'
 import { useJobs } from '../hooks/useJobs.js'
 import { useResumes } from '../hooks/useResumes.js'
 import { useCareerProfile } from '../hooks/useCareerProfile.js'
 import { useJobMatch } from '../hooks/useJobMatch.js'
+import { useApplicationAnalytics } from '../hooks/useApplicationAnalytics.js'
 import { JobMatchAnalyzer } from './JobMatchAnalyzer.jsx'
 import { ApplicationAssistantModal } from './ApplicationAssistantModal.jsx'
+import { ApplicationIntelligenceView } from './ApplicationIntelligenceView.jsx'
 
 const statusStages = [
   { id: 'saved', label: 'Saved', color: 'border-slate-300 bg-slate-50 text-slate-700' },
@@ -58,11 +61,12 @@ export function JobsOpportunitiesTab() {
   const { resumes } = useResumes()
   const { profile } = useCareerProfile()
   const { analyzeJob, analysis } = useJobMatch()
+  const { analytics } = useApplicationAnalytics()
   const [analyzingModalJob, setAnalyzingModalJob] = useState(null)
   const [assistantJob, setAssistantJob] = useState(null)
   const [assistantApp, setAssistantApp] = useState(null)
 
-  const [activeView, setActiveView] = useState('jobs') // 'jobs' | 'tracker'
+  const [activeView, setActiveView] = useState('jobs') // 'jobs' | 'tracker' | 'analytics'
   const [statusFilter, setStatusFilter] = useState('all')
 
   // Add Job Form State
@@ -272,6 +276,18 @@ export function JobsOpportunitiesTab() {
           >
             <Clock size={14} />
             Application Tracker ({applications.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveView('analytics')}
+            className={`focus-ring inline-flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-semibold transition ${
+              activeView === 'analytics'
+                ? 'bg-teal-600 text-white shadow-sm'
+                : 'border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100'
+            }`}
+          >
+            <TrendingUp size={14} />
+            Application Intelligence
           </button>
         </div>
 
@@ -812,7 +828,15 @@ export function JobsOpportunitiesTab() {
         </div>
       )}
 
-      {/* 6. ATS Match Modal Analyzer */}
+      {/* 6. View C: Application Intelligence & Analytics */}
+      {activeView === 'analytics' && (
+        <ApplicationIntelligenceView
+          analytics={analytics}
+          onNavigateToTrack={() => setActiveView('jobs')}
+        />
+      )}
+
+      {/* 7. ATS Match Modal Analyzer */}
       {analyzingModalJob && analysis && (
         <JobMatchAnalyzer
           job={analyzingModalJob}
