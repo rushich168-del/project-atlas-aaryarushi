@@ -1,10 +1,10 @@
-import { Layers, UserCheck, FileText, Search, BrainCircuit, Award } from 'lucide-react'
+import { Compass, UserCheck, FileText, Search, BrainCircuit, Award } from 'lucide-react'
 
 export const tabs = [
-  { id: 'overview', label: 'Overview', icon: Layers },
+  { id: 'overview', label: 'Command Center', icon: Compass },
   { id: 'profile', label: 'Career Profile', icon: UserCheck },
-  { id: 'resume', label: 'Resume & Applications', icon: FileText },
-  { id: 'jobs', label: 'Jobs & Opportunities', icon: Search },
+  { id: 'resume', label: 'Resume Builder', icon: FileText },
+  { id: 'jobs', label: 'Jobs & Pipeline', icon: Search },
   { id: 'skills', label: 'Skills & Interview', icon: BrainCircuit },
   { id: 'portfolio', label: 'Career Portfolio', icon: Award },
 ]
