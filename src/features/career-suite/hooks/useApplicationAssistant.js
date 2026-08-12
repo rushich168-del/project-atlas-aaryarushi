@@ -7,6 +7,9 @@ import {
   generateApplicationStrategy,
   generateTailoredBulletSuggestions,
   generateCoverLetterDraft,
+  validateCoverLetterFacts,
+  countWordsAndCharacters,
+  exportCoverLetterPDF,
   fetchApplicationAssistant,
   saveApplicationAssistant,
 } from '../../../services/applicationAssistantService.js'
@@ -18,6 +21,8 @@ export function useApplicationAssistant(job = null, application = null) {
 
   const [activeJob, setActiveJob] = useState(job)
   const [activeApp, setActiveApp] = useState(application)
+  const [tone, setTone] = useState('Executive')
+  const [template, setTemplate] = useState('Standard')
   const [coverLetterText, setCoverLetterText] = useState('')
   const [bullets, setBullets] = useState([])
   const [status, setStatus] = useState('draft') // 'draft' | 'reviewed' | 'saved'
@@ -36,7 +41,21 @@ export function useApplicationAssistant(job = null, application = null) {
     return generateApplicationStrategy(activeJob, profile, atsAnalysis, atsAnalysis.recommendedResume)
   }, [activeJob, profile, atsAnalysis])
 
-  // 3. Initialize or load draft
+  // 3. Live Word/Char & Fact Metrics
+  const { words: wordCount, characters: characterCount } = useMemo(() => {
+    return countWordsAndCharacters(coverLetterText)
+  }, [coverLetterText])
+
+  const factValidation = useMemo(() => {
+    return validateCoverLetterFacts(coverLetterText, {
+      profile,
+      skills,
+      experience,
+      job: activeJob,
+    })
+  }, [coverLetterText, profile, skills, experience, activeJob])
+
+  // 4. Initialize or load draft
   useEffect(() => {
     async function loadExistingDraft() {
       if (!activeJob) return
@@ -45,11 +64,21 @@ export function useApplicationAssistant(job = null, application = null) {
       if (existing) {
         if (existing.cover_letter) setCoverLetterText(existing.cover_letter)
         if (existing.bullet_suggestions?.length > 0) setBullets(existing.bullet_suggestions)
+        if (existing.tone) setTone(existing.tone)
+        if (existing.template) setTemplate(existing.template)
         if (existing.status) setStatus(existing.status)
       } else {
         // Generate initial deterministic drafts
         const initialBullets = generateTailoredBulletSuggestions(activeJob, experience, skills, atsAnalysis || {})
-        const initialCoverLetter = generateCoverLetterDraft(activeJob, profile, experience, skills, atsAnalysis || {}, atsAnalysis?.recommendedResume)
+        const initialCoverLetter = generateCoverLetterDraft(
+          activeJob,
+          profile,
+          experience,
+          skills,
+          atsAnalysis || {},
+          atsAnalysis?.recommendedResume,
+          { tone: 'Executive', template: 'Standard' }
+        )
         setBullets(initialBullets)
         setCoverLetterText(initialCoverLetter)
         setStatus('draft')
@@ -59,10 +88,30 @@ export function useApplicationAssistant(job = null, application = null) {
     loadExistingDraft()
   }, [activeJob?.id, activeApp?.id, user?.id])
 
-  function regenerateCoverLetter() {
+  function regenerateCoverLetter(customOptions = {}) {
     if (!activeJob) return
-    const regenerated = generateCoverLetterDraft(activeJob, profile, experience, skills, atsAnalysis || {}, atsAnalysis?.recommendedResume)
+    const activeTone = customOptions.tone || tone
+    const activeTemplate = customOptions.template || template
+    const regenerated = generateCoverLetterDraft(
+      activeJob,
+      profile,
+      experience,
+      skills,
+      atsAnalysis || {},
+      atsAnalysis?.recommendedResume,
+      { tone: activeTone, template: activeTemplate }
+    )
     setCoverLetterText(regenerated)
+  }
+
+  function handleToneChange(newTone) {
+    setTone(newTone)
+    regenerateCoverLetter({ tone: newTone, template })
+  }
+
+  function handleTemplateChange(newTemplate) {
+    setTemplate(newTemplate)
+    regenerateCoverLetter({ tone, template: newTemplate })
   }
 
   function regenerateBullets() {
@@ -75,6 +124,15 @@ export function useApplicationAssistant(job = null, application = null) {
     setBullets((prev) =>
       prev.map((b) => (b.id === bulletId ? { ...b, status: newStatus } : b))
     )
+  }
+
+  function handleExportPDF() {
+    exportCoverLetterPDF({
+      letterText: coverLetterText,
+      candidateName: profile.full_name,
+      companyName: activeJob?.company,
+      jobTitle: activeJob?.title,
+    })
   }
 
   async function saveApplicationDraft(newStatus = 'saved') {
@@ -91,6 +149,8 @@ export function useApplicationAssistant(job = null, application = null) {
         applicationStrategy: strategy,
         bulletSuggestions: bullets,
         coverLetter: coverLetterText,
+        tone,
+        template,
         status: newStatus,
       }
 
@@ -113,6 +173,13 @@ export function useApplicationAssistant(job = null, application = null) {
     bullets,
     coverLetterText,
     setCoverLetterText,
+    tone,
+    setTone: handleToneChange,
+    template,
+    setTemplate: handleTemplateChange,
+    wordCount,
+    characterCount,
+    verifiedFactsCount: factValidation.verifiedFactsCount,
     status,
     setStatus,
     isSaving,
@@ -120,6 +187,7 @@ export function useApplicationAssistant(job = null, application = null) {
     regenerateCoverLetter,
     regenerateBullets,
     updateBulletStatus,
+    handleExportPDF,
     saveApplicationDraft,
   }
 }

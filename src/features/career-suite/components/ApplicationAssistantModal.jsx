@@ -12,12 +12,20 @@ export function ApplicationAssistantModal({ job, application, onClose, onAttachR
     bullets,
     coverLetterText,
     setCoverLetterText,
+    tone,
+    setTone,
+    template,
+    setTemplate,
+    wordCount,
+    characterCount,
+    verifiedFactsCount,
     status,
     isSaving,
     saveMessage,
     regenerateCoverLetter,
     regenerateBullets,
     updateBulletStatus,
+    handleExportPDF,
     saveApplicationDraft,
   } = useApplicationAssistant(job, application)
 
@@ -89,10 +97,19 @@ export function ApplicationAssistantModal({ job, application, onClose, onAttachR
           <CoverLetterSection
             coverLetterText={coverLetterText}
             onChangeText={setCoverLetterText}
-            onRegenerate={regenerateCoverLetter}
+            tone={tone}
+            onChangeTone={setTone}
+            template={template}
+            onChangeTemplate={setTemplate}
+            onRegenerate={() => regenerateCoverLetter({ tone, template })}
             onSave={() => saveApplicationDraft('saved')}
+            onExportPDF={handleExportPDF}
             isSaving={isSaving}
             status={status}
+            wordCount={wordCount}
+            characterCount={characterCount}
+            verifiedFactsCount={verifiedFactsCount}
+            atsScore={atsAnalysis?.matchScore || 0}
           />
         </div>
 
