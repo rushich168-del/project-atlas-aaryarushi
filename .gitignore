@@ -19,3 +19,8 @@ demo-files/~$*
 
 # Accidental PowerShell/test file
 Test-Path
+
+# AI Agent & IDE workspaces
+.claude/
+.serena/
+.qodo/
