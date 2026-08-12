@@ -174,6 +174,7 @@ export function calculateJobMatch(job = {}, profile = {}, skills = [], experienc
     experienceScore,
     keywordScore,
     educationScore,
+    resumeScore,
     matchedSkills,
     developingSkills,
     missingSkills,

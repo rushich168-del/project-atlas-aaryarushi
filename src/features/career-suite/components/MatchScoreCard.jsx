@@ -1,7 +1,7 @@
 import { Target, CheckCircle2, AlertCircle, TrendingUp } from 'lucide-react'
 
 export function MatchScoreCard({ analysis }) {
-  const { matchScore, skillScore, experienceScore, keywordScore, educationScore } = analysis
+  const { matchScore, skillScore, experienceScore, keywordScore, educationScore, resumeScore = 80 } = analysis
 
   const scoreLevel = matchScore >= 80
     ? { label: 'Strong Fit', color: 'text-emerald-700 bg-emerald-50 border-emerald-200' }
@@ -23,7 +23,7 @@ export function MatchScoreCard({ analysis }) {
           </div>
           <h3 className="mt-2 text-lg font-black text-slate-900">Job Fit & ATS Match Score</h3>
           <p className="text-xs text-slate-500">
-            Weighted calculation across required skills (35%), experience (25%), keywords (20%), and education (10%).
+            Weighted calculation across required skills (35%), experience (25%), keywords (20%), education (10%), and resume completeness (10%).
           </p>
         </div>
 
@@ -40,8 +40,8 @@ export function MatchScoreCard({ analysis }) {
         </div>
       </div>
 
-      {/* 4 Dimension Breakdown Bars */}
-      <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {/* 5 Dimension Breakdown Bars */}
+      <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <div className="rounded-lg border border-slate-100 bg-slate-50/70 p-3.5">
           <div className="flex items-center justify-between text-xs">
             <span className="font-semibold text-slate-600">Skills (35%)</span>
@@ -79,6 +79,16 @@ export function MatchScoreCard({ analysis }) {
           </div>
           <div className="mt-2 h-1.5 w-full rounded-full bg-slate-200">
             <div className="h-1.5 rounded-full bg-teal-600" style={{ width: `${educationScore}%` }} />
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-slate-100 bg-slate-50/70 p-3.5">
+          <div className="flex items-center justify-between text-xs">
+            <span className="font-semibold text-slate-600">Resume (10%)</span>
+            <span className="font-bold text-teal-700">{resumeScore}%</span>
+          </div>
+          <div className="mt-2 h-1.5 w-full rounded-full bg-slate-200">
+            <div className="h-1.5 rounded-full bg-teal-600" style={{ width: `${resumeScore}%` }} />
           </div>
         </div>
       </div>

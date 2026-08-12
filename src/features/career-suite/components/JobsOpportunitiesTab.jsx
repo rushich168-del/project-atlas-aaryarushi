@@ -19,12 +19,14 @@ import {
   Filter,
   RotateCw,
   Target,
+  Sparkles,
 } from 'lucide-react'
 import { useJobs } from '../hooks/useJobs.js'
 import { useResumes } from '../hooks/useResumes.js'
 import { useCareerProfile } from '../hooks/useCareerProfile.js'
 import { useJobMatch } from '../hooks/useJobMatch.js'
 import { JobMatchAnalyzer } from './JobMatchAnalyzer.jsx'
+import { ApplicationAssistantModal } from './ApplicationAssistantModal.jsx'
 
 const statusStages = [
   { id: 'saved', label: 'Saved', color: 'border-slate-300 bg-slate-50 text-slate-700' },
@@ -57,6 +59,8 @@ export function JobsOpportunitiesTab() {
   const { profile } = useCareerProfile()
   const { analyzeJob, analysis } = useJobMatch()
   const [analyzingModalJob, setAnalyzingModalJob] = useState(null)
+  const [assistantJob, setAssistantJob] = useState(null)
+  const [assistantApp, setAssistantApp] = useState(null)
 
   const [activeView, setActiveView] = useState('jobs') // 'jobs' | 'tracker'
   const [statusFilter, setStatusFilter] = useState('all')
@@ -638,11 +642,25 @@ export function JobsOpportunitiesTab() {
                           analyzeJob(job)
                           setAnalyzingModalJob(job)
                         }}
-                        className="focus-ring inline-flex items-center justify-center gap-1.5 rounded-lg border border-teal-200 bg-teal-50 px-3 py-2 text-xs font-bold text-teal-800 transition hover:bg-teal-100"
+                        className="focus-ring inline-flex items-center justify-center gap-1.5 rounded-lg border border-teal-200 bg-teal-50 px-2.5 py-2 text-xs font-bold text-teal-800 transition hover:bg-teal-100"
                         title="Analyze deterministic ATS Match Score"
                       >
                         <Target size={14} className="text-teal-600" />
                         <span>ATS Match</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAssistantJob(job)
+                          const linkedApp = applications.find((a) => a.job_id === job.id)
+                          setAssistantApp(linkedApp || null)
+                        }}
+                        className="focus-ring inline-flex items-center justify-center gap-1.5 rounded-lg border border-teal-200 bg-teal-50 px-2.5 py-2 text-xs font-bold text-teal-800 transition hover:bg-teal-100"
+                        title="Open Application Assistant (Tailored Bullets & Cover Letter)"
+                      >
+                        <Sparkles size={14} className="text-teal-600" />
+                        <span>Assistant</span>
                       </button>
 
                       {isAlreadyTracked ? (
@@ -747,6 +765,19 @@ export function JobsOpportunitiesTab() {
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAssistantJob(job)
+                          setAssistantApp(app)
+                        }}
+                        className="focus-ring inline-flex items-center gap-1 rounded-lg border border-teal-200 bg-teal-50 px-2.5 py-1.5 text-xs font-bold text-teal-800 transition hover:bg-teal-100"
+                        title="Open Application Assistant"
+                      >
+                        <Sparkles size={13} className="text-teal-600" />
+                        <span>Assistant</span>
+                      </button>
+
                       <div className="flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-xs">
                         <span className="text-[11px] font-semibold text-slate-500">Stage:</span>
                         <select
@@ -791,6 +822,24 @@ export function JobsOpportunitiesTab() {
             setTrackingJob(analyzingModalJob)
             setSelectedResumeId(resumeId)
             setAnalyzingModalJob(null)
+          }}
+        />
+      )}
+
+      {/* 7. Application Assistant Modal */}
+      {assistantJob && (
+        <ApplicationAssistantModal
+          job={assistantJob}
+          application={assistantApp}
+          onClose={() => {
+            setAssistantJob(null)
+            setAssistantApp(null)
+          }}
+          onAttachResume={(resumeId) => {
+            setTrackingJob(assistantJob)
+            setSelectedResumeId(resumeId)
+            setAssistantJob(null)
+            setAssistantApp(null)
           }}
         />
       )}
