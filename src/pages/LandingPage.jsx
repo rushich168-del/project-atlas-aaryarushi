@@ -56,6 +56,7 @@ const productSuiteGroups = [
     description: 'Admin-ready document and communication preparation for people and operations teams.',
     products: [
       { name: 'AR-IDCARD-PRO', status: 'Product workspace', action: 'Open Workspace', href: '/dashboard/products/ar-idcard-pro/workspace', description: 'Text-based student and employee ID card documents. Photo areas stay manual in the template.' },
+      { name: 'AR-OFFER-LETTER-PRO', status: 'Product workspace', action: 'Open Workspace', href: '/dashboard/products/ar-offer-letter-pro/workspace', description: 'Offer letters prepared from candidate Excel data and Word templates through the shared DOCX workspace.' },
       { name: 'AR-MAIL-PRO', status: 'Mail preparation', action: 'Open Product', href: '/dashboard/products/ar-mail-pro', description: 'Mail preparation workspace with dry-run validation only. No real row-recipient emails are sent.' },
     ],
   },

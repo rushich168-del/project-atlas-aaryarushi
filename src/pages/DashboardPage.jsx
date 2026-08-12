@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Activity, Boxes, CheckCircle2, Clock3, FileClock, FileText, Layers3, UploadCloud } from 'lucide-react'
+import { Activity, Boxes, Briefcase, CheckCircle2, Clock3, FileClock, FileText, Layers3, UploadCloud } from 'lucide-react'
 import DataStateBanner from '../components/dashboard/DataStateBanner.jsx'
 import DashboardLayout from '../components/dashboard/DashboardLayout.jsx'
 import EnvironmentBanner from '../components/dashboard/EnvironmentBanner.jsx'
@@ -138,13 +138,15 @@ export default function DashboardPage() {
       buttonLabel: 'Open Workspace',
     },
     {
-      label: 'Offer Letter Engine',
-      productCode: 'AR-OFFER-PRO',
-      summary: 'Offer letters generated from HR data and standard templates.',
-      suiteLabel: 'HR / Admin Suite',
-      status: 'Request setup',
-      badge: 'Request setup',
-      active: false,
+      label: 'Offer Letter Generator',
+      productCode: 'AR-OFFER-LETTER-PRO',
+      summary: 'Offer letter document workflow runs through the shared DOCX workspace.',
+      suiteLabel: 'HR / Admin / Offer Letters',
+      status: 'Product workspace',
+      badge: 'Product workspace',
+      active: true,
+      href: '/dashboard/products/ar-offer-letter-pro/workspace',
+      buttonLabel: 'Open Workspace',
     },
     {
       label: 'Payslip Engine',
@@ -283,6 +285,21 @@ export default function DashboardPage() {
         </section>
 
         <section className="mt-5 grid gap-4 lg:grid-cols-4">
+          <div className="rounded-lg border border-teal-200 bg-teal-50/40 p-5 shadow-sm">
+            <div className="flex h-10 w-10 items-center justify-center rounded-md bg-teal-500 text-white shadow-sm">
+              <Briefcase size={19} aria-hidden="true" />
+            </div>
+            <h3 className="mt-4 text-xs font-semibold uppercase tracking-[0.16em] text-teal-700">Major Suite</h3>
+            <p className="mt-2 text-lg font-semibold text-primary">Career Suite Workspace</p>
+            <p className="mt-2 text-sm leading-6 text-slate-600">Access Career Profile, Resume Builder, Job Discovery, Interview Prep, and Portfolio showcase.</p>
+            <button
+              type="button"
+              onClick={() => navigateTo('/dashboard/career-suite')}
+              className="focus-ring mt-4 inline-flex min-h-10 items-center justify-center rounded-md bg-teal-600 px-3.5 text-sm font-semibold text-white transition hover:bg-teal-700"
+            >
+              Open Career Suite
+            </button>
+          </div>
           <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
             <div className="flex h-10 w-10 items-center justify-center rounded-md bg-slate-100 text-primary">
               <FileText size={19} aria-hidden="true" />

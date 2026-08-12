@@ -1,4 +1,4 @@
-import { FileStack, History, LayoutDashboard, Package, Settings, ShieldCheck, Sparkles, UploadCloud } from 'lucide-react'
+import { Briefcase, FileStack, History, LayoutDashboard, Package, Settings, ShieldCheck, Sparkles, UploadCloud } from 'lucide-react'
 import { useWorkspace } from '../../hooks/useWorkspace.js'
 import { useIsAppAdmin } from '../../hooks/useIsAppAdmin.js'
 import { navigateTo } from '../../utils/routes.js'
@@ -6,6 +6,7 @@ import UserMenu from './UserMenu.jsx'
 
 export const moduleNavItems = [
   { id: 'dashboard', label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
+  { id: 'career-suite', label: 'Career Suite', path: '/dashboard/career-suite', icon: Briefcase },
   { id: 'products', label: 'Products', path: '/dashboard/products', icon: Package },
   { id: 'templates', label: 'Templates', path: '/dashboard/templates', icon: FileStack },
   { id: 'uploads', label: 'Uploads', path: '/dashboard/uploads', icon: UploadCloud },

@@ -105,6 +105,17 @@ const rawSampleStarters = {
       { ReceiptNo: 'RCPT-002', ReceiptDate: 'July 6, 2026', StudentName: 'Meera Nair', RollNo: 'ROLL-002', Class: 'Class 9', FeeType: 'Transport', AmountPaid: '1200', PaymentMode: 'Cash', Balance: '300' },
     ],
   },
+  'ar-offer-letter-pro': {
+    productName: 'AR-OFFER-LETTER-PRO',
+    templateLabel: 'Offer letter template',
+    excelLabel: 'Candidate details Excel',
+    outputLabel: 'Offer letters',
+    placeholders: ['{{CandidateName}}', '{{JobTitle}}', '{{Department}}', '{{JoiningDate}}', '{{Salary}}', '{{CompanyName}}', '{{HRName}}'],
+    rows: [
+      { CandidateName: 'Priya Sharma', JobTitle: 'Junior Administrator', Department: 'Administration', JoiningDate: 'July 15, 2026', Salary: '₹25,000 per month', CompanyName: 'AaryaRushi Automation Labs', HRName: 'Rushi Cherukuri' },
+      { CandidateName: 'Rahul Kumar', JobTitle: 'Office Coordinator', Department: 'Operations', JoiningDate: 'July 20, 2026', Salary: '₹28,000 per month', CompanyName: 'AaryaRushi Automation Labs', HRName: 'Rushi Cherukuri' },
+    ],
+  },
 }
 
 export const sampleStarters = Object.fromEntries(

@@ -16,11 +16,23 @@ export function AuthProvider({ children }) {
         return
       }
 
-      const { data } = await supabase.auth.getSession()
-
-      if (active) {
-        setSession(data.session)
-        setLoading(false)
+      try {
+        const { data, error } = await supabase.auth.getSession()
+        if (error) {
+          console.warn('[AuthContext] Failed to get auth session:', error.message)
+        }
+        if (active) {
+          setSession(data?.session || null)
+        }
+      } catch (err) {
+        console.warn('[AuthContext] Unexpected auth session failure:', err)
+        if (active) {
+          setSession(null)
+        }
+      } finally {
+        if (active) {
+          setLoading(false)
+        }
       }
     }
 
@@ -29,13 +41,15 @@ export function AuthProvider({ children }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-      setSession(nextSession)
-      setLoading(false)
+      if (active) {
+        setSession(nextSession)
+        setLoading(false)
+      }
     })
 
     return () => {
       active = false
-      subscription.unsubscribe()
+      subscription?.unsubscribe()
     }
   }, [])
 

@@ -9,6 +9,7 @@ const sharedDocxWorkspaceSlugs = new Set([
   'ar-idcard-pro',
   'ar-invoice-pro',
   'ar-fee-receipt-pro',
+  'ar-offer-letter-pro',
 ])
 
 export function filterProducts(products, searchTerm, statusFilter, categoryFilter, availabilityFilter = 'All') {

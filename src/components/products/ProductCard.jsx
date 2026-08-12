@@ -19,6 +19,7 @@ export default function ProductCard({ product }) {
     'ar-idcard-pro',
     'ar-invoice-pro',
     'ar-fee-receipt-pro',
+    'ar-offer-letter-pro',
   ].includes(product.slug)
   const isSafeDemo = product.status === 'Safe Demo'
   const isLaunchPrep = product.status === 'Launch Prep'

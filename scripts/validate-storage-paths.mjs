@@ -24,6 +24,7 @@ const SLUGS = [
   'ar-idcard-pro',
   'ar-invoice-pro',
   'ar-fee-receipt-pro',
+  'ar-offer-letter-pro',
 ]
 
 const ORG = 'org-1234'

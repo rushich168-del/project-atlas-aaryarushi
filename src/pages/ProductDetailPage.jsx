@@ -257,6 +257,7 @@ export default function ProductDetailPage({ slug }) {
   const isArWorksheetPro = product.slug === 'ar-worksheet-pro'
   const isArQuestionPro = product.slug === 'ar-question-pro'
   const isArFeeReceiptPro = product.slug === 'ar-fee-receipt-pro'
+  const isArOfferLetterPro = product.slug === 'ar-offer-letter-pro'
   const isArMailPro = product.slug === 'ar-mail-pro'
   const hasDedicatedWorkspace = isArCertPro
   const isSharedDocxWorkspace = [
@@ -267,6 +268,7 @@ export default function ProductDetailPage({ slug }) {
     'ar-idcard-pro',
     'ar-invoice-pro',
     'ar-fee-receipt-pro',
+    'ar-offer-letter-pro',
   ].includes(product.slug)
   const mainActionLabel = hasDedicatedWorkspace
     ? 'Open Workspace'
@@ -295,6 +297,13 @@ export default function ProductDetailPage({ slug }) {
         'Excel fee/student data with matching column headers',
         'Required placeholders such as ReceiptNo, ReceiptDate, StudentName, Class, FeeType, AmountPaid, and PaymentMode',
         'Preview one receipt row before DOCX generation',
+      ]
+      : isArOfferLetterPro
+      ? [
+        'Word offer letter template with {{ColumnName}} placeholders',
+        'Excel candidate data with matching column headers',
+        'Required placeholders such as CandidateName, JobTitle, Department, JoiningDate, Salary, and CompanyName',
+        'Preview one candidate row before DOCX generation',
       ]
       : isArCertPro
         ? [

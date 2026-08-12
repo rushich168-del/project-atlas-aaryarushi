@@ -3,6 +3,7 @@ import { Loader2 } from 'lucide-react'
 import ProtectedRoute from './components/auth/ProtectedRoute.jsx'
 import { useAuth } from './context/AuthContext.jsx'
 import AdminInquiriesPage from './pages/AdminInquiriesPage.jsx'
+import CareerSuitePage from './pages/CareerSuitePage.jsx'
 import DashboardPage from './pages/DashboardPage.jsx'
 import HistoryPage from './pages/HistoryPage.jsx'
 import LandingPage from './pages/LandingPage.jsx'
@@ -11,6 +12,7 @@ import ModulePlaceholderPage from './pages/ModulePlaceholderPage.jsx'
 import ProductDetailPage from './pages/ProductDetailPage.jsx'
 import ProductWorkspacePage from './pages/ProductWorkspacePage.jsx'
 import ProductsPage from './pages/ProductsPage.jsx'
+import PublicCareerProfilePage from './pages/PublicCareerProfilePage.jsx'
 import SignupPage from './pages/SignupPage.jsx'
 import { getCurrentPath } from './utils/routes.js'
 
@@ -54,6 +56,11 @@ function App() {
 
   if ((path === '/login' || path === '/signup') && session) {
     return <AuthRedirect to="/dashboard" />
+  }
+
+  if (path.startsWith('/career/p/')) {
+    const slug = path.replace('/career/p/', '').split('/')[0].split('?')[0]
+    return <PublicCareerProfilePage slug={slug} />
   }
 
   if (path === '/login') {
@@ -101,6 +108,14 @@ function App() {
     return (
       <ProtectedRoute>
         <AdminInquiriesPage />
+      </ProtectedRoute>
+    )
+  }
+
+  if (path.startsWith('/dashboard/career-suite')) {
+    return (
+      <ProtectedRoute>
+        <CareerSuitePage />
       </ProtectedRoute>
     )
   }
