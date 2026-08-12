@@ -18,10 +18,13 @@ import {
   ChevronRight,
   Filter,
   RotateCw,
+  Target,
 } from 'lucide-react'
 import { useJobs } from '../hooks/useJobs.js'
 import { useResumes } from '../hooks/useResumes.js'
 import { useCareerProfile } from '../hooks/useCareerProfile.js'
+import { useJobMatch } from '../hooks/useJobMatch.js'
+import { JobMatchAnalyzer } from './JobMatchAnalyzer.jsx'
 
 const statusStages = [
   { id: 'saved', label: 'Saved', color: 'border-slate-300 bg-slate-50 text-slate-700' },
@@ -52,6 +55,8 @@ export function JobsOpportunitiesTab() {
 
   const { resumes } = useResumes()
   const { profile } = useCareerProfile()
+  const { analyzeJob, analysis } = useJobMatch()
+  const [analyzingModalJob, setAnalyzingModalJob] = useState(null)
 
   const [activeView, setActiveView] = useState('jobs') // 'jobs' | 'tracker'
   const [statusFilter, setStatusFilter] = useState('all')
@@ -627,6 +632,19 @@ export function JobsOpportunitiesTab() {
                         </a>
                       )}
 
+                      <button
+                        type="button"
+                        onClick={() => {
+                          analyzeJob(job)
+                          setAnalyzingModalJob(job)
+                        }}
+                        className="focus-ring inline-flex items-center justify-center gap-1.5 rounded-lg border border-teal-200 bg-teal-50 px-3 py-2 text-xs font-bold text-teal-800 transition hover:bg-teal-100"
+                        title="Analyze deterministic ATS Match Score"
+                      >
+                        <Target size={14} className="text-teal-600" />
+                        <span>ATS Match</span>
+                      </button>
+
                       {isAlreadyTracked ? (
                         <button
                           type="button"
@@ -761,6 +779,20 @@ export function JobsOpportunitiesTab() {
             </div>
           )}
         </div>
+      )}
+
+      {/* 6. ATS Match Modal Analyzer */}
+      {analyzingModalJob && analysis && (
+        <JobMatchAnalyzer
+          job={analyzingModalJob}
+          analysis={analysis}
+          onClose={() => setAnalyzingModalJob(null)}
+          onAttachResume={(resumeId) => {
+            setTrackingJob(analyzingModalJob)
+            setSelectedResumeId(resumeId)
+            setAnalyzingModalJob(null)
+          }}
+        />
       )}
     </div>
   )

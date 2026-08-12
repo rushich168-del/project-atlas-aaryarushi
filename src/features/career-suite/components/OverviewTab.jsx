@@ -31,7 +31,7 @@ export function OverviewTab({ onNavigate }) {
       title: '3. Jobs & Opportunities',
       icon: Search,
       description: 'Job & Internship search, Intelligent recommendations, Matching score, Application Tracker, and Deadlines.',
-      capabilities: ['Opportunity Records', 'Application Tracker Pipeline', 'Resume Version Association', 'Stage Progression Engine'],
+      capabilities: ['Deterministic ATS Match Engine', 'Opportunity Records', 'Application Tracker Pipeline', 'Stage Progression Engine'],
       status: 'Live & Connected',
     },
     {
