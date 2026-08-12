@@ -16,8 +16,11 @@ import {
   ArrowRight,
   TrendingUp,
   Flame,
+  Zap,
 } from 'lucide-react'
 import { useSkillsInterview } from '../hooks/useSkillsInterview.js'
+import { useCareerProgress } from '../hooks/useCareerProgress.js'
+import { CareerProgressIntelligence } from './CareerProgressIntelligence.jsx'
 
 export function SkillsInterviewTab() {
   const {
@@ -35,7 +38,9 @@ export function SkillsInterviewTab() {
     savePractice,
   } = useSkillsInterview()
 
-  const [activeSubTab, setActiveSubTab] = useState('gap') // 'gap' | 'roadmap' | 'interview'
+  const { progressIntelligence } = useCareerProgress()
+
+  const [activeSubTab, setActiveSubTab] = useState('progress') // 'progress' | 'gap' | 'roadmap' | 'interview'
   const [matrixFilter, setMatrixFilter] = useState('all') // 'all' | 'Strong' | 'Developing' | 'Missing'
 
   // Practice Modal State
@@ -82,6 +87,18 @@ export function SkillsInterviewTab() {
       {/* 1. Module Sub-Tab Switcher & Role Selector */}
       <div className="flex flex-col gap-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setActiveSubTab('progress')}
+            className={`focus-ring inline-flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-semibold transition ${
+              activeSubTab === 'progress'
+                ? 'bg-teal-600 text-white shadow-sm'
+                : 'border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100'
+            }`}
+          >
+            <Zap size={14} />
+            Progress Intelligence
+          </button>
           <button
             type="button"
             onClick={() => setActiveSubTab('gap')}
@@ -136,7 +153,18 @@ export function SkillsInterviewTab() {
         </div>
       </div>
 
-      {/* 2. SUB-TAB A: Skill Gap Analysis */}
+      {/* 2. SUB-TAB 0: Career Progress Intelligence */}
+      {activeSubTab === 'progress' && (
+        <CareerProgressIntelligence
+          progressIntelligence={progressIntelligence}
+          onUpdateStatus={updateItemStatus}
+          onNavigateToRoadmap={() => setActiveSubTab('roadmap')}
+          onNavigateToInterview={() => setActiveSubTab('interview')}
+          onNavigateToJobs={() => {}}
+        />
+      )}
+
+      {/* 3. SUB-TAB A: Skill Gap Analysis */}
       {activeSubTab === 'gap' && (
         <div className="space-y-6">
           {/* Readiness Score & Summary Counters */}
