@@ -102,10 +102,11 @@ export const interviewQuestionsLibrary = [
 // 3. Deterministic Skill Gap Calculator
 export function calculateSkillGaps(userSkills = [], targetRoleName = 'Senior Full Stack Engineer / Technical Lead') {
   const requirements = roleRequirementsTaxonomy[targetRoleName] || roleRequirementsTaxonomy['General Software Engineer']
+  const safeSkills = Array.isArray(userSkills) ? userSkills.filter((s) => s && typeof s.name === 'string') : []
 
   const matrix = requirements.map((req) => {
     // Find matching user skill
-    const userMatch = userSkills.find(
+    const userMatch = safeSkills.find(
       (s) => s.name.toLowerCase().trim() === req.skill_name.toLowerCase().trim()
     )
 

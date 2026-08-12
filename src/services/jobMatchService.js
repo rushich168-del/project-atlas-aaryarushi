@@ -46,9 +46,16 @@ export function extractKeywords(text = '') {
 }
 
 export function calculateJobMatch(job = {}, profile = {}, skills = [], experience = [], education = [], resumes = [], weights = DEFAULT_ATS_WEIGHTS) {
+  const safeJob = job || {}
+  const safeProfile = profile || {}
+  const safeSkills = Array.isArray(skills) ? skills.filter((s) => s && typeof s.name === 'string') : []
+  const safeExperience = Array.isArray(experience) ? experience.filter((e) => e && typeof e === 'object') : []
+  const safeEducation = Array.isArray(education) ? education.filter((e) => e && typeof e === 'object') : []
+  const safeResumes = Array.isArray(resumes) ? resumes.filter((r) => r && typeof r === 'object') : []
+
   // 1. Skill Match Evaluation (35%)
-  const jobSkills = Array.isArray(job.skills) && job.skills.length > 0
-    ? job.skills
+  const jobSkills = Array.isArray(safeJob.skills) && safeJob.skills.length > 0
+    ? safeJob.skills
     : ['React', 'Node.js', 'PostgreSQL', 'System Architecture']
 
   const matchedSkills = []
@@ -57,7 +64,7 @@ export function calculateJobMatch(job = {}, profile = {}, skills = [], experienc
 
   jobSkills.forEach((reqSkill) => {
     const normalizedReq = reqSkill.toLowerCase().trim()
-    const found = skills.find((s) => s.name.toLowerCase().trim().includes(normalizedReq) || normalizedReq.includes(s.name.toLowerCase().trim()))
+    const found = safeSkills.find((s) => s.name.toLowerCase().trim().includes(normalizedReq) || normalizedReq.includes(s.name.toLowerCase().trim()))
 
     if (found) {
       if (['Advanced', 'Expert'].includes(found.proficiency)) {
@@ -76,8 +83,8 @@ export function calculateJobMatch(job = {}, profile = {}, skills = [], experienc
     : 80
 
   // 2. Experience Match Evaluation (25%)
-  const expCount = experience.length
-  const hasLeadRole = experience.some((e) => /lead|architect|senior|manager/i.test(e.title || ''))
+  const expCount = safeExperience.length
+  const hasLeadRole = safeExperience.some((e) => /lead|architect|senior|manager/i.test(e.title || ''))
   let experienceScore = 50
   if (expCount >= 3) experienceScore = 95
   else if (expCount === 2) experienceScore = 85
@@ -85,9 +92,9 @@ export function calculateJobMatch(job = {}, profile = {}, skills = [], experienc
   if (hasLeadRole) experienceScore = Math.min(100, experienceScore + 5)
 
   // 3. Keyword Match Evaluation (20%)
-  const jobText = `${job.title || ''} ${job.description || ''} ${jobSkills.join(' ')}`
+  const jobText = `${safeJob.title || ''} ${safeJob.description || ''} ${jobSkills.join(' ')}`
   const targetKeywords = extractKeywords(jobText)
-  const candidateText = `${profile.headline || ''} ${profile.summary || ''} ${skills.map((s) => s.name).join(' ')} ${experience.map((e) => `${e.title} ${e.achievements}`).join(' ')}`.toLowerCase()
+  const candidateText = `${safeProfile.headline || ''} ${safeProfile.summary || ''} ${safeSkills.map((s) => s.name).join(' ')} ${safeExperience.map((e) => `${e.title || ''} ${e.achievements || ''}`).join(' ')}`.toLowerCase()
 
   const matchedKeywords = []
   const missingKeywords = []
@@ -106,11 +113,11 @@ export function calculateJobMatch(job = {}, profile = {}, skills = [], experienc
     : 85
 
   // 4. Education Match Evaluation (10%)
-  const eduCount = education.length
+  const eduCount = safeEducation.length
   const educationScore = eduCount > 0 ? 95 : 60
 
   // 5. Resume Completeness & Coverage (10%)
-  const resumeScore = resumes.length > 0 ? 90 : 50
+  const resumeScore = safeResumes.length > 0 ? 90 : 50
 
   // Overall Weighted Score
   const rawScore = (
@@ -124,8 +131,8 @@ export function calculateJobMatch(job = {}, profile = {}, skills = [], experienc
   const matchScore = Math.max(0, Math.min(100, Math.round(rawScore)))
 
   // 6. Resume Recommendation
-  const rankedResumes = resumes.map((resume) => {
-    const resumeSkills = resume.skills || []
+  const rankedResumes = safeResumes.map((resume) => {
+    const resumeSkills = Array.isArray(resume.skills) ? resume.skills : []
     let resumeSkillMatches = 0
     jobSkills.forEach((js) => {
       if (resumeSkills.some((rs) => rs.toLowerCase().includes(js.toLowerCase()) || js.toLowerCase().includes(rs.toLowerCase()))) {
@@ -133,7 +140,7 @@ export function calculateJobMatch(job = {}, profile = {}, skills = [], experienc
       }
     })
 
-    const titleAlignment = (resume.target_role || '').toLowerCase().includes((job.title || '').toLowerCase()) || (job.title || '').toLowerCase().includes((resume.target_role || '').toLowerCase())
+    const titleAlignment = (resume.target_role || '').toLowerCase().includes((safeJob.title || '').toLowerCase()) || (safeJob.title || '').toLowerCase().includes((resume.target_role || '').toLowerCase())
     const alignmentScore = Math.min(100, Math.round(((resumeSkillMatches / (jobSkills.length || 1)) * 60) + (titleAlignment ? 40 : 20)))
 
     return {
